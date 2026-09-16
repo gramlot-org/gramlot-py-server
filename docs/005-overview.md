@@ -27,3 +27,9 @@ Flask request integration belongs here; shared Source, Data, bindings, controlle
 Block ID: **GFL-005-015**.
 
 Develop on `develop`; consolidate verified, owner-accepted work into `main`. Publication and deployment need separate authorization. External search, translation, password-reset email and background exports are not configured; this is a local demonstration, not a production deployment.
+
+The explorer is labeled as a Gramlot SPA example. It presents member statistics,
+a read-only posts grid with bound selected-post preview, a toggleable read-only
+Python source viewer and an inspector icon. All interactions use shared Gramlot
+components and Data bindings. The source viewer displays the registered page
+snapshot; it does not read arbitrary files.

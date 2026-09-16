@@ -21,7 +21,9 @@ uv run gramlot-flask
 Open http://127.0.0.1:8073/ and sign in as **demo**, password **gramlot-demo**.
 The **Gramlot** navigation link opens the community explorer. Search for a member
 to see their profile, follower counts and latest posts, or open the original
-Microblog profile. Both interfaces use the same database and login session.
+Microblog profile. A posts grid drives the selected-post preview. The SPA header
+includes a Python source button and an inspector icon. Both interfaces use the
+same database and login session.
 
 The first run seeds six users, 24 posts, follow relationships and six messages.
 The separate SQLite demo database persists in the platform's `gramlot-flask`

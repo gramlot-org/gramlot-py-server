@@ -27,3 +27,9 @@ Flask hosting lives here; shared UI/state/behavior remains in Gramlot. Plain hos
 Block ID: **GFL-005-015**.
 
 Work on `develop`; consolidate verified, owner-accepted changes into `main`. Publication/deployment need separate authorization. The local demo does not configure external search, translation, reset emails or background exports.
+
+The explorer is labeled as a Gramlot SPA example. It presents member statistics,
+a read-only posts grid with bound selected-post preview, a toggleable read-only
+Python source viewer and an inspector icon. All interactions use shared Gramlot
+components and Data bindings. The source viewer displays the registered page
+snapshot; it does not read arbitrary files.

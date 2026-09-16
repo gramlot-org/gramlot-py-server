@@ -10,7 +10,7 @@ Document ID: **GFL-005**.
 
 Block ID: **GFL-005-005**.
 
-This repository is the future Flask host adapter for Gramlot. Only the package namespace, tooling and documentation exist. No page API, server command, demo or runtime compatibility has been implemented or verified.
+Flask hosting and the Microblog integration demo are implemented as an experimental preview, using the checksummed Gramlot 0.1.5 PoC wheel. This is not a consolidated core release. The default `gramlot-flask` command serves Microblog on loopback port 8073; use demo / gramlot-demo to sign in.
 
 <a id="gfl-005-010"></a>
 
@@ -18,12 +18,12 @@ This repository is the future Flask host adapter for Gramlot. Only the package n
 
 Block ID: **GFL-005-010**.
 
-Flask-specific hosting belongs here. Source, Data Bags, bindings, controllers, resolvers and shared components belong to Gramlot. SQLAlchemy is an independent optional database adapter. Plain hosting must not require a database.
+Flask request integration belongs here; shared Source, Data, bindings, controllers, resolvers and components remain in Gramlot. Plain hosting needs no database. The optional Microblog demo uses its own ORM and the shared read-only SQLAlchemy selector. It adds a Gramlot user/profile/post explorer to the original host application.
 
 <a id="gfl-005-015"></a>
 
-## 015 · Reference and branches
+## 015 · Development and branches
 
 Block ID: **GFL-005-015**.
 
-The repository follows the layout of gramlot-genro-asgi and the ownership boundaries of gramlot-fastapi. Develop new work on `develop`; consolidate verified and owner-accepted work into `main`. Publication and deployment require separate owner authorization.
+Develop on `develop`; consolidate verified, owner-accepted work into `main`. Publication and deployment need separate authorization. External search, translation, password-reset email and background exports are not configured; this is a local demonstration, not a production deployment.

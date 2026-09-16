@@ -10,7 +10,7 @@ Document ID: **GFL-005**.
 
 Block ID: **GFL-005-005**.
 
-This is the future Flask host adapter. The scaffold contains a namespace, tooling and documentation only; no page API, CLI, demo or runtime compatibility is verified.
+Experimental Flask adapter and Microblog demo using the checksummed Gramlot 0.1.5 PoC wheel, not a consolidated core release. Run `gramlot-flask`: loopback port 8073; login demo / gramlot-demo.
 
 <a id="gfl-005-010"></a>
 
@@ -18,12 +18,12 @@ This is the future Flask host adapter. The scaffold contains a namespace, toolin
 
 Block ID: **GFL-005-010**.
 
-Keep Flask hosting here and shared UI/state/behavior contracts in Gramlot. SQLAlchemy is independently optional; plain hosting must need no database.
+Flask hosting lives here; shared UI/state/behavior remains in Gramlot. Plain hosting needs no database. The optional demo combines Microblog ORM/login with Gramlot’s read-only SQLAlchemy selector and a user/profile/post explorer.
 
 <a id="gfl-005-015"></a>
 
-## 015 · Reference and branches
+## 015 · Development and branches
 
 Block ID: **GFL-005-015**.
 
-Follow the Genro ASGI layout and FastAPI ownership boundary. Develop on `develop`; move verified, owner-accepted work to `main`. Publication and deployment need separate authorization.
+Work on `develop`; consolidate verified, owner-accepted changes into `main`. Publication/deployment need separate authorization. The local demo does not configure external search, translation, reset emails or background exports.

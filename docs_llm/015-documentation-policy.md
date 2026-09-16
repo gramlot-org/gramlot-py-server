@@ -18,7 +18,7 @@ Follow constitution section 9 and GC-005. Use GFL identities, three-digit filena
 
 Block ID: **GFL-015-010**.
 
-Use the default classic `sphinx_rtd_theme`, Gramlot logo and scaffold notice. Public docs follow `main`; `develop` previews are separate. Read the Docs configuration does not connect the external service.
+Use the default classic `sphinx_rtd_theme`, Gramlot logo and experimental preview notice. Public docs follow `main`; `develop` previews are separate. Read the Docs configuration does not connect the external service.
 
 <a id="gfl-015-015"></a>
 

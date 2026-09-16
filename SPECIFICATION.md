@@ -1,54 +1,61 @@
-# gramlot-flask: initial scope
+# gramlot-flask: scope and implementation
 
-## Recorded owner request — 2026-09-16
+## Purpose
 
-Set up a separate `gramlot-flask` repository using the same system as
-`gramlot-fastapi` and `gramlot-genro-asgi`. Keep Flask hosting independent from
-SQLAlchemy database access. The repository is a sibling under the canonical
-`/Users/gporcari/Sviluppo/gramlot` workspace.
+Provide Flask hosting for Gramlot, with database choice independent of the host.
+The default CLI starts Microblog with an added Gramlot community explorer.
 
-## Delivered scaffold
+## Implemented experimental contract
 
-Package namespace, Apache 2.0 notices, development metadata, Git hooks, mandatory
-lint/documentation checks, conditional behavior tests, package verification in CI,
-Sphinx with the classic Read the Docs theme and Gramlot logo, paired guides with
-GFL stable identities, and Read the Docs configuration. No external hosting setup,
-package publication or deployment is part of this scaffold.
+- `mount_gramlot(app, directory, prefix="/gramlot", title="Gramlot",
+  db_handler=None, access_check=None)` registers HTML, recipe, typed Source/Data
+  services and the shared browser assets. Pages are discovered once; each service
+  invocation gets a fresh page through Gramlot's shared PageRegistry.
+- Synchronous WSGI views bridge to the shared async invocation on the request
+  thread. Flask context and ORM sessions remain request-scoped. This is not a
+  general ASGI/WebSocket/streaming integration.
+- Explicit role/method registration, TYTX content-type and parameter checks apply
+  to services. Unexpected failures return a generic error and log server details.
+  Public runtime assets are cached immutably; page/service responses use no-store.
+- Caller-owned `access_check` runs before all page/recipe/service routes. The demo
+  requires the original Microblog login for every data-bearing Gramlot route.
+  Typed POSTs do not accept browser form content types; no cross-origin access is
+  enabled. This is not a general-purpose authentication or CSRF middleware API.
+- `gramlot-flask` defaults to `demo`; `demo --data-dir ... --port ...` selects a
+  separate persistent SQLite database. The CLI binds to 127.0.0.1, disables debug
+  and reload, and releases database resources at shutdown.
+- `serve DIRECTORY` hosts ordinary Gramlot pages without the demo/database extras.
 
-References inspected: `gramlot-genro-asgi` commit `db1fd06` (layout and tooling),
-`gramlot-fastapi` commit `17c2698` (host/database separation), and the Gramlot
-constitution sections 2, 3, 7, 8, 9 and 10. No PoC runtime code is copied.
+## Demo ownership
 
-## Ownership
+Microblog app/config source at revision a975ef64864354867c88e0ed3a17ba7d17dca752
+is bundled unchanged under its MIT license. A wrapper supplies configuration,
+fixtures and a navigation overlay. No upstream private data or database is copied.
+The default six accounts use password `gramlot-demo`; they are demonstration data.
 
-The adapter will depend on Flask and an explicitly selected Gramlot runtime; the
-core must not import Flask. Shared runtime delivery, page services and database
-contracts belong to Gramlot. Flask request contexts, registration, responses,
-error mapping and lifecycle integration belong here. SQLAlchemy remains a separate
-optional database choice; plain hosting must neither install nor import it.
+The Gramlot page uses Source, Data bindings, dbSelect and remote Source. Its
+read-only selector reuses Gramlot's SQLAlchemy SqliteDbHandler. Profile and post
+services query Microblog's existing ORM models within Flask's request context;
+they do not implement another database adapter. Microblog owns ORM session cleanup;
+the CLI owns SqliteDbHandler shutdown. The page exposes public profile/post fields,
+not email addresses, credentials or private messages.
 
-## First bounded implementation
+## Runtime provenance and review
 
-1. Inventory accepted core contracts and separately identify experimental PoC
-   evidence. Select and record an available runtime version and provenance; do
-   not label a PoC dependency as the consolidated core.
-2. Define the Flask integration surface, URL prefix, application isolation,
-   request context, resource delivery and error behavior before claiming an API.
-3. Implement one Python-authored Gramlot page using shared browser assets and
-   services, with no application-local DOM/event/request substitutes.
-4. Verify page delivery, safe resource paths, service dispatch and errors, cleanup,
-   multiple Flask applications, WSGI hosting and installed-wheel use.
-5. Add a bounded SQLAlchemy example reusing the existing data contract, with
-   explicit handler/session ownership. Verify plain hosting without SQLAlchemy
-   independently from the database profile.
-6. Record the implementation, omissions and meaningful test evidence in a bounded
-   port/review record, and update both documentation views before acceptance.
+The adapter depends on the checksummed experimental Gramlot 0.1.5 wheel distributed
+with the Django preview. That wheel provides shared page dispatch, authoring,
+transport, SQLAlchemy selection and packaged browser assets. It is not an accepted
+consolidated core release. The clean core's architectural constitution and port
+protocol remain authoritative. See ports/PORT-0001-flask-microblog-demo/README.md.
 
-## Open decisions and limitations
+## Limits and open work
 
-No public application class, extension factory, CLI, authentication integration,
-service protocol, async/streaming/WebSocket support or version compatibility is
-established here. No Genropy database profile is promised. Flask's request and
-application lifecycle must be reviewed against the actual selected runtime.
-The first runtime dependency may require a separate experimental track while
-accepted core ports are unavailable. This scaffold does not resolve that choice.
+No production deployment, package publication or external documentation setup is
+included. External Elasticsearch search, translation, password-reset email and
+background exports are unavailable in the demo. Original templates use CDN assets.
+Full Microblog feature coverage and cross-database portability are not claimed.
+The explorer shows at most 20 latest posts per user; it does not edit records.
+Microblog's conventional `app` and `config` imports require a dedicated demo
+process. The reusable Flask adapter has no such import restriction.
+No general Live Object Tree semantics, capability protocol or dataRecord contract
+is introduced. Adoption by the consolidated core needs separate destination review.

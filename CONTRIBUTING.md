@@ -9,8 +9,7 @@ Validate distribution changes with `uv run python -m build` and
 `uv run python -m twine check dist/*`.
 
 Add real host and application behavior tests with the first implementation;
-do not substitute mocks for available integration infrastructure. The initial
-scaffold has no application behavior and no claimed application test coverage.
+do not substitute mocks for available integration infrastructure. Keep installed-wheel and plain-host isolation checks alongside the demo tests.
 Document public behavior and runtime dependencies in the same change.
 
 Keep code, documentation and commit messages in English. Use focused conventional

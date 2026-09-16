@@ -30,6 +30,10 @@ jobs:
       - name: Verify installed wheel outside the checkout
         run: |
           python -m venv "$RUNNER_TEMP/wheel-check"
-          "$RUNNER_TEMP/wheel-check/bin/python" -m pip install --no-deps dist/*.whl
+          wheel=$(realpath dist/*.whl)
+          "$RUNNER_TEMP/wheel-check/bin/python" -m pip install "$wheel"
+          cp scripts/check_installed.py "$RUNNER_TEMP/check_installed.py"
           cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/wheel-check/bin/python" -I -c 'import gramlot_flask; from importlib.metadata import version; print(version("gramlot-flask"))'
+          "$RUNNER_TEMP/wheel-check/bin/python" -I check_installed.py
+          "$RUNNER_TEMP/wheel-check/bin/python" -m pip install "${wheel}[demo]"
+          "$RUNNER_TEMP/wheel-check/bin/python" -I check_installed.py --demo

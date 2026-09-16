@@ -10,7 +10,7 @@ Document ID: **GFL-010**.
 
 Block ID: **GFL-010-005**.
 
-Python 3.11+ is required. Run `uv sync --extra dev --extra docs` and `uv run python scripts/check.py`; enable `hooks` with Git. Ruff, available tests, paired-guide checks and Sphinx must pass. The scaffold explicitly reports absent application tests.
+Python 3.11+. Run `uv sync --extra dev --extra docs`, then `uv run python scripts/check.py`. Ruff, Flask/Microblog tests, paired guides and both Sphinx builds are required. Enable Git hooks with `git config core.hooksPath hooks`.
 
 <a id="gfl-010-010"></a>
 
@@ -18,12 +18,12 @@ Python 3.11+ is required. Run `uv sync --extra dev --extra docs` and `uv run pyt
 
 Block ID: **GFL-010-010**.
 
-Run `uv run python -m build` and `uv run python -m twine check dist/*`. CI imports the installed wheel in isolation outside the checkout. Mypy is advisory. Import success is not Flask compatibility.
+Build with `uv run python -m build`; validate with `uv run python -m twine check dist/*`. CI checks installed-wheel plain hosting without database/demo extras, then demo login, Source and assets outside the checkout. The experimental core wheel is checksummed; mypy is advisory.
 
 <a id="gfl-010-015"></a>
 
-## 015 · First implementation
+## 015 · Demo operation
 
 Block ID: **GFL-010-015**.
 
-Follow SPECIFICATION.md: choose a runtime, define Flask integration and test a Python-authored Gramlot page, WSGI delivery, resources, services, errors, lifecycle and isolation. Add behavior tests with implementation and verify SQLAlchemy separately.
+Run `uv run gramlot-flask` or `demo --data-dir /path/to/demo --port 8074`. Login demo / gramlot-demo, then Gramlot. New databases get six users, 24 posts, follows and six messages; relaunches preserve data. Ctrl+C releases resources. `serve DIRECTORY` runs plain pages. Browser QA covers selection, original profiles and login protection.

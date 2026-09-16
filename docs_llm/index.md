@@ -1,6 +1,6 @@
 # gramlot-flask — concise guides
 
-**Pre-alpha scaffold: no Flask runtime integration or runnable demo yet.**
+**Experimental Flask adapter and Microblog demo using the Gramlot 0.1.5 PoC runtime.**
 
 ```{toctree}
 :maxdepth: 2

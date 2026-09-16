@@ -1,4 +1,4 @@
-# 020 · Architecture and first integration
+# 020 · Architecture and integration
 
 Document ID: **GFL-020**.
 
@@ -10,7 +10,7 @@ Document ID: **GFL-020**.
 
 Block ID: **GFL-020-005**.
 
-The planned adapter translates Flask requests and responses into Gramlot server contracts. The core remains independent of Flask. Review resource delivery, request-local state, error mapping and cleanup against the selected runtime. API names and runtime dependency versions remain undecided.
+mount_gramlot registers shared runtime assets, HTML, recipes and TYTX Source/Data services with Flask. PageRegistry creates fresh pages; synchronous page work runs on the WSGI request thread with Flask context. Role, method, content-type and parameter checks precede dispatch. Pages/services use no-store, immutable runtime assets use long caching and traversal is rejected. The access_check callback guards every data-bearing route. Plain hosting is public by default.
 
 <a id="gfl-020-010"></a>
 
@@ -18,7 +18,7 @@ The planned adapter translates Flask requests and responses into Gramlot server 
 
 Block ID: **GFL-020-010**.
 
-Author applications in Python through Gramlot Source, Data Bags, bindings, controllers, resolvers and shared components. Expose missing capabilities in the reusable framework. Do not introduce application-local DOM, manual events, input scraping, ad hoc requests or parallel state. Reuse SQLAlchemy through the shared database contracts, independently of Flask hosting.
+The demo wrapper preserves bundled upstream Microblog source and adds navigation to a Python-authored Gramlot explorer. dbSelect reuses SqliteDbHandler; a bound user identity triggers remote Source for profile and latest posts from Microblog ORM models. Flask-Login protects HTML, recipes and services. Flask-SQLAlchemy owns request sessions; the CLI closes the separate selector engine. No application-local DOM/event/request mechanism or duplicate database adapter is introduced.
 
 <a id="gfl-020-015"></a>
 
@@ -26,4 +26,4 @@ Author applications in Python through Gramlot Source, Data Bags, bindings, contr
 
 Block ID: **GFL-020-015**.
 
-The clean Gramlot core currently provides architectural and port records, not an executable runtime. Existing FastAPI experimental integrations are evidence, not automatically accepted contracts. Select a bounded integration and record its provenance, compatibility, lifecycle ownership and test evidence. No formal Live Object Tree semantics, authentication API or async transport support is inferred.
+The runtime is the checksummed experimental Gramlot 0.1.5 wheel. The clean core remains architectural/port documentation, so this is not accepted core compatibility. Microblog source revision and MIT notice are bundled. Tests cover dispatch/errors, context isolation, assets, authentication, shared database reads, persistent fixtures and CLI behavior. The demo omits external search, translation, password-reset email and workers; shows at most 20 posts per user; and requires its own process for upstream app/config imports. Production, async transports and formal Live Object Tree semantics are not claimed.

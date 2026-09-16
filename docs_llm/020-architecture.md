@@ -1,4 +1,4 @@
-# 020 · Architecture and first integration
+# 020 · Architecture and integration
 
 Document ID: **GFL-020**.
 
@@ -10,7 +10,7 @@ Document ID: **GFL-020**.
 
 Block ID: **GFL-020-005**.
 
-Translate Flask requests/responses into shared Gramlot contracts; keep the core Flask-independent. Review resources, request-local state, errors and cleanup against the chosen runtime. API and dependency versions remain open.
+mount_gramlot registers HTML, recipes, typed Source/Data services and shared assets. PageRegistry provides fresh pages; WSGI work keeps Flask context on the request thread. Validate roles/methods/types/parameters, reject traversal, use no-store for data and immutable caching for assets. access_check guards all data routes; plain hosting is public by default.
 
 <a id="gfl-020-010"></a>
 
@@ -18,7 +18,7 @@ Translate Flask requests/responses into shared Gramlot contracts; keep the core 
 
 Block ID: **GFL-020-010**.
 
-Use Python and Gramlot Source, Data Bags, bindings, controllers, resolvers and components. Resolve reusable framework gaps; prohibit application-local DOM, events, input scraping, requests or parallel state. SQLAlchemy reuses independent database contracts.
+The wrapper preserves upstream Microblog and adds navigation to Python Gramlot UI. dbSelect uses SqliteDbHandler; bound identity drives remote profile/post Source from existing ORM models. Flask-Login guards HTML/recipes/services; Flask-SQLAlchemy owns request sessions and the CLI closes the selector engine. No UI bypass or duplicate database adapter.
 
 <a id="gfl-020-015"></a>
 
@@ -26,4 +26,4 @@ Use Python and Gramlot Source, Data Bags, bindings, controllers, resolvers and c
 
 Block ID: **GFL-020-015**.
 
-The clean core has architecture/port records, not an executable runtime. FastAPI experimental code is evidence, not accepted contracts. Record bounded integration provenance, compatibility, lifecycle and tests. Do not infer Live Object Tree, authentication APIs or async transports.
+Use the checksummed experimental 0.1.5 core wheel; consolidated-core compatibility is unclaimed. Bundle Microblog revision/license. Tests cover dispatch/errors, isolation, assets, authentication, shared data, fixtures and CLI. External mail/search/translation/workers are absent; the explorer caps posts at 20. Upstream app/config imports require a dedicated demo process. Production, async transports and formal Live Object Tree semantics remain outside scope.

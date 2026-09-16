@@ -18,7 +18,7 @@ Follow the Gramlot constitution section 9 and core guide GC-005. This repository
 
 Block ID: **GFL-015-010**.
 
-Use Sphinx with `sphinx_rtd_theme`, its default blue/dark/light appearance and the Gramlot logo. Preserve the pre-alpha scaffold notice. Public consolidated documentation follows `main`; `develop` may have a separate preview. Read the Docs configuration does not mean that external hosting is connected.
+Use Sphinx with `sphinx_rtd_theme`, its default blue/dark/light appearance and the Gramlot logo. Preserve the experimental preview notice. Public consolidated documentation follows `main`; `develop` may have a separate preview. Read the Docs configuration does not mean that external hosting is connected.
 
 <a id="gfl-015-015"></a>
 

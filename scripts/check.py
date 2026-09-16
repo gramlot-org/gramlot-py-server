@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def check_docs():
-    views = [{p.relative_to(ROOT / view): p for p in (ROOT / view).rglob("[0-9][0-9][0-9]-*.md")}
+    views = [{p.relative_to(ROOT / view): p for p in (ROOT / view).rglob("[0-9][0-9][0-9]-*.md")
+              if "_build" not in p.relative_to(ROOT / view).parts}
              for view in ("docs", "docs_llm")]
     if not views[0] or views[0].keys() != views[1].keys():
         raise SystemExit("Numbered documentation guides must have matching paired paths.")

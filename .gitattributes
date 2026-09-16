@@ -1,0 +1,2 @@
+# Preserve bundled upstream source byte-for-byte, including its whitespace.
+src/gramlot_flask/_vendor/microblog/** -whitespace

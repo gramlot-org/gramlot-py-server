@@ -19,7 +19,8 @@ repository; the constitution is authoritative.
 - Use the classic `sphinx_rtd_theme`, the Gramlot logo and accurate status notices.
 - Run `scripts/check.py` before commits/pushes. Ruff, documentation and actual
   test failures block delivery; mypy is advisory. Add behavior tests with runtime
-  implementation; the scaffold alone provides no application test coverage.
+  implementation; preserve the existing Flask/Microblog behavior coverage. Keep bundled upstream
+  source unchanged, retain its MIT notice, and record revision updates.
 - Preserve Apache 2.0 and copyright notices. Keep secrets and environments out of
   Git. Do not add assistant co-author trailers.
 - Do not publish packages, releases or applications without owner authorization.

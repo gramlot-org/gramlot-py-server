@@ -1,13 +1,40 @@
 # gramlot-genro-asgi: initial scope
 
+## Current owner direction — 2026-09-16
+
+Begin implementation with Genro ASGI hosting and optional GenroPy legacy database
+access through a caller-owned GnrApp. The owner authorized public PoC visibility on 2026-09-17. SQLAlchemy is
+deferred from the initial slice; plain hosting remains database-independent.
+This supersedes the earlier requirement to implement both database profiles in
+the first increment. The historical scope below remains as provenance.
+
+The first experimental implementation now exists on develop; see
+[the bounded contract](docs/005-genro-asgi-legacy.md) for dependencies, ownership,
+verification and omissions. It is not a clean-core port or public release.
+
 ## Recorded owner request — 2026-09-15
 
 Create this repository under `gramlot-org` using `genro-asgi` as the boilerplate
 reference. Keep the checkout under `/Users/gporcari/Sviluppo/gramlot`.
 
-## Intended integration
+## Owner clarification — 2026-09-15
 
-Genro ASGI hosting without a database, followed by an optional Genropy database profile.
+This repository will be the home for users building Gramlot applications on
+Genro ASGI, analogous to the role of `gramlot-fastapi` for FastAPI. It will
+provide the host integration, examples, tests and usage documentation.
+
+The intended scope includes three profiles:
+
+- Plain Genro ASGI hosting without a database.
+- Optional SQLAlchemy database integration, as planned for `gramlot-fastapi`.
+- Optional legacy Genropy integration through `GnrApp` and its database.
+
+The database integrations must remain independent: plain hosting must not
+require either, and using one must not require the other. This direction
+supersedes the initial scope of plain hosting followed only by a Genropy
+database profile. It does not describe implemented or released functionality.
+
+## Intended integration
 
 Keep Genro ASGI hosting in this consumer repository or its host integration. Do not introduce a Genro ASGI dependency into the Gramlot core. Review the existing genro-asgi[gui] integration before designing application hosting.
 
@@ -32,7 +59,12 @@ server command, database, demo content or adapter migration is implemented yet.
 2. Decide package ownership versus example application ownership.
 3. Select compatible, available runtime dependency versions.
 4. Implement a minimal host profile and real behavior tests.
-5. Verify its rendered Python-authored Gramlot page.
+5. Define database lifecycle ownership for SQLAlchemy sessions and transactions
+   and for the legacy `GnrApp` connection and database access.
+6. Implement both optional database profiles with real behavior tests, reusing
+   existing integration code where appropriate.
+7. Verify rendered Python-authored Gramlot pages and installed-package use for
+   plain hosting and each database profile independently.
 
 The seven presentation scenarios in the framework context remain the wider
 roadmap. Creating these three repositories does not implement every scenario.

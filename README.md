@@ -1,63 +1,52 @@
 # gramlot-genro-asgi
 
-Gramlot applications hosted by Genro ASGI.
+Experimental Python-authored Gramlot applications hosted by Genro ASGI, with
+optional GenroPy legacy database access through a caller-owned `GnrApp`.
 
-**Status: Pre-Alpha — repository boilerplate, no application implementation yet.**
+## Status and scope
 
-## Scope
+The first implementation provides page discovery, Source and Data RPC dispatch,
+packaged browser assets, fresh page instances and same-worker legacy database
+cleanup. It uses the experimental `gramlot-poc` checkout, not the clean product core.
+This is an experimental integration, not an accepted core port or a public release.
+The current priority is Genro ASGI + GenroPy legacy. SQLAlchemy is outside this slice.
+Plain hosting does not import GenroPy. No FastAPI or Django runtime is required.
 
-Genro ASGI hosting without a database, followed by an optional Genropy database profile.
+## Development setup
 
-Keep Genro ASGI hosting in this consumer repository or its host integration. Do not introduce a Genro ASGI dependency into the Gramlot core. Review the existing genro-asgi[gui] integration before designing application hosting.
-
-The package currently contains only its namespace. Installing it does not start
-a server or provide a working demo. Adapter extraction, runtime dependencies,
-page migration and host commands are future implementation work described in
-[SPECIFICATION.md](SPECIFICATION.md).
-
-## Development
+Python 3.11+ and an authorized sibling `gramlot-poc` checkout are required:
 
 ```sh
-git clone https://github.com/gramlot-org/gramlot-genro-asgi.git
-cd gramlot-genro-asgi
 uv sync --extra dev --extra docs
 uv run python scripts/check.py
-uv run python -m build
-uv run python -m twine check dist/*
-git config core.hooksPath hooks
+uv run python -m gramlot_genro_asgi examples/plain --port 8065
 ```
 
-Python 3.11+; Hatchling build backend; pytest, Ruff and advisory mypy; Sphinx
-with Markdown support. These conventions follow `genro-asgi`. `uv.lock` records
-the development environment. A pip-based setup is also supported:
-`python -m pip install -e '.[dev,docs]'`.
-
-## Layout
-
-- `src/gramlot_genro_asgi/`: future implementation package.
-- `tests/`: behavior tests added with the first implementation.
-- `examples/`: future runnable, Python-authored Gramlot examples.
-- `docs/`: Sphinx documentation.
-- `hooks/`: pre-commit lint/advisory typing and pre-push checks.
-- `.github/workflows/`: package and documentation checks.
-
-`main` holds the initial baseline; use `develop` for new work. No automatic
-package publication or deployment is configured. Read the Docs configuration
-is provided, but its external service has not been connected.
-
-## Checks
+Open `http://127.0.0.1:8065/page/hello/`. For legacy database access, install your
+GenroPy checkout into this environment and select an instance explicitly:
 
 ```sh
-uv run python scripts/check.py
-uv run mypy src/  # advisory
-uv run python -m sphinx -W --keep-going -b html docs docs/_build/html
+uv pip install -e /path/to/genropy/gnrpy
+.venv/bin/python -m gramlot_genro_asgi examples/genropy --instance YOUR_INSTANCE
 ```
 
-The check script explicitly reports that no application tests exist in the
-initial scaffold. Once `tests/test_*.py` files are added, pytest is mandatory
-and failures block the checks. CI also builds and installs the wheel in a
-separate environment to verify packaging.
+Open `http://127.0.0.1:8065/page/database/`. This example executes only `SELECT 1`.
+Using `.venv/bin/python` preserves the manually installed legacy dependency;
+`uv sync` may remove packages outside the lockfile.
 
-## License
+The resolved baseline is Genro ASGI 0.45.0 + Gramlot PoC 0.1.5 + Bag 0.21.1.
+Current Genro ASGI releases requiring Bag 0.22 conflict with the PoC's `<0.22`
+constraint. Do not override the resolver to force that combination.
 
-Apache License 2.0. Copyright 2026 Softwell S.r.l. See LICENSE and NOTICE.
+## Documentation and boundaries
+
+Read the [integration contract](docs/005-genro-asgi-legacy.md), its
+[concise counterpart](docs_llm/005-genro-asgi-legacy.md), and
+[SPECIFICATION.md](SPECIFICATION.md). Documentation uses the classic Read the Docs
+theme. New work stays on `develop`; verified, accepted work is consolidated on `main`.
+
+Queries, permissions and explicit transaction decisions belong to application
+services. The host adapter supplies execution and cleanup, not a generic database
+contract. Endpoints are public unless the owning host adds access control; legacy
+permissions are not inherited automatically. The CLI binds only to localhost.
+No registry publication, deployment or public preview is claimed.

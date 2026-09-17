@@ -1,7 +1,7 @@
 # gramlot-genro-asgi
 
 Read README.md and SPECIFICATION.md before working. This is a pre-alpha
-boilerplate based on genro-asgi; no runtime host API has been implemented.
+experimental Genro ASGI host with optional legacy GnrApp lifecycle integration.
 
 - Keep code and maintained documentation in English.
 - Use main for the baseline and develop for new development.
@@ -15,3 +15,12 @@ boilerplate based on genro-asgi; no runtime host API has been implemented.
 - Do not add assistant co-author trailers to commit messages.
 - Keep documentation aligned with implemented behavior; no speculative API claims.
 - Do not introduce automatic package publication or deployment without authorization.
+
+
+## Current implementation direction — 2026-09-16
+
+Prioritize Genro ASGI + legacy GenroPy; SQLAlchemy is deferred. Read the paired
+GA-005 contract. Use the experimental sibling PoC experimentally; never claim that the
+clean core already provides a runtime. Keep public/consolidated work on main and
+new work on develop. Documentation uses classic sphinx_rtd_theme and paired
+GA document/block IDs. Record actual compatibility and test skips.

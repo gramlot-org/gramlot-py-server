@@ -131,11 +131,20 @@ async def test_legacy_cleanup_success_failure_and_async_guard(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_real_legacy_sqlite_when_available(tmp_path):
+async def test_real_legacy_sqlite_when_available(tmp_path, monkeypatch):
     gnrapp = pytest.importorskip('gnr.app.gnrapp')
     from gnr.core.gnrbag import Bag
-    (tmp_path / 'instanceconfig.xml').write_text('<GenRoBag/>')
-    legacy = gnrapp.GnrApp(str(tmp_path), custom_config=Bag({'packages': Bag()}),
+    config = tmp_path / 'gnr'
+    config.mkdir()
+    (config / 'environment.xml').write_text(
+        f'<GenRoBag><environment/><instances><test path="{tmp_path}" instance_template="default"/></instances></GenRoBag>')
+    (config / 'instanceconfig').mkdir()
+    (config / 'instanceconfig/default.xml').write_text('<GenRoBag><packages/></GenRoBag>')
+    monkeypatch.setenv('GENRO_GNRFOLDER', str(config))
+    instance = tmp_path / 'test-instance'
+    instance.mkdir()
+    (instance / 'instanceconfig.xml').write_text('<GenRoBag/>')
+    legacy = gnrapp.GnrApp('test-instance', custom_config=Bag({'packages': Bag()}),
                           db_attrs={'implementation': 'sqlite',
                                     'dbname': str(tmp_path / 'legacy.sqlite')})
     legacy.db.closeConnection()

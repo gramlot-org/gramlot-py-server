@@ -19,3 +19,7 @@ the native protocol tests and documentation builds against the clean core. CI
 builds core from its maintained main branch with floating dependencies. The
 retained legacy tests and PoC installation probes remain separate historical
 coverage; they are not executed as native 0.1.0 acceptance checks.
+
+Native hooks use the active Python environment with the clean core and adapter
+dev/docs dependencies installed. First-party dependency lockfiles are excluded;
+missing native imports fail collection rather than skipping the protocol suite.

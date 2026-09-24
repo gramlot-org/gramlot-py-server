@@ -5,10 +5,7 @@ import pytest
 from genro_asgi import BaseServer
 from genro_tytx import from_tytx
 
-pytest.importorskip("gramlot.server", minversion=None).runtime_asset
-host_package = pytest.importorskip("gramlot_genro_asgi")
-KajennNativeHtmlApplication = host_package.KajennNativeHtmlApplication
-NativeHtmlASGI = host_package.NativeHtmlASGI
+from gramlot_genro_asgi import KajennNativeHtmlApplication, NativeHtmlASGI
 
 
 PAGE = """from gramlot import Page as BasePage, source

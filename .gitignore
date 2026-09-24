@@ -56,3 +56,6 @@ worktrees/
 .env.*
 !.env.example
 *.sqlite3
+
+# First-party dependencies must remain floating.
+uv.lock

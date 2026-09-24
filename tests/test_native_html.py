@@ -1,11 +1,9 @@
 import re
 
-import pytest
 from flask import Flask
 from genro_tytx import from_tytx
 
-pytest.importorskip("gramlot.server", minversion=None).runtime_asset
-mount_native_html = pytest.importorskip("gramlot_flask").mount_native_html
+from gramlot_flask import mount_native_html
 
 
 PAGE = """from gramlot import Page as BasePage, source

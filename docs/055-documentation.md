@@ -23,7 +23,9 @@ Use the same numbered sections for stable references, reciprocal links and Engli
 
 Block ID: **GD-055-010**.
 
-The initial paired set is `005-overview.md`, `030-architecture.md`, `055-documentation.md` and `060-readthedocs.md`, `040-admin-spa.md` and `045-inspector.md`.
+The paired set includes `005-overview.md`, `030-architecture.md`,
+`040-admin-spa.md`, `045-inspector.md`, `055-documentation.md`,
+`060-readthedocs.md` and native integration guide `090-native-html.md`.
 The existing integration, installation, demos and release guides in `docs/` remain
 the detailed references; they do not yet all have concise counterparts. Historical
 verification reports retain their date and scope. Add mirrors as these guides are

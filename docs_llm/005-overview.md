@@ -4,6 +4,10 @@ Document ID: **GD-005**.
 
 [Expanded counterpart](../docs/005-overview.md).
 
+**Current native lane:** [GD-090](090-native-html.md) covers the local
+Gramlot 0.1.0 Django Host adapter. The PoC install, demo and ORM material below
+is historical and not part of the installable native package.
+
 <a id="gd-005-005"></a>
 
 ## 005 · Status and repositories

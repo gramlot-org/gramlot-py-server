@@ -1,6 +1,9 @@
 # gramlot-django: concise documentation
 
-This is a POC, not the consolidated product. Read in order:
+The native Django Host integration is local development work. Read
+[GD-090](090-native-html.md) for the current API and limits. Older guides
+describe the historical PoC Page and ORM implementation, which is not exported
+by the native package.
 
 - **005** [Overview and repository roles](005-overview.md).
 - **030** [Server and database architecture](030-architecture.md).

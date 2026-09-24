@@ -5,14 +5,10 @@
 Gramlot Django
 ==============
 
-Python-first Gramlot interfaces hosted by Django, with Django ORM integration.
-This documentation describes an **experimental POC** under review and consolidation.
-These previews evaluate APIs and design choices. Described behavior is intended;
-bugs and unfinished cases may exist.
-Examples use ``gramlot-poc`` and will evolve with Gramlot.
-
-Start with :doc:`010-github-preview` to install the POC, :doc:`015-quickstart` for your
-first page, or :doc:`030-architecture` for the server and database boundaries.
+The native Django Host integration is local development work. Start with
+:doc:`090-native-html` for its current API and limits. The older guides below
+document the extracted experimental PoC adapter; its Page and ORM APIs are
+historical and are not exported by the native package.
 
 `Browse the source code <https://github.com/gramlot-org/gramlot-django/tree/main/src/gramlot_django>`_
 · `Concise documentation for LLMs <https://github.com/gramlot-org/gramlot-django/tree/main/docs_llm>`_
@@ -22,6 +18,7 @@ first page, or :doc:`030-architecture` for the server and database boundaries.
    :caption: Start here
 
    005-overview
+   090-native-html
    010-github-preview
    015-quickstart
    020-polls-demo
@@ -29,7 +26,7 @@ first page, or :doc:`030-architecture` for the server and database boundaries.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Integration
+   :caption: Historical POC integration
 
    030-architecture
    035-django

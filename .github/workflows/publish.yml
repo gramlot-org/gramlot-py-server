@@ -27,6 +27,8 @@ jobs:
     needs: validate
     uses: ./.github/workflows/checks.yml
   pypi:
+    # Native Django integration is local development; registry publication awaits owner approval.
+    if: false
     needs: verify
     runs-on: ubuntu-latest
     environment:

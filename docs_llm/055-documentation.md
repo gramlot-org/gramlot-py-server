@@ -21,7 +21,8 @@ Block ID: **GD-055-005**.
 
 Block ID: **GD-055-010**.
 
-- Paired now: overview, architecture, documentation, readthedocs, admin-spa, inspector.
+- Paired now: overview, architecture, documentation, readthedocs, admin-spa,
+  inspector and native HTML integration (GD-090).
 - Existing integration/install/demo/release guides remain detailed references;
   mirrors are added on substantial revision. Coverage is not complete.
 - Dated verification reports keep scope/date. README links both views;

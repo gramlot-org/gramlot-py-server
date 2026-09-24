@@ -35,7 +35,7 @@ Repository = "https://github.com/gramlot-org/gramlot-genro-asgi"
 packages = ["src/gramlot_kajenn"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/docs", "/scripts", "/hooks", "/examples", "/pyproject.toml", "/README.md", "/SPECIFICATION.md", "/CONTRIBUTING.md", "/LICENSE", "/NOTICE"]
+include = ["/src", "/tests", "/docs", "/docs_llm", "/scripts", "/hooks", "/examples", "/pyproject.toml", "/README.md", "/SPECIFICATION.md", "/CONTRIBUTING.md", "/LICENSE", "/NOTICE"]
 exclude = ["/docs/_build"]
 
 [tool.pytest.ini_options]

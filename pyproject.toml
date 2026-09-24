@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "gramlot-genro-asgi"
+name = "gramlot-kajenn"
 version = "0.0.0.dev0"
-description = "Gramlot applications hosted by Genro ASGI"
+description = "Native Gramlot integration for Kajenn"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -19,15 +19,12 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = ["gramlot", "genro-asgi"]
+dependencies = ["gramlot", "gramlot-minimal", "genro-asgi"]
 
 [project.optional-dependencies]
 test = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-asyncio>=0.23", "httpx>=0.27"]
-dev = ["gramlot-genro-asgi[test]", "ruff>=0.1.0", "mypy>=1.0", "build>=1.2", "twine>=5.0"]
+dev = ["gramlot-kajenn[test]", "ruff>=0.1.0", "mypy>=1.0", "build>=1.2", "twine>=5.0"]
 docs = ["sphinx>=7.0", "sphinx-rtd-theme>=2.0", "sphinx-autodoc-typehints>=2.0", "myst-parser>=2.0"]
-
-[project.scripts]
-gramlot-genro-asgi = "gramlot_genro_asgi.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/gramlot-org/gramlot-genro-asgi"
@@ -35,7 +32,7 @@ Repository = "https://github.com/gramlot-org/gramlot-genro-asgi"
 "Bug Tracker" = "https://github.com/gramlot-org/gramlot-genro-asgi/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gramlot_genro_asgi"]
+packages = ["src/gramlot_kajenn"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/tests", "/docs", "/scripts", "/hooks", "/examples", "/pyproject.toml", "/README.md", "/SPECIFICATION.md", "/CONTRIBUTING.md", "/LICENSE", "/NOTICE"]

@@ -1,15 +1,16 @@
-# gramlot-genro-asgi: initial scope
+# gramlot-kajenn: current boundary and original scope
 
 ## Native 0.1.0 release boundary — 2026-09-23
 
-`NativeHtmlASGI`, `create_asgi_application` and
-`KajennNativeHtmlApplication` host clean Gramlot 0.1.0 Page modules; see
+`KajennNativeHtmlApplication` hosts clean Gramlot Page modules through Kajenn;
+generic `NativeHtmlASGI` and `create_asgi_application` belong to
+`gramlot-minimal`; see
 [GA-010](docs/010-native-html.md). The GenroPy `GnrApp` integration and old
 CLI described below are historical PoC work, outside native 0.1.0. Their
 imports require modules absent from the clean core. SQLAlchemy and database
 contracts are excluded from the native slice.
 
-## Current owner direction — 2026-09-16
+## Historical owner direction — 2026-09-16
 
 Begin implementation with Genro ASGI hosting and optional GenroPy legacy database
 access through a caller-owned GnrApp. The owner authorized public PoC visibility on 2026-09-17. SQLAlchemy is

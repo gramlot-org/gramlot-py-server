@@ -7,8 +7,8 @@ import httpx
 import pytest
 from genro_asgi import BaseServer
 from gramlot.transport import TYTX_MEDIA_TYPE, from_tytx, to_tytx
-from gramlot_genro_asgi import GramlotApplication
-from gramlot_genro_asgi.genropy import GenropyApplication
+from gramlot_kajenn.application import GramlotApplication
+from gramlot_kajenn.genropy import GenropyApplication
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -82,7 +82,7 @@ class Database:
         return dict(self.local.env)
 
 
-PAGE = """from gramlot_genro_asgi.genropy import GenropyPage
+PAGE = """from gramlot_kajenn.genropy import GenropyPage
 from gramlot.page import endpoint
 class Page(GenropyPage):
     def main(self, root):

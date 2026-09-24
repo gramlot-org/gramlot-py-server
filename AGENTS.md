@@ -1,7 +1,7 @@
-# gramlot-genro-asgi
+# gramlot-kajenn
 
-Read README.md and SPECIFICATION.md before working. This is a pre-alpha
-experimental Genro ASGI host with optional legacy GnrApp lifecycle integration.
+Read README.md and SPECIFICATION.md before working. This is the Kajenn-native Gramlot host integration. The generic raw ASGI
+adapter belongs to gramlot-minimal. Historical GnrApp/CLI modules require PoC APIs.
 
 - Keep code and maintained documentation in English.
 - Use main for the baseline and develop for new development.
@@ -19,7 +19,7 @@ experimental Genro ASGI host with optional legacy GnrApp lifecycle integration.
 
 ## Current implementation direction — 2026-09-16
 
-Prioritize Genro ASGI + legacy GenroPy; SQLAlchemy is deferred. Read the paired
+For the historical PoC scope, GenroPy was prioritized and SQLAlchemy deferred. Read the paired
 GA-005 contract. Use the experimental sibling PoC experimentally; never claim that the
 clean core already provides a runtime. Keep public/consolidated work on main and
 new work on develop. Documentation uses classic sphinx_rtd_theme and paired
@@ -28,8 +28,9 @@ GA document/block IDs. Record actual compatibility and test skips.
 
 ## Accepted native 0.1.0 release — 2026-09-24
 
-The owner accepted the bounded clean-core native profile and authorized GitHub
-archive distribution. This supersedes earlier PoC-only direction for this profile.
+The owner accepted the bounded 0.1.0 native profile and authorized its GitHub
+archive distribution. The Kajenn/minimal reorganization is newer development
+work and does not change accepted release artifacts. This supersedes earlier PoC-only direction for this profile.
 Use the native exports and documented Hello World launchers. Legacy Page/recipe/RPC
 modules, CLIs and database demos remain historical and are not clean-core aliases.
 `scripts/check.py` runs Ruff, the native protocol suite and documentation checks;

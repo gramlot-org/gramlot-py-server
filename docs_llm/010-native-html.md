@@ -1,33 +1,37 @@
-# 010 · Native HTML hosts
+# 010 · Kajenn native HTML host
 
 Document ID: **GA-010**. [Expanded view](../docs/010-native-html.md).
 
 <a id="ga-010-005"></a>
 
-## 005 · Generic ASGI
+## 005 · Integration boundary
 
 Block ID: **GA-010-005**.
 
-`NativeHtmlASGI` and `create_asgi_application` expose a Kajenn-free ASGI path
-which Uvicorn can run. Browser close URLs match the mount for both generic ASGI
-and Kajenn; explicit disposal and non-persisted `pagehide` attempt closure with
-owner checking and TTL fallback.
+`gramlot-kajenn` exports `gramlot_kajenn.KajennNativeHtmlApplication`, a real
+`genro_asgi.BaseApplication` backed by `gramlot.server.Host`. It supplies
+mounted URLs and uses the owning server's `run_sync` for packaged assets.
+Generic `NativeHtmlASGI` and `create_asgi_application` belong to
+`gramlot-minimal`; Kajenn imports the former without re-exporting either.
+The upstream server still uses the `genro-asgi` distribution and `genro_asgi`
+import names.
 
 <a id="ga-010-010"></a>
 
-## 010 · Kajenn integration
+## 010 · Native behavior
 
 Block ID: **GA-010-010**.
 
-`KajennNativeHtmlApplication` is a real `BaseApplication`; mounted URL handling
-and packaged asset reads use Kajenn's server contract and worker API.
+Real `BaseServer` tests cover mounted routes, typed Source, owner isolation,
+limits, assets, error mapping and close. The generic transport contract comes
+from `gramlot-minimal`.
 
 <a id="ga-010-015"></a>
 
-## 015 · Contract and status
+## 015 · Status and omissions
 
 Block ID: **GA-010-015**.
 
-Both paths test owner cookies, expiring bounded entries, 4096-byte JSON input,
-typed Source, assets and close. Database, production auth/sessions, release and
-deployment are excluded.
+No native database integration, production auth/session storage, WebSockets or
+deployment. Legacy PoC modules and CLI require APIs absent from clean core;
+see [GA-005](005-genro-asgi-legacy.md). Accepted 0.1.0 artifacts are unchanged.

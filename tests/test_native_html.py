@@ -5,7 +5,15 @@ import pytest
 from genro_asgi import BaseServer
 from genro_tytx import from_tytx
 
-from gramlot_genro_asgi import KajennNativeHtmlApplication, NativeHtmlASGI
+from gramlot_kajenn import KajennNativeHtmlApplication
+
+
+def test_native_public_api_excludes_generic_asgi():
+    import gramlot_kajenn
+
+    assert gramlot_kajenn.__all__ == ["KajennNativeHtmlApplication"]
+    assert not hasattr(gramlot_kajenn, "NativeHtmlASGI")
+    assert not hasattr(gramlot_kajenn, "create_asgi_application")
 
 
 PAGE = """from gramlot import Page as BasePage, source
@@ -22,21 +30,16 @@ class Page(BasePage):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", ["generic", "kajenn"])
-async def test_native_html_protocol_owner_limits_asset_and_close(tmp_path, kind):
+async def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
-    if kind == "generic":
-        app = NativeHtmlASGI(tmp_path)
-        base_url = "http://test"
-    else:
-        app = BaseServer(applications=[KajennNativeHtmlApplication(tmp_path, mount="page")])
-        base_url = "http://test/page"
+    app = BaseServer(applications=[KajennNativeHtmlApplication(tmp_path, mount="page")])
+    base_url = "http://test/page"
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url=base_url) as client:
         document = await client.get("/")
         assert document.status_code == 200
         page_id = re.search(r'"pageId": "([^"]+)"', document.text).group(1)
-        expected_close = "/page/gramlot/close" if kind == "kajenn" else "/gramlot/close"
+        expected_close = "/page/gramlot/close"
         assert f'"closeUrl": "{expected_close}"' in document.text
         assert (await client.get("/assets/gramlot.js")).status_code == 200
         main = await client.post("/gramlot/main", json={"pageId": page_id})

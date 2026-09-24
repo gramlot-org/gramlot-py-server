@@ -1,8 +1,8 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Sphinx configuration for gramlot-genro-asgi."""
+"""Sphinx configuration for gramlot-kajenn."""
 from importlib.metadata import version as package_version
 
-project = "gramlot-genro-asgi"
+project = "gramlot-kajenn"
 author = "Genropy Team"
 copyright = "2026, Softwell S.r.l."
 release = package_version(project)

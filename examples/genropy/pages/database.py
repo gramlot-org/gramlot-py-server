@@ -1,5 +1,5 @@
 from gramlot.page import endpoint
-from gramlot_genro_asgi.genropy import GenropyPage
+from gramlot_kajenn.genropy import GenropyPage
 
 
 class Page(GenropyPage):

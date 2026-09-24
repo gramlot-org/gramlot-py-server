@@ -1,4 +1,4 @@
-# gramlot-genro-asgi
+# gramlot-kajenn
 
 Read AGENTS.md, README.md and SPECIFICATION.md first. They are the portable
 project instructions and scope record. This repository is independent of the

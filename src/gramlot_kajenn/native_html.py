@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Native HTML integration for the actual Kajenn/Genro ASGI server."""
+"""Native HTML integration for the Kajenn server."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import re
 from genro_asgi import BaseApplication
 from gramlot.server import runtime_asset
 
-from .asgi import NativeHtmlASGI
+from gramlot_minimal.asgi import NativeHtmlASGI
 
 
 class _KajennASGI(NativeHtmlASGI):

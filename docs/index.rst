@@ -1,9 +1,9 @@
-gramlot-genro-asgi
-==================
+gramlot-kajenn
+===============
 
-Native 0.1.0 hosting uses ``NativeHtmlASGI`` or
-``KajennNativeHtmlApplication``. Start with the native guide and getting
-started page. The legacy GenroPy guide describes a separate PoC profile.
+Kajenn-native Gramlot hosting uses ``KajennNativeHtmlApplication``.
+The generic raw ASGI adapter belongs to ``gramlot-minimal``. Start with
+the native guide; the GenroPy guide records a separate historical PoC profile.
 
 .. toctree::
    :maxdepth: 2

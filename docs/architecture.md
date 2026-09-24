@@ -1,26 +1,17 @@
 # Integration scope
 
-For native 0.1.0, `NativeHtmlASGI` adapts raw ASGI HTTP to clean
-`gramlot.server.Host`; `KajennNativeHtmlApplication` mounts that contract on a
-real Genro ASGI server. Both serve packaged runtime and bounded
-main/source/close routes. See [GA-010](010-native-html.md). The older
-PageRegistry and `GnrApp` architecture below is historical PoC work, outside
-native 0.1.0 compatibility.
+For native 0.1.0, `KajennNativeHtmlApplication` mounts the neutral
+`gramlot.server.Host` on `genro_asgi.BaseServer`. It imports the generic ASGI
+transport from `gramlot-minimal` and provides Kajenn-specific mount and worker
+behavior. See [GA-010](010-native-html.md). The `genro-asgi` server dependency
+remains in this integration, outside Gramlot core and minimal ASGI hosting.
 
-Genro ASGI owns server execution. Gramlot's experimental host-independent
-PageRegistry owns discovery, service allowlisting, parameter validation and fresh
-page/Source creation. This adapter owns HTTP transport and packaged asset delivery.
-
-The optional `GenropyApplication` attaches a caller-owned legacy `GnrApp` to
-`GenropyPage` invocations. Synchronous page code uses `self.db` in the server's
-worker; connection closure and environment reset happen in that same worker,
-including failure paths. Async database access is rejected. Queries, permissions
-and explicit commits remain with the application; no SQL or generic database
-capability contract is introduced in the host.
-
-The first slice prioritizes Genro ASGI + legacy GenroPy; SQLAlchemy is deferred.
-Plain hosting remains independent of database choice. Shared contracts belong in
-Gramlot; Genro ASGI dependencies remain in this adapter.
-
-See [the current contract](005-genro-asgi-legacy.md) for exact dependency versions,
-verification scope and omissions. No formal Live Object Tree semantics are implied.
+The older PageRegistry and `GnrApp` architecture is historical PoC work,
+outside native clean-core compatibility. In that profile, Genro ASGI owns server
+execution; experimental PageRegistry owns discovery, service allowlisting,
+parameter validation and fresh page/Source creation. The adapter owns transport
+and assets. Optional `GenropyApplication` uses a caller-owned legacy `GnrApp`;
+synchronous service execution and database cleanup stay in one worker.
+Application services own queries, permissions and commits. No database contract
+is introduced here. See [GA-005](005-genro-asgi-legacy.md). No formal Live
+Object Tree semantics are implied.

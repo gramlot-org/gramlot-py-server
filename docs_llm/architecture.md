@@ -2,6 +2,11 @@
 
 [Expanded](../docs/architecture.md).
 
+Native 0.1.0 uses `NativeHtmlASGI` or `KajennNativeHtmlApplication` to adapt
+clean `gramlot.server.Host`; see [GA-010](010-native-html.md). The following
+PageRegistry and GnrApp architecture is historical PoC work, outside native
+compatibility.
+
 Genro ASGI owns workers/server; shared experimental Gramlot PageRegistry owns
 page discovery, allowlisting, validation, fresh instances and Source. Adapter owns
 HTTP/assets and optional caller-owned GnrApp lifecycle. Synchronous GenropyPage.db

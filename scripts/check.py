@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Run repository checks; application tests begin with the first implementation."""
+"""Run lint, native adapter tests and documentation checks."""
 from pathlib import Path
 import subprocess
 import sys
@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     subprocess.run([sys.executable, "-m", "ruff", "check", "."], cwd=ROOT, check=True)
     if list((ROOT / "tests").rglob("test_*.py")):
-        subprocess.run([sys.executable, "-m", "pytest", "tests"], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, "-m", "pytest", "tests/test_native_html.py"], cwd=ROOT, check=True)
     else:
         print("Pre-alpha scaffold: no application tests exist yet.", flush=True)
     subprocess.run(

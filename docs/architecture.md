@@ -1,5 +1,12 @@
 # Integration scope
 
+For native 0.1.0, `NativeHtmlASGI` adapts raw ASGI HTTP to clean
+`gramlot.server.Host`; `KajennNativeHtmlApplication` mounts that contract on a
+real Genro ASGI server. Both serve packaged runtime and bounded
+main/source/close routes. See [GA-010](010-native-html.md). The older
+PageRegistry and `GnrApp` architecture below is historical PoC work, outside
+native 0.1.0 compatibility.
+
 Genro ASGI owns server execution. Gramlot's experimental host-independent
 PageRegistry owns discovery, service allowlisting, parameter validation and fresh
 page/Source creation. This adapter owns HTTP transport and packaged asset delivery.

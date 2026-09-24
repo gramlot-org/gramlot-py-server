@@ -24,3 +24,16 @@ GA-005 contract. Use the experimental sibling PoC experimentally; never claim th
 clean core already provides a runtime. Keep public/consolidated work on main and
 new work on develop. Documentation uses classic sphinx_rtd_theme and paired
 GA document/block IDs. Record actual compatibility and test skips.
+
+
+## Accepted native 0.1.0 release — 2026-09-24
+
+The owner accepted the bounded clean-core native profile and authorized GitHub
+archive distribution. This supersedes earlier PoC-only direction for this profile.
+Use the native exports and documented Hello World launchers. Legacy Page/recipe/RPC
+modules, CLIs and database demos remain historical and are not clean-core aliases.
+`scripts/check.py` runs Ruff, the native protocol suite and documentation checks;
+PoC-only suites require their own compatible environment and do not define the
+native release gate. Preserve those tests; do not skip failures in the native suite.
+CI builds the current core from main with its declared floating dependencies.
+No PyPI/npm publication or application deployment is authorized.

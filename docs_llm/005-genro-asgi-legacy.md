@@ -1,5 +1,10 @@
 # 005 · Genro ASGI and GenroPy legacy
 
+Historical PoC integration. Its earlier private-PoC and non-executable-core
+status is superseded; the PoC is public and clean core 0.1.0 is locally
+buildable. This CLI/database profile is outside native 0.1.0. See
+[GA-010](010-native-html.md).
+
 Document ID: **GA-005**.
 
 [Expanded counterpart](../docs/005-genro-asgi-legacy.md).

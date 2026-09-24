@@ -1,5 +1,10 @@
 # 005 · Genro ASGI and GenroPy legacy
 
+Historical PoC integration. Its 2026-09-16 privacy and clean-core status
+statements below were superseded: the PoC is public and clean Gramlot 0.1.0 is
+locally buildable. This guide's CLI and database APIs remain outside native
+0.1.0. Use [GA-010](010-native-html.md) for the current release path.
+
 Document ID: **GA-005**.
 
 [Concise counterpart](https://github.com/gramlot-org/gramlot-genro-asgi/blob/develop/docs_llm/005-genro-asgi-legacy.md).

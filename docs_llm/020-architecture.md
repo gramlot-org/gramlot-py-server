@@ -10,7 +10,10 @@ Document ID: **GFL-020**.
 
 Block ID: **GFL-020-005**.
 
-mount_gramlot registers HTML, recipes, typed Source/Data services and shared assets. PageRegistry provides fresh pages; WSGI work keeps Flask context on the request thread. Validate roles/methods/types/parameters, reject traversal, use no-store for data and immutable caching for assets. access_check guards all data routes; plain hosting is public by default.
+`mount_native_html` adapts Flask requests to clean `gramlot.server.Host` for
+trusted pages, packaged runtime and bounded main/source/close routes. The
+`mount_gramlot`/PageRegistry/recipe/TYTX stack is historical PoC material,
+outside native 0.1.0. The owning app controls access.
 
 <a id="gfl-020-010"></a>
 
@@ -26,4 +29,7 @@ The wrapper preserves upstream Microblog and adds navigation to Python Gramlot U
 
 Block ID: **GFL-020-015**.
 
-Use the checksummed experimental 0.1.5 core wheel; consolidated-core compatibility is unclaimed. Bundle Microblog revision/license. Tests cover dispatch/errors, isolation, assets, authentication, shared data, fixtures and CLI. External mail/search/translation/workers are absent; the explorer caps posts at 20. Upstream app/config imports require a dedicated demo process. Production, async transports and formal Live Object Tree semantics remain outside scope.
+Native hosting has focused clean-core 0.1.0 tests. The historical Microblog
+demo retains its MIT notice and PoC tests, which do not establish native
+compatibility. Production, async transport and formal LOT semantics remain
+outside scope.

@@ -6,7 +6,8 @@ gramlot-flask
    :width: 160
 
 .. warning::
-   Experimental Flask adapter and Microblog demo using the Gramlot 0.1.5 PoC runtime.
+   Native 0.1.0 HTML hosting uses ``mount_native_html``. The older Microblog
+   demo uses the PoC runtime and is outside native compatibility.
 
 .. toctree::
    :maxdepth: 2
@@ -15,5 +16,6 @@ gramlot-flask
    010-development
    015-documentation-policy
    020-architecture
+   025-native-html
 
 The concise view lives in the repository's docs_llm directory.

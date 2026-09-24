@@ -10,7 +10,9 @@ Document ID: **GFL-010**.
 
 Block ID: **GFL-010-005**.
 
-Python 3.11+. Run `uv sync --extra dev --extra docs`, then `uv run python scripts/check.py`. Ruff, Flask/Microblog tests, paired guides and both Sphinx builds are required. Enable Git hooks with `git config core.hooksPath hooks`.
+Native 0.1.0: run `python -m pytest -q tests/test_native_html.py` against clean
+core and strict Sphinx. `python scripts/check.py` runs the complete native gate;
+historical Microblog/PoC tests remain separate. Git hooks are optional for local development.
 
 <a id="gfl-010-010"></a>
 
@@ -18,7 +20,9 @@ Python 3.11+. Run `uv sync --extra dev --extra docs`, then `uv run python script
 
 Block ID: **GFL-010-010**.
 
-Build with `uv run python -m build`; validate with `uv run python -m twine check dist/*`. CI checks installed-wheel plain hosting without database/demo extras, then demo login, Source and assets outside the checkout. The experimental core wheel is checksummed; mypy is advisory.
+Build the adapter wheel and install it with clean core 0.1.0 and the other
+local host wheels in an isolated consumer. Launch Hello World Flask and verify
+`/`. Older demo CI checks cover historical PoC APIs; mypy is advisory.
 
 <a id="gfl-010-015"></a>
 
@@ -26,4 +30,11 @@ Build with `uv run python -m build`; validate with `uv run python -m twine check
 
 Block ID: **GFL-010-015**.
 
-Run `uv run gramlot-flask` or `demo --data-dir /path/to/demo --port 8074`. Login demo / gramlot-demo, then Gramlot. New databases get six users, 24 posts, follows and six messages; relaunches preserve data. Ctrl+C releases resources. `serve DIRECTORY` runs plain pages. Browser QA covers selection, original profiles and login protection.
+Historical PoC only: run `uv run gramlot-flask` or `demo --data-dir /path/to/demo --port 8074`. Login demo / gramlot-demo, then Gramlot. New databases get six users, 24 posts, follows and six messages; relaunches preserve data. Ctrl+C releases resources. `serve DIRECTORY` runs PoC pages. Browser QA covers selection, original profiles and login protection.
+
+
+Native release checks (2026-09-24): `python scripts/check.py` now runs Ruff,
+the native protocol tests and documentation builds against the clean core. CI
+builds core from its maintained main branch with floating dependencies. The
+retained legacy tests and PoC installation probes remain separate historical
+coverage; they are not executed as native 0.1.0 acceptance checks.

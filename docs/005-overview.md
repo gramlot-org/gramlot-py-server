@@ -10,7 +10,10 @@ Document ID: **GFL-005**.
 
 Block ID: **GFL-005-005**.
 
-Flask hosting and the Microblog integration demo are implemented as an experimental preview, using the checksummed Gramlot 0.1.5 PoC wheel. This is not a consolidated core release. The default `gramlot-flask` command serves Microblog on loopback port 8073; use demo / gramlot-demo to sign in.
+Native HTML Flask hosting is implemented against clean Gramlot 0.1.0 through
+`mount_native_html`; see [GFL-025](025-native-html.md). The older Microblog demo
+and `gramlot-flask` CLI use a PoC API and are outside native compatibility.
+Core and adapter artifacts are local candidates, without a registry release.
 
 <a id="gfl-005-010"></a>
 
@@ -18,7 +21,9 @@ Flask hosting and the Microblog integration demo are implemented as an experimen
 
 Block ID: **GFL-005-010**.
 
-Flask request integration belongs here; shared Source, Data, bindings, controllers, resolvers and components remain in Gramlot. Plain hosting needs no database. The optional Microblog demo uses its own ORM and the shared read-only SQLAlchemy selector. It adds a Gramlot user/profile/post explorer to the original host application.
+Flask request integration belongs here; core owns native Source, Page, Data and
+browser runtime. Native hosting needs no database. The historical Microblog demo
+uses its own ORM and a PoC SQLAlchemy selector.
 
 <a id="gfl-005-015"></a>
 

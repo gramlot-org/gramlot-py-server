@@ -10,7 +10,11 @@ Document ID: **GFL-020**.
 
 Block ID: **GFL-020-005**.
 
-mount_gramlot registers shared runtime assets, HTML, recipes and TYTX Source/Data services with Flask. PageRegistry creates fresh pages; synchronous page work runs on the WSGI request thread with Flask context. Role, method, content-type and parameter checks precede dispatch. Pages/services use no-store, immutable runtime assets use long caching and traversal is rejected. The access_check callback guards every data-bearing route. Plain hosting is public by default.
+`mount_native_html` adapts Flask requests to the clean core's neutral Host,
+serving trusted Python pages, packaged runtime and bounded main/source/close
+routes. `mount_gramlot`, PageRegistry, recipes and TYTX Source/Data services
+belong to the separate historical PoC profile. Native hosting has no database
+or production authentication service; the owning Flask app controls access.
 
 <a id="gfl-020-010"></a>
 
@@ -26,4 +30,8 @@ The demo wrapper preserves bundled upstream Microblog source and adds navigation
 
 Block ID: **GFL-020-015**.
 
-The runtime is the checksummed experimental Gramlot 0.1.5 wheel. The clean core remains architectural/port documentation, so this is not accepted core compatibility. Microblog source revision and MIT notice are bundled. Tests cover dispatch/errors, context isolation, assets, authentication, shared database reads, persistent fixtures and CLI behavior. The demo omits external search, translation, password-reset email and workers; shows at most 20 posts per user; and requires its own process for upstream app/config imports. Production, async transports and formal Live Object Tree semantics are not claimed.
+Native hosting has focused tests against clean core 0.1.0. The Microblog demo
+below remains historical PoC material with a bundled MIT notice. Its tests
+cover dispatch, isolation, authentication, database reads, fixtures and CLI;
+they do not establish native 0.1.0 compatibility. Production, async transports
+and formal Live Object Tree semantics are not claimed.

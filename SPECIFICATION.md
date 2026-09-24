@@ -1,5 +1,13 @@
 # gramlot-flask: scope and implementation
 
+## Native 0.1.0 release boundary — 2026-09-23
+
+`mount_native_html` adapts Flask to the clean Gramlot 0.1.0 Host; see
+[GFL-025](docs/025-native-html.md). The Microblog demo, `mount_gramlot` and CLI
+contract below are historical PoC material, outside native compatibility. Their
+imports require modules absent from the clean core. The old wheel provenance
+below is historical evidence, not an active 0.1.0 dependency instruction.
+
 ## Purpose
 
 Provide Flask hosting for Gramlot, with database choice independent of the host.

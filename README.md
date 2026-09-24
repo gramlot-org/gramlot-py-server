@@ -4,12 +4,46 @@
 
 # gramlot-flask
 
-Gramlot applications hosted by Flask.
+Gramlot native HTML Pages hosted by Flask. The 0.1.0 profile uses
+`mount_native_html` and the clean core's neutral Host. It is a local release
+candidate; no registry publication is claimed.
 
-**Status: experimental preview.** This adapter uses the checksummed Gramlot 0.1.5
-PoC wheel. It does not claim compatibility with an executable consolidated core.
+## Run the native Hello World
 
-## Run the Microblog demo
+In a Python 3.11+ environment, install the locally built core wheel and all
+three adapter wheels, then the example application with its `python-hosts`
+extra. Build each adapter wheel from its checkout first:
+
+```sh
+python -m pip install /path/to/gramlot-0.1.0-py3-none-any.whl \
+  /path/to/gramlot_fastapi-*.whl /path/to/gramlot_flask-*.whl \
+  /path/to/gramlot_genro_asgi-*.whl
+python -m pip install -e '/path/to/gramlot-examples/apps/hello-world[python-hosts]'
+python -m gramlot_example_app.server.flask
+```
+
+Open <http://127.0.0.1:8000/>. The launcher mounts the installed Python Page
+through `mount_native_html`. To use an existing Flask application:
+
+```python
+from flask import Flask
+from gramlot_flask import mount_native_html
+
+app = Flask(__name__)
+pages = mount_native_html(app, "/path/to/pages")
+```
+
+See the [native host contract](docs/025-native-html.md) for route and lifecycle
+details. This profile has no database or Microblog integration.
+
+## Historical PoC profile
+
+The following Microblog and `gramlot-flask serve` instructions use the older
+`gramlot-poc` Page/recipe/RPC API. They are retained as experimental history,
+outside native 0.1.0 compatibility; their imports require modules absent from
+the clean core. Do not use them as native 0.1.0 launch commands.
+
+### Run the historical Microblog demo
 
 From this checkout, with Python 3.11+ and uv:
 
@@ -45,7 +79,7 @@ The added Gramlot page is Python-authored and uses shared components, bindings,
 database services and remote Source. No installation-time checkout or runtime
 download of Microblog is needed. There is no claimed PyPI release.
 
-## Host your own pages
+### Historical PoC hosting
 
 Plain hosting does not require Microblog or SQLAlchemy:
 
@@ -70,6 +104,10 @@ and its shutdown. `access_check` can protect all page, recipe and service routes
 plain hosting is public unless the caller provides that callback.
 
 ## Development
+
+For native 0.1.0, run the focused native tests and strict documentation build
+against the clean core. The full check script and demo-oriented CI below still
+cover the historical PoC profile and are not a native release gate.
 
 ```sh
 uv sync --extra dev --extra docs

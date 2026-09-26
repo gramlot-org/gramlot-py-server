@@ -9,4 +9,4 @@ Document ID: **GS-005**.
 neutral core `Host`. `create_asgi_application` constructs the ASGI callable.
 It serves the packaged runtime and Page main/source/close endpoints. Uvicorn is
 an optional runner dependency; neither Uvicorn nor Kajenn is imported by the
-adapter. Kajenn may compose this class in its separate integration repository.
+adapter.

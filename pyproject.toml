@@ -27,9 +27,9 @@ dev = ["gramlot-kajenn[test]", "ruff>=0.1.0", "mypy>=1.0", "build>=1.2", "twine>
 docs = ["sphinx>=7.0", "sphinx-rtd-theme>=2.0", "sphinx-autodoc-typehints>=2.0", "myst-parser>=2.0"]
 
 [project.urls]
-Homepage = "https://github.com/gramlot-org/gramlot-genro-asgi"
-Repository = "https://github.com/gramlot-org/gramlot-genro-asgi"
-"Bug Tracker" = "https://github.com/gramlot-org/gramlot-genro-asgi/issues"
+Homepage = "https://github.com/gramlot-org/gramlot-kajenn"
+Repository = "https://github.com/gramlot-org/gramlot-kajenn"
+"Bug Tracker" = "https://github.com/gramlot-org/gramlot-kajenn/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gramlot_kajenn"]

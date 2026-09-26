@@ -1,7 +1,7 @@
 # 010 · Kajenn native HTML host
 
 Document ID: **GA-010**.
-[Concise counterpart](https://github.com/gramlot-org/gramlot-genro-asgi/blob/develop/docs_llm/010-native-html.md).
+[Concise counterpart](https://github.com/gramlot-org/gramlot-kajenn/blob/develop/docs_llm/010-native-html.md).
 
 <a id="ga-010-005"></a>
 

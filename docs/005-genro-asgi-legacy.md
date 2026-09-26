@@ -7,7 +7,7 @@ locally buildable. This guide's CLI and database APIs remain outside native
 
 Document ID: **GA-005**.
 
-[Concise counterpart](https://github.com/gramlot-org/gramlot-genro-asgi/blob/develop/docs_llm/005-genro-asgi-legacy.md).
+[Concise counterpart](https://github.com/gramlot-org/gramlot-kajenn/blob/develop/docs_llm/005-genro-asgi-legacy.md).
 
 <a id="ga-005-005"></a>
 

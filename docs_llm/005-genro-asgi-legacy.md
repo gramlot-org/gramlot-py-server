@@ -5,6 +5,11 @@ status is superseded; the PoC is public and clean core 0.1.0 is locally
 buildable. This CLI/database profile is outside native 0.1.0. See
 [GA-010](010-native-html.md).
 
+Code removed; preserved at annotated tag `archive/genropy-poc-host` (commit
+`a6da303`): `application.py`, `genropy.py`, `__main__.py`, `examples/plain`,
+`examples/genropy`, `tests/test_host.py`. Guide uses old package name
+`gramlot_genro_asgi`; at the tag it is `gramlot_kajenn`.
+
 Document ID: **GA-005**.
 
 [Expanded counterpart](../docs/005-genro-asgi-legacy.md).

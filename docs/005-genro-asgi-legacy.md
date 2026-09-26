@@ -5,6 +5,13 @@ statements below were superseded: the PoC is public and clean Gramlot 0.1.0 is
 locally buildable. This guide's CLI and database APIs remain outside native
 0.1.0. Use [GA-010](010-native-html.md) for the current release path.
 
+The code described here was removed from this repository. Its last revision is
+preserved at the annotated tag `archive/genropy-poc-host` (commit `a6da303`):
+`src/gramlot_kajenn/application.py`, `genropy.py`, `__main__.py`,
+`examples/plain`, `examples/genropy` and `tests/test_host.py`. This guide still
+uses the older package name `gramlot_genro_asgi`; at the tag the package is
+`gramlot_kajenn`.
+
 Document ID: **GA-005**.
 
 [Concise counterpart](https://github.com/gramlot-org/gramlot-kajenn/blob/develop/docs_llm/005-genro-asgi-legacy.md).

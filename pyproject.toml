@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gramlot-uvicorn"
+version = "0.0.0.dev0"
+description = "Uvicorn ASGI integration for Gramlot Python pages"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "Genropy Team", email = "info@softwell.it"}]
+dependencies = ["gramlot"]
+
+[project.optional-dependencies]
+uvicorn = ["uvicorn>=0.30"]
+test = ["pytest>=7.0", "pytest-asyncio>=0.23", "httpx>=0.27"]
+
+[project.urls]
+Homepage = "https://github.com/gramlot-org/gramlot-uvicorn"
+Repository = "https://github.com/gramlot-org/gramlot-uvicorn"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gramlot_uvicorn"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/docs", "/docs_llm", "/pyproject.toml", "/README.md", "/LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

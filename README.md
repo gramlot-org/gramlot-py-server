@@ -33,3 +33,17 @@ historical profile; the current distribution does not install a CLI entry point.
 Maintained documentation uses the classic Read the Docs theme. Work remains on
 `develop` until verified and accepted; no package publication or deployment is
 implied by this change.
+
+
+## Shared examples and documentation
+
+Gramlot is the primary source of framework documentation, teaching examples,
+runner and theme. This integration is a downstream consumer: it owns hosting
+and setup, and must use the shared examples through its Gramlot dependency
+without maintaining a copied suite. Kajenn executes the shared Python pages inside its server application; generic ASGI hosting belongs to Minimal.
+
+Read the Gramlot manual first, then this integration's guide. Update the Gramlot
+dependency and restart or regenerate exports to receive example changes.
+Uniform packaging and launch commands across all integrations are still pending;
+this describes the agreed model, not a completed rollout. See
+[shared example ownership](docs/010-native-html.md#ga-010-020) for details.

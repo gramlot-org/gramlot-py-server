@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from gramlot.server import (
-    Host,
+    FileHost,
     HostCapacity,
     PageExpired,
     PageNotFound,
@@ -26,11 +26,12 @@ OWNER_COOKIE = "gramlot_owner"
 
 
 class NativeHtmlASGI:
-    """Serve a trusted page directory through Gramlot's neutral ``Host``.
+    """Serve a trusted page directory through Gramlot's ``FileHost``.
 
-    ``mount_path`` is included in browser URLs but is not expected in ASGI
-    ``scope['path']``. This makes the adapter usable both at an ASGI root and
-    behind a server which strips an application mount before dispatch.
+    ``mount_path`` is passed to ``open_page`` as the mount prefix of browser URLs
+    but is not expected in ASGI ``scope['path']``. This makes the adapter usable
+    both at an ASGI root and behind a server which strips an application mount
+    before dispatch.
     """
 
     def __init__(
@@ -43,12 +44,12 @@ class NativeHtmlASGI:
     ) -> None:
         mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.mount_path = mount_path
-        self.host = Host(
+        self.host = FileHost(
             pages,
-            runtime_url=f"{mount_path}/assets/gramlot.js",
-            main_url=f"{mount_path}/gramlot/main",
-            source_url=f"{mount_path}/gramlot/source",
-            close_url=f"{mount_path}/gramlot/close",
+            runtime_url="/assets/gramlot.js",
+            main_url="/gramlot/main",
+            source_url="/gramlot/source",
+            close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
         )
@@ -89,7 +90,7 @@ class NativeHtmlASGI:
             return
         owner = self._owner(headers) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page(path, owner=owner)
+            opened = await self.host.open_page(path, owner=owner, prefix=self.mount_path)
         except PageNotFound:
             await self._send(send, 404, b"Page not found", "text/plain; charset=utf-8")
             return

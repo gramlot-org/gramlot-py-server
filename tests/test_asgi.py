@@ -58,3 +58,28 @@ async def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
         await outsider.aclose()
         assert (await client.post("/gramlot/close", json={"pageId": page_id})).json() == {"ok": True}
         assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+
+
+MOUNTED_PAGE = """from gramlot import Page as BasePage
+class Page(BasePage):
+    title = 'Mounted test'
+    css = ['/theme.css', 'local.css', 'https://cdn.example/remote.css']
+    def main(self, root): root.h1('Mounted')
+"""
+
+
+@pytest.mark.asyncio
+async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
+    (tmp_path / "index.py").write_text(MOUNTED_PAGE)
+    app = create_asgi_application(tmp_path, mount_path="/py")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        document = (await client.get("/")).text
+    assert "from \"/py/assets/gramlot.js\"" in document
+    assert '"mainUrl": "/py/gramlot/main"' in document
+    assert '"sourceUrl": "/py/gramlot/source"' in document
+    assert '"closeUrl": "/py/gramlot/close"' in document
+    assert 'href="/py/theme.css"' in document
+    assert 'href="local.css"' in document
+    assert 'href="https://cdn.example/remote.css"' in document
+    assert "/py/py/" not in document

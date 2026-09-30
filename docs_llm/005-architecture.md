@@ -12,3 +12,13 @@ once to root-relative URLs. `create_asgi_application` constructs the ASGI callab
 It serves the packaged runtime and Page main/source/close endpoints. Uvicorn is
 an optional runner dependency; neither Uvicorn nor Kajenn is imported by the
 adapter.
+
+<a id="gs-005-035"></a>
+## 035 · Companions and Page.css files
+
+GET and HEAD serve a file of the pages folder whose name ends in `.css` or
+`_aux.js`: the `FileHost` companions `foo.css` and `foo_aux.js`, and `Page.css`
+files placed in the folder. The real path of the file must stay below the pages
+folder, as in `FileHost.url`. Every other file, including `.py` and `.md`,
+answers 404. A `Page.css` URL outside the pages folder is an asset of the
+application, which serves it itself.

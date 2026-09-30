@@ -23,6 +23,10 @@ from gramlot.server import (
 JSON_MEDIA_TYPE = "application/json"
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
+COMPANION_MEDIA_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    "_aux.js": "text/javascript; charset=utf-8",
+}
 
 
 class NativeHtmlASGI:
@@ -32,6 +36,14 @@ class NativeHtmlASGI:
     but is not expected in ASGI ``scope['path']``. This makes the adapter usable
     both at an ASGI root and behind a server which strips an application mount
     before dispatch.
+
+    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
+    there. Every other file of the folder is not served.
+
+    ``content_security_policy`` is the application's policy, sent as the
+    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
+    replaced by the nonce that ``open_page`` puts on the bootstrap script.
     """
 
     def __init__(
@@ -41,9 +53,11 @@ class NativeHtmlASGI:
         mount_path: str = "",
         page_ttl: float = 1800,
         max_pages: int = 1000,
+        content_security_policy: str | None = None,
     ) -> None:
         mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.mount_path = mount_path
+        self.content_security_policy = content_security_policy
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -72,6 +86,19 @@ class NativeHtmlASGI:
             await self._send(send, 200, body, "text/javascript; charset=utf-8")
             return
 
+        suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if path.endswith(suffix)), None)
+        if suffix is not None:
+            if method not in {"GET", "HEAD"}:
+                await self._send(send, 405, b"", "text/plain", [(b"allow", b"GET, HEAD")])
+                return
+            filename = self._companion(path)
+            if filename is None:
+                await self._send(send, 404, b"Not found", "text/plain; charset=utf-8")
+                return
+            body = b"" if method == "HEAD" else await asyncio.to_thread(filename.read_bytes)
+            await self._send(send, 200, body, COMPANION_MEDIA_TYPES[suffix])
+            return
+
         operations = {
             "/gramlot/main": "main",
             "/gramlot/source": "source",
@@ -98,13 +125,11 @@ class NativeHtmlASGI:
             await self._send(send, 503, b"Page capacity reached", "text/plain; charset=utf-8")
             return
         cookie = f"{OWNER_COOKIE}={owner}; Path={self.mount_path or '/'}; HttpOnly; SameSite=Lax"
-        await self._send(
-            send,
-            200,
-            opened.html.encode(),
-            "text/html; charset=utf-8",
-            [(b"set-cookie", cookie.encode())],
-        )
+        headers = [(b"set-cookie", cookie.encode())]
+        if self.content_security_policy is not None:
+            policy = self.content_security_policy.replace("{nonce}", opened.nonce)
+            headers.append((b"content-security-policy", policy.encode()))
+        await self._send(send, 200, opened.html.encode(), "text/html; charset=utf-8", headers)
 
     async def _operation(self, operation, headers, receive, send) -> None:
         media_type = headers.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
@@ -145,6 +170,12 @@ class NativeHtmlASGI:
             await self._send(send, 404, b"Unknown Source method", "text/plain; charset=utf-8")
             return
         await self._send(send, 200, result.encode(), JSON_MEDIA_TYPE)
+
+    def _companion(self, path: str) -> Path | None:
+        """Return the file of ``path`` when its real path is below the pages folder."""
+        root = self.host.pages_dir.resolve()
+        real = root.joinpath(*path.strip("/").split("/")).resolve()
+        return real if real.is_relative_to(root) and real.is_file() else None
 
     async def _runtime_bytes(self) -> bytes:
         return await asyncio.to_thread(runtime_asset().read_bytes)

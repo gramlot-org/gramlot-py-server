@@ -2,8 +2,13 @@
 
 Document ID: **GS-005**.
 
+[Paired view](../docs_llm/005-architecture.md).
+
 <a id="gs-005-025"></a>
+
 ## 025 · Python/Uvicorn profile
+
+Block ID: **GS-005-025**.
 
 `gramlot_uvicorn.NativeHtmlASGI` connects a trusted Python Page directory to the
 core `FileHost`, built with root-relative runtime, main, source and close URLs.
@@ -14,7 +19,10 @@ an optional runner dependency; neither Uvicorn nor Kajenn is imported by the
 adapter.
 
 <a id="gs-005-035"></a>
+
 ## 035 · Companions and Page.css files
+
+Block ID: **GS-005-035**.
 
 GET and HEAD serve a file of the pages folder whose name ends in `.css` or
 `_aux.js`: the `FileHost` companions `foo.css` and `foo_aux.js`, and `Page.css`

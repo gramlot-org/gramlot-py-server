@@ -2,11 +2,21 @@
 
 Document ID: **GS-010**.
 
+[Paired view](../docs_llm/010-usage.md).
+
 <a id="gs-010-025"></a>
+
 ## 025 · Run Python pages with Uvicorn
 
-Install the Gramlot core, then `python -m pip install ".[uvicorn]"` from the
-Uvicorn checkout and a Gramlot Python page package. Expose the ASGI application from a Python module:
+Block ID: **GS-010-025**.
+
+Install the released Gramlot core and the adapter from this checkout:
+
+```sh
+python -m pip install "gramlot>=0.2.0" ".[uvicorn]"
+```
+
+Expose the ASGI application from a Python module:
 
 ```python
 from gramlot_uvicorn import create_asgi_application
@@ -14,12 +24,23 @@ application = create_asgi_application("pages")
 ```
 
 Run `uvicorn your_module:application`. The pages directory is trusted application
-source. The Hello World package provides
+source. `mount_path` is the prefix of the browser URLs when the application is
+mounted below the root; the adapter passes it to `open_page` and does not expect
+it in the ASGI `path`:
+
+```python
+application = create_asgi_application("pages", mount_path="/py")
+```
+
+The Hello World application of `gramlot-examples` provides
 `python -m gramlot_example_app.server.uvicorn` as a ready-to-run example.
 No Kajenn dependency is required for this profile.
 
 <a id="gs-010-035"></a>
+
 ## 035 · Content Security Policy
+
+Block ID: **GS-010-035**.
 
 The application chooses the policy and passes it as `content_security_policy`:
 

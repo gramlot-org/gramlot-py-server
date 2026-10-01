@@ -14,8 +14,15 @@ before changing this repository. The Gramlot constitution is authoritative.
   files whose real path is below the pages folder.
 - Keep code, comments and maintained documentation in English.
 - Pair `docs` and `docs_llm` guides; namespace **GS**; shared document IDs,
-  block IDs and lowercase anchors. Run `python scripts/check_docs.py` after
-  changing documentation.
+  block IDs and lowercase anchors. Published guides: `105`–`140` (user-facing,
+  in the Sphinx toctree). Internal material (architecture notes, verification
+  records) lives in `docs/internal/` and `docs_llm/internal/`, paired, out of
+  the toctree. `GS-005` and `GS-020` are the internal guides; `GS-010` is
+  retired and never reused. Run `python scripts/check_docs.py` after changing
+  documentation.
+- The README quick start and the tutorial pages are `tests/pages/`;
+  `tests/test_examples.py` serves them and checks that the README shows the
+  same file. Change the README example and `tests/pages/hello.py` together.
 - Before a commit: `python -m pytest -q`.
 - Use `develop` for new work; `main` holds verified, owner-accepted work.
 - Git: `git switch`, never `git checkout`; never force-push a pushed branch;

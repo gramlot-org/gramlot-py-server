@@ -16,6 +16,14 @@ git config core.hooksPath hooks
 .venv/bin/python scripts/check_docs.py   # when documentation changes
 ```
 
+## Documentation
+
+- Published guides: `docs/105-…` to `docs/140-…`, paired in `docs_llm/`,
+  written for a user of the adapter. Internal notes and verification records:
+  `docs/internal/` and `docs_llm/internal/`.
+- The README quick start is `tests/pages/hello.py`; `tests/test_examples.py`
+  fails when the README block and the file differ.
+
 ## Commits and branches
 
 - New work on `develop`; `main` holds verified, owner-accepted work.

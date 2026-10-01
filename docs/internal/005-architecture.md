@@ -2,7 +2,7 @@
 
 Document ID: **GS-005**.
 
-[Paired view](../docs_llm/005-architecture.md).
+[Paired view](../../docs_llm/internal/005-architecture.md).
 
 <a id="gs-005-025"></a>
 

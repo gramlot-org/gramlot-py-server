@@ -5,15 +5,21 @@ gramlot-uvicorn
    :alt: Gramlot logo
    :width: 160
 
-Framework-neutral ASGI adapter for Gramlot Python pages, run with Uvicorn or
-another ASGI server. It serves trusted Python Page modules through the
-Gramlot 0.2.0 ``FileHost``.
+ASGI adapter for Gramlot pages written in Python, run with Uvicorn or another
+ASGI server. Gramlot describes web interfaces in Python or JavaScript and keeps
+them bound to application state in the browser; see `The Gramlot family
+<https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html>`_ for the
+core and the other repositories.
 
 .. toctree::
    :maxdepth: 2
 
-   005-architecture
-   010-usage
-   020-verification
+   105-introduction
+   110-tutorial
+   115-writing-pages
+   120-configuration
+   125-deployment
+   130-reference
+   140-troubleshooting
 
 The concise view lives in the repository's docs_llm directory.

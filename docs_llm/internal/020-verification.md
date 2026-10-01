@@ -2,7 +2,7 @@
 
 Document ID: **GS-020**.
 
-[Paired view](../docs/020-verification.md).
+[Paired view](../../docs/internal/020-verification.md).
 
 <a id="gs-020-005"></a>
 
@@ -44,3 +44,12 @@ the strict one.
 Local verification, 2026-10-01, with `gramlot` 0.2.0 installed from PyPI in a
 clean virtual environment on Python 3.12: the five tests pass; line coverage of
 `gramlot_uvicorn` is 81%.
+
+Local verification, 2026-10-01, with `gramlot` 0.2.0 from PyPI, Uvicorn 0.54.0 and
+Playwright Chromium 153 on the pages of `tests/pages`: `/hello` under the
+permissive profile shows the field `Ada` and `Hello, Ada`, typing `Grace` gives
+`Hello, Grace`; `/greeting` under the strict profile loads `greeting.css` and
+`greeting_aux.js`, shows `Hello, Ada`, typing `Grace` gives `Hello, Grace`, no
+console error except the browser's `favicon.ico` 404; `/hello` under the strict
+profile mounts nothing and reports the `EvalError` of `dataFormula
+'dataFormula_0' 'formula'` that points to named logic or the permissive profile.

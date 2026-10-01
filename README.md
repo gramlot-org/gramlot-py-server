@@ -5,90 +5,99 @@
 [![Documentation](https://readthedocs.org/projects/gramlot-uvicorn/badge/?version=latest)](https://gramlot-uvicorn.readthedocs.io/en/latest/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-Framework-neutral ASGI adapter for Gramlot Python pages. It connects a trusted
-directory of Python `Page` modules to the core `FileHost` and serves the
-Gramlot browser runtime, the page documents and the main/source/close
-endpoints. Uvicorn is an optional runner; any ASGI server works. The adapter
-imports neither Uvicorn nor Kajenn.
+Gramlot describes web interfaces in Python or JavaScript and keeps them bound to
+application state in the browser. See
+[The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html)
+for the core and the other repositories.
 
-| Profile | Page | Runtime |
-| --- | --- | --- |
-| Python / Uvicorn | Python `Page` | Generic ASGI adapter served by Uvicorn |
+## What this repository is
 
-## Install
+`gramlot-uvicorn` serves Gramlot pages written in Python from a Python web
+server. It is an ASGI application: Uvicorn runs it, and so does any other ASGI
+server. Choose it when your pages are Python classes and you want a server to
+open them for the browser. It does not serve JavaScript pages
+([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
+and it does not produce a page that opens without a server
+([gramlot-serverless](https://github.com/gramlot-org/gramlot-serverless) does).
 
-The package is not published on PyPI. Install the released core and the
-adapter from this checkout:
+## Quick start
+
+Install the released core and the adapter from this checkout (Python 3.11 or
+later):
 
 ```sh
 python -m pip install "gramlot>=0.2.0" ".[uvicorn]"
 ```
 
-Requires Python 3.11 or later and `gramlot` 0.2.0 or later.
+Create a folder `pages` and write `pages/hello.py`:
 
-## Usage
+```python
+from gramlot import Page as BasePage
+
+
+class Page(BasePage):
+    title = "Hello"
+
+    def main(self, root):
+        pane = root.div(datapath="person")
+        pane.html_label("Name", for_="name")
+        pane.input(id="name", value="^.name", live=True)
+        pane.p("^.greeting")
+        pane.dataFormula(".greeting", "'Hello, ' + name", name="^.name", _init=True)
+        pane.dataSetter(".name", "Ada")
+```
+
+Write `app.py` beside the folder. The formula of this page is inline code, so
+the page needs the permissive Content Security Policy profile:
 
 ```python
 from gramlot_uvicorn import create_asgi_application
 
 application = create_asgi_application(
     "pages",
-    mount_path="/py",
-    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-```sh
-uvicorn your_module:application
-```
-
-- `pages`: the directory of Python `Page` modules; it is trusted application
-  source.
-- `mount_path`: the prefix of the browser URLs when the application is mounted
-  below the root. The adapter passes it to `open_page`, which adds it once to
-  root-relative URLs; the adapter does not expect it in the ASGI `path`.
-- `content_security_policy`: sent as the `Content-Security-Policy` header of
-  each HTML page; `{nonce}` is replaced by the nonce of the bootstrap script.
-  Without it no header is sent. The strict profile (`'nonce-{nonce}'`) allows
-  named logic only; the permissive profile adds `'unsafe-eval'` for inline
-  code. See [Usage](docs/010-usage.md).
-- `page_ttl` (default 1800 s) and `max_pages` (default 1000) are passed to
-  `FileHost`.
-
-The Hello World application of
-[gramlot-examples](https://github.com/gramlot-org/gramlot-examples) runs this
-adapter with `python -m gramlot_example_app.server.uvicorn`.
-
-## Companion rule
-
-GET and HEAD serve a file of the pages folder whose name ends in `.css` or
-`_aux.js`, when its real path is below the pages folder: the `FileHost`
-companions `foo.css` and `foo_aux.js`, and `Page.css` files placed there. Every
-other file answers 404 and every other method 405. A `Page.css` URL outside the
-pages folder is an application asset, served by the application. This is the
-companion rule of the core guide
-[Classes and hosts](https://github.com/gramlot-org/gramlot/blob/main/docs/public/090-classes-and-hosts.md).
-
-## Tests
+Serve it and open <http://127.0.0.1:8000/hello>:
 
 ```sh
-python -m pip install "gramlot>=0.2.0" -e ".[test]"
-python -m pytest -q
+uvicorn app:application
 ```
 
-With coverage: `python -m coverage run -m pytest -q && python -m coverage report`.
+The page shows a field with `Ada` and the text `Hello, Ada`. Typing `Grace` in
+the field changes the text to `Hello, Grace` at every keystroke. The test
+`tests/test_examples.py` serves this page in CI and checks that the README
+shows the same file.
 
-The workflow `.github/workflows/tests.yml` runs the suite on Python 3.11 and
-3.12 against the core released on PyPI (required) and against the `main` branch
-of `gramlot-org/gramlot` (informational), and builds the documentation.
+## Next steps
 
-## Documentation
+- [Introduction](https://gramlot-uvicorn.readthedocs.io/en/latest/105-introduction.html),
+  [Tutorial](https://gramlot-uvicorn.readthedocs.io/en/latest/110-tutorial.html),
+  [Writing pages for this host](https://gramlot-uvicorn.readthedocs.io/en/latest/115-writing-pages.html),
+  [Configuration](https://gramlot-uvicorn.readthedocs.io/en/latest/120-configuration.html),
+  [Deployment](https://gramlot-uvicorn.readthedocs.io/en/latest/125-deployment.html),
+  [Reference](https://gramlot-uvicorn.readthedocs.io/en/latest/130-reference.html),
+  [Troubleshooting](https://gramlot-uvicorn.readthedocs.io/en/latest/140-troubleshooting.html):
+  the guides of this repository (sources in `docs/`, concise view in `docs_llm/`).
+- Core guides: [The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html),
+  [Classes and server adapters](https://gramlot.readthedocs.io/en/latest/docs/public/090-classes-and-hosts.html)
+  (the adapter contract: mount prefix, companions, Content Security Policy profiles),
+  [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html)
+  (the binding).
+- Core example families, every page in Python and JavaScript:
+  [examples/binding](https://github.com/gramlot-org/gramlot/tree/main/examples/binding) and
+  [examples/controllers](https://github.com/gramlot-org/gramlot/tree/main/examples/controllers).
 
-- Guides: `docs/` (expanded) and `docs_llm/` (concise), namespace GS, built
-  with Sphinx and the Read the Docs theme (`.readthedocs.yaml`).
-  Build locally: `python scripts/check_docs.py` (see `CONTRIBUTING.md`).
-- Core documentation: [Classes and hosts](https://github.com/gramlot-org/gramlot/blob/main/docs/public/090-classes-and-hosts.md).
-- Rules for contributors and coding agents: `AGENTS.md`, `CONTRIBUTING.md`.
+## Compatibility
 
-[Architecture](docs/005-architecture.md) · [Usage](docs/010-usage.md) ·
-[Verification](docs/020-verification.md).
+| | Verified |
+| --- | --- |
+| Gramlot core | 0.2.0 (PyPI `gramlot`) |
+| Python | 3.11 and 3.12 in CI; 3.12.9 in the 0.2.0 qualification |
+| Browsers | Chromium 153, WebKit 26.6, Firefox 155 (0.2.0 qualification of the core, acceptance pages under the strict and the permissive profile) |
+
+## Contributing
+
+`AGENTS.md` and `CONTRIBUTING.md` hold the rules; `docs/internal/` holds the
+architecture notes and the verification records.

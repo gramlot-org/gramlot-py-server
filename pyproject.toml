@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{name = "Genropy Team", email = "info@softwell.it"}]
-dependencies = ["gramlot"]
+dependencies = ["gramlot>=0.2.0"]
 
 [project.optional-dependencies]
 uvicorn = ["uvicorn>=0.30"]
@@ -32,3 +32,6 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["gramlot_uvicorn"]

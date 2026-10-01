@@ -1,0 +1,22 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+flags:
+  python:
+    paths: [src/gramlot_uvicorn/]
+    carryforward: true
+
+ignore:
+  - "tests/**"
+  - "docs/**"
+  - "docs_llm/**"
+  - "scripts/**"
+
+comment:
+  layout: "flags, files"

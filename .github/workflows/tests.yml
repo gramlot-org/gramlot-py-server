@@ -1,0 +1,89 @@
+name: tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-core:
+    # Required: the adapter against the Gramlot core released on PyPI.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install the released core and the adapter
+        run: python -m pip install "gramlot>=0.2.0" -e ".[test]" coverage
+      - name: Show the core version
+        run: python -m pip show gramlot
+      - name: Test with coverage
+        run: |
+          python -m coverage run -m pytest -q
+          python -m coverage report
+          python -m coverage xml -o coverage.xml
+      - name: Upload coverage
+        if: ${{ matrix.python-version == '3.12' && !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          use_oidc: true
+          files: coverage.xml
+          flags: python
+          disable_search: true
+          fail_ci_if_error: false
+
+  core-main:
+    # Informational: the adapter against the main branch of gramlot-org/gramlot.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: gramlot-uvicorn
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gramlot-uvicorn
+      - name: Check out the core at main
+        uses: actions/checkout@v4
+        with:
+          repository: gramlot-org/gramlot
+          ref: main
+          path: gramlot
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build the core browser runtime
+        working-directory: gramlot
+        run: |
+          npm --prefix js install --ignore-scripts --package-lock=false
+          npm --prefix js run build
+      - name: Install the core in editable mode and the adapter
+        run: python -m pip install -e ../gramlot -e ".[test]"
+      - name: Test
+        run: python -m pytest -q
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-docs.txt
+      - run: python scripts/check_docs.py

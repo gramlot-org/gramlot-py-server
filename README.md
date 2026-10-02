@@ -59,8 +59,10 @@ class Page(BasePage):
 
 The formula of this page is inline code, so every example below sends the
 permissive Content Security Policy profile. Each one lives in
-[`examples/`](examples/), beside a folder `pages`, and serves
-<http://127.0.0.1:8000/hello>.
+[`examples/`](examples/), beside a folder `pages`; the docstring of each file
+gives the command that starts it. The page opens at
+<http://127.0.0.1:8000/hello>, on port 5000 for the Flask development server.
+FastAPI needs a server: install `gramlot-py-server[fastapi,uvicorn]`.
 
 Uvicorn, `examples/uvicorn/app.py`:
 
@@ -153,7 +155,7 @@ Kajenn, `examples/kajenn/config.py` (the page opens at
 <http://127.0.0.1:8000/pages/hello>):
 
 ```python
-"""Kajenn site of the example: ``kajenn serve config.py``, pages under ``/pages``."""
+"""Kajenn site of the example: ``kajenn serve config.py --port 8000``, pages under ``/pages``."""
 from pathlib import Path
 
 from kajenn.config.templates import DefaultConfiguration

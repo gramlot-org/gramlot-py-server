@@ -1,4 +1,4 @@
-"""Kajenn site of the example: ``kajenn serve config.py``, pages under ``/pages``."""
+"""Kajenn site of the example: ``kajenn serve config.py --port 8000``, pages under ``/pages``."""
 from pathlib import Path
 
 from kajenn.config.templates import DefaultConfiguration

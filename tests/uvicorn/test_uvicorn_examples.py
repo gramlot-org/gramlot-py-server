@@ -12,13 +12,6 @@ PAGES = EXAMPLES / "pages"
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
 
 
-def test_readme_quick_start_page_is_the_tested_page():
-    readme = (EXAMPLES.parent / "README.md").read_text()
-    blocks = re.findall(r"```python\n(.*?)```", readme, re.S)
-    assert blocks, "README has no Python block"
-    assert blocks[0] == (PAGES / "hello.py").read_text()
-
-
 @pytest.mark.asyncio
 async def test_quick_start_page_serves_the_bound_field_and_the_formula(load_example, source_tags, page_id):
     app = load_example("uvicorn/app.py").application

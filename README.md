@@ -1,8 +1,8 @@
-# Gramlot Uvicorn
+# gramlot-py-server
 
-[![tests](https://github.com/gramlot-org/gramlot-uvicorn/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gramlot-org/gramlot-uvicorn/actions/workflows/tests.yml)
-[![Coverage](https://codecov.io/gh/gramlot-org/gramlot-uvicorn/branch/main/graph/badge.svg)](https://app.codecov.io/gh/gramlot-org/gramlot-uvicorn)
-[![Documentation](https://readthedocs.org/projects/gramlot-uvicorn/badge/?version=latest)](https://gramlot-uvicorn.readthedocs.io/en/latest/)
+[![tests](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/gramlot-org/gramlot-py-server/branch/main/graph/badge.svg)](https://app.codecov.io/gh/gramlot-org/gramlot-py-server)
+[![Documentation](https://readthedocs.org/projects/gramlot-py-server/badge/?version=latest)](https://gramlot-py-server.readthedocs.io/en/latest/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 Gramlot describes web interfaces in Python or JavaScript and keeps them bound to
@@ -12,21 +12,31 @@ for the core and the other repositories.
 
 ## What this repository is
 
-`gramlot-uvicorn` serves Gramlot pages written in Python from a Python web
-server. It is an ASGI application: Uvicorn runs it, and so does any other ASGI
-server. Choose it when your pages are Python classes and you want a server to
-open them for the browser. It does not serve JavaScript pages
+`gramlot-py-server` serves Gramlot pages written in Python from a Python web
+server. One package holds one adapter per framework; each comes with its extra:
+
+| Extra | Module | Names |
+| --- | --- | --- |
+| `uvicorn` | `gramlot_py_server.uvicorn` | `Application`, `create_application(pages, **options)`: an ASGI application for Uvicorn or any ASGI server |
+| `django` | `gramlot_py_server.django` | `Pages`: its `urls` go into a URLconf |
+| `flask` | `gramlot_py_server.flask` | `Pages`, `mount_pages(app, pages, **options)` |
+| `fastapi` | `gramlot_py_server.fastapi` | `Pages`, `mount_pages(app, pages, **options)`, `Application` |
+| `kajenn` | `gramlot_py_server.kajenn` | `Application`: a Kajenn routed application |
+
+Every adapter serves one folder of `Page` modules through the core `FileHost`:
+it sends the bootstrap document, answers the main and remote Source requests,
+serves the page companions (`.css` and `_aux.js`) and the browser runtime, with
+a mount prefix and a Content Security Policy of your choice. It does not serve
+JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
-and it does not produce a page that opens without a server
-([gramlot-serverless](https://github.com/gramlot-org/gramlot-serverless) does).
+and it does not talk to a database.
 
 ## Quick start
 
-Install the released core and the adapter from this checkout (Python 3.11 or
-later):
+Python 3.11 or later. Install the package with the extra of your framework:
 
 ```sh
-python -m pip install "gramlot>=0.2.0" ".[uvicorn]"
+python -m pip install "gramlot-py-server[uvicorn]"
 ```
 
 Create a folder `pages` and write `pages/hello.py`:
@@ -47,57 +57,171 @@ class Page(BasePage):
         pane.dataSetter(".name", "Ada")
 ```
 
-Write `app.py` beside the folder. The formula of this page is inline code, so
-the page needs the permissive Content Security Policy profile:
+The formula of this page is inline code, so every example below sends the
+permissive Content Security Policy profile. Each one lives in
+[`examples/`](examples/), beside a folder `pages`, and serves
+<http://127.0.0.1:8000/hello>.
+
+Uvicorn, `examples/uvicorn/app.py`:
 
 ```python
-from gramlot_uvicorn import create_asgi_application
+"""Serve the example pages with Uvicorn: ``uvicorn app:application``."""
+from pathlib import Path
 
-application = create_asgi_application(
-    "pages",
+from gramlot_py_server.uvicorn import create_application
+
+PAGES = Path(__file__).resolve().parents[1] / "pages"
+
+application = create_application(
+    PAGES,
     content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-Serve it and open <http://127.0.0.1:8000/hello>:
+Django, `examples/django/settings.py` and `examples/django/urls.py`:
 
-```sh
-uvicorn app:application
+```python
+"""Django settings of the example: ``django-admin runserver --settings=settings --pythonpath=.``."""
+
+SECRET_KEY = "example-only-change-me"
+DEBUG = True
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
+ROOT_URLCONF = "urls"
+INSTALLED_APPS: list[str] = []
+MIDDLEWARE = ["django.middleware.csrf.CsrfViewMiddleware"]
+```
+
+```python
+"""URLconf of the example: the Gramlot pages at the site root."""
+from pathlib import Path
+
+from django.urls import include, path
+
+from gramlot_py_server.django import Pages
+
+PAGES = Path(__file__).resolve().parents[1] / "pages"
+
+pages = Pages(
+    PAGES,
+    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+)
+
+urlpatterns = [path("", include(pages.urls))]
+```
+
+Flask, `examples/flask/app.py`:
+
+```python
+"""Serve the example pages inside a Flask app: ``flask --app app run``."""
+from pathlib import Path
+
+from flask import Flask
+
+from gramlot_py_server.flask import mount_pages
+
+PAGES = Path(__file__).resolve().parents[1] / "pages"
+
+app = Flask(__name__)
+mount_pages(
+    app,
+    PAGES,
+    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+)
+```
+
+FastAPI, `examples/fastapi/app.py`:
+
+```python
+"""Serve the example pages inside a FastAPI app: ``fastapi dev app.py`` or ``uvicorn app:app``."""
+from pathlib import Path
+
+from fastapi import FastAPI
+
+from gramlot_py_server.fastapi import mount_pages
+
+PAGES = Path(__file__).resolve().parents[1] / "pages"
+
+app = FastAPI()
+mount_pages(
+    app,
+    PAGES,
+    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+)
+```
+
+Kajenn, `examples/kajenn/config.py` (the page opens at
+<http://127.0.0.1:8000/pages/hello>):
+
+```python
+"""Kajenn site of the example: ``kajenn serve config.py``, pages under ``/pages``."""
+from pathlib import Path
+
+from kajenn.config.templates import DefaultConfiguration
+
+from gramlot_py_server.kajenn import Application
+
+PAGES = Path(__file__).resolve().parents[1] / "pages"
+
+
+class Site(DefaultConfiguration):
+    def applications_section(self, cfg):
+        cfg.applications().application(
+            code="pages",
+            mount="pages",
+            app_class=Application,
+            pages=PAGES,
+            content_security_policy=(
+                "script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'"
+            ),
+        ).request(body="raw")
 ```
 
 The page shows a field with `Ada` and the text `Hello, Ada`. Typing `Grace` in
-the field changes the text to `Hello, Grace` at every keystroke. The test
-`tests/test_examples.py` serves this page in CI and checks that the README
-shows the same file.
+the field changes the text to `Hello, Grace` at every keystroke. The tests
+`tests/<framework>/test_<framework>_examples.py` serve these examples in CI, and
+`tests/test_readme.py` checks that this README shows the same files.
 
 ## Next steps
 
-- [Introduction](https://gramlot-uvicorn.readthedocs.io/en/latest/105-introduction.html),
-  [Tutorial](https://gramlot-uvicorn.readthedocs.io/en/latest/110-tutorial.html),
-  [Writing pages for this host](https://gramlot-uvicorn.readthedocs.io/en/latest/115-writing-pages.html),
-  [Configuration](https://gramlot-uvicorn.readthedocs.io/en/latest/120-configuration.html),
-  [Deployment](https://gramlot-uvicorn.readthedocs.io/en/latest/125-deployment.html),
-  [Reference](https://gramlot-uvicorn.readthedocs.io/en/latest/130-reference.html),
-  [Troubleshooting](https://gramlot-uvicorn.readthedocs.io/en/latest/140-troubleshooting.html):
-  the guides of this repository (sources in `docs/`, concise view in `docs_llm/`).
-- Core guides: [The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html),
-  [Classes and server adapters](https://gramlot.readthedocs.io/en/latest/docs/public/090-classes-and-hosts.html)
-  (the adapter contract: mount prefix, companions, Content Security Policy profiles),
-  [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html)
-  (the binding).
-- Core example families, every page in Python and JavaScript:
-  [examples/binding](https://github.com/gramlot-org/gramlot/tree/main/examples/binding) and
-  [examples/controllers](https://github.com/gramlot-org/gramlot/tree/main/examples/controllers).
+- The guides on Read the Docs, sources in [docs/](docs/) and the concise view
+  in [docs_llm/](docs_llm/):
+  - common: [Introduction](https://gramlot-py-server.readthedocs.io/en/latest/005-introduction.html),
+    [Writing pages for these hosts](https://gramlot-py-server.readthedocs.io/en/latest/010-writing-pages.html),
+    [Troubleshooting](https://gramlot-py-server.readthedocs.io/en/latest/015-troubleshooting.html);
+  - Uvicorn: [Tutorial](https://gramlot-py-server.readthedocs.io/en/latest/105-tutorial.html),
+    [Configuration](https://gramlot-py-server.readthedocs.io/en/latest/110-configuration.html),
+    [Deployment](https://gramlot-py-server.readthedocs.io/en/latest/115-deployment.html),
+    [Reference](https://gramlot-py-server.readthedocs.io/en/latest/120-reference.html);
+  - [Django](https://gramlot-py-server.readthedocs.io/en/latest/205-django.html), [Flask](https://gramlot-py-server.readthedocs.io/en/latest/305-flask.html),
+    [FastAPI](https://gramlot-py-server.readthedocs.io/en/latest/405-fastapi.html), [Kajenn](https://gramlot-py-server.readthedocs.io/en/latest/505-kajenn.html).
+- The core: [The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html),
+  [Classes, repository and server adapters](https://gramlot.readthedocs.io/en/latest/docs/public/090-classes-and-hosts.html)
+  (the shared adapter contract: mount prefix, companions, CSP profiles),
+  [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html).
 
 ## Compatibility
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.2.0 (PyPI `gramlot`) |
-| Python | 3.11 and 3.12 in CI; 3.12.9 in the 0.2.0 qualification |
-| Browsers | Chromium 153, WebKit 26.6, Firefox 155 (0.2.0 qualification of the core, acceptance pages under the strict and the permissive profile) |
+| Gramlot core | 0.2.1 (PyPI `gramlot`) |
+| Python | 3.11 and 3.12 in CI; 3.12.12 locally |
+| Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.0 |
+| Browsers | not run for this package; the core runtime it serves, unchanged since 0.2.0, passed the core 0.2.0 qualification on Chromium 153, WebKit 26.6 and Firefox 155 |
 
-## Contributing
+## Tests and contributing
 
-`AGENTS.md` and `CONTRIBUTING.md` hold the rules; `docs/internal/` holds the
-architecture notes and the verification records.
+```sh
+python -m pip install -e ".[uvicorn,django,flask,fastapi,kajenn,test]"
+python -m pytest -q                      # every adapter
+python -m pytest -q tests/flask          # one adapter, with its extra only
+python scripts/check_docs.py             # paired guides and Sphinx build
+```
+
+CI runs each adapter with its own extra against the released core and, as an
+informational job, every adapter against the core's `main` checkout, and builds
+the documentation; coverage goes to Codecov with one flag per framework. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md); the internal
+notes are in [docs/internal/](docs/internal/).
+
+Apache License 2.0. Copyright 2026 Softwell S.r.l. See [LICENSE](LICENSE) and
+[NOTICE](NOTICE).

@@ -9,30 +9,55 @@ from pathlib import Path
 from secrets import token_urlsafe
 
 from flask import Blueprint, Response, request
-from gramlot.server import Host, HostCapacity, PageExpired, PageNotFound, SourceNotFound, runtime_asset
+from gramlot.server import (
+    FileHost,
+    HostCapacity,
+    PageExpired,
+    PageNotFound,
+    SourceNotFound,
+    runtime_asset,
+)
 
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
+COMPANION_MEDIA_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    "_aux.js": "text/javascript; charset=utf-8",
+}
 
 
 class Pages:
-    """Own one neutral Host and its WSGI route translations."""
+    """Own a Gramlot ``FileHost`` and its WSGI route translations.
 
-    def __init__(self, pages: str | Path, *, prefix="", page_ttl=1800, max_pages=1000):
-        self.prefix = "/" + prefix.strip("/") if prefix.strip("/") else ""
-        self.host = Host(
+    The blueprint is registered at ``mount_path``, which is also passed to
+    ``open_page`` as the mount prefix of browser URLs.
+
+    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
+    there. Every other file of the folder is not served.
+
+    ``content_security_policy`` is the application's policy, sent as the
+    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
+    replaced by the nonce that ``open_page`` puts on the bootstrap script.
+    """
+
+    def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
+                 max_pages: int = 1000, content_security_policy: str | None = None) -> None:
+        self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
+        self.content_security_policy = content_security_policy
+        self.host = FileHost(
             pages,
-            runtime_url=f"{self.prefix}/assets/gramlot.js",
-            main_url=f"{self.prefix}/gramlot/main",
-            source_url=f"{self.prefix}/gramlot/source",
-            close_url=f"{self.prefix}/gramlot/close",
+            runtime_url="/assets/gramlot.js",
+            main_url="/gramlot/main",
+            source_url="/gramlot/source",
+            close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
         )
 
     def blueprint(self) -> Blueprint:
-        name = "gramlot_pages_" + (self.prefix.strip("/") or "root").replace("/", "_")
-        blueprint = Blueprint(name, __name__, url_prefix=self.prefix or None)
+        name = "gramlot_pages_" + (self.mount_path.strip("/") or "root").replace("/", "_")
+        blueprint = Blueprint(name, __name__, url_prefix=self.mount_path or None)
         blueprint.add_url_rule("/assets/gramlot.js", "asset", self.asset, methods=["GET", "HEAD"])
         blueprint.add_url_rule("/gramlot/main", "main", self.main, methods=["POST"])
         blueprint.add_url_rule("/gramlot/source", "source", self.source, methods=["POST"])
@@ -46,22 +71,38 @@ class Pages:
         return Response(body, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
 
     def page(self, page_path="") -> Response:
+        suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
+        if suffix is not None:
+            return self.companion(page_path, suffix)
         owner = request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = asyncio.run(self.host.open_page(page_path, owner=owner))
+            opened = asyncio.run(self.host.open_page(page_path, owner=owner, prefix=self.mount_path))
         except PageNotFound:
             return Response("Page not found", status=404)
         except HostCapacity:
             return Response("Page capacity reached", status=503)
-        response = Response(opened.html, mimetype="text/html", headers={"Cache-Control": "no-store"})
+        headers = {"Cache-Control": "no-store"}
+        if self.content_security_policy is not None:
+            headers["Content-Security-Policy"] = self.content_security_policy.replace("{nonce}", opened.nonce)
+        response = Response(opened.html, mimetype="text/html", headers=headers)
         response.set_cookie(
             OWNER_COOKIE,
             owner,
-            path=self.prefix or "/",
+            path=self.mount_path or "/",
             httponly=True,
             samesite="Lax",
         )
         return response
+
+    def companion(self, page_path: str, suffix: str) -> Response:
+        """Serve the file of ``page_path`` when its real path is below the pages folder."""
+        root = self.host.pages_dir.resolve()
+        real = root.joinpath(*page_path.strip("/").split("/")).resolve()
+        if not (real.is_relative_to(root) and real.is_file()):
+            return Response("Not found", status=404)
+        body = b"" if request.method == "HEAD" else real.read_bytes()
+        return Response(body, content_type=COMPANION_MEDIA_TYPES[suffix],
+                        headers={"Cache-Control": "no-store"})
 
     def main(self) -> Response:
         return self._operation("main")
@@ -111,7 +152,7 @@ def mount_pages(app, pages: str | Path, **options) -> Pages:
 
     integration = Pages(pages, **options)
     app.register_blueprint(integration.blueprint())
-    app.extensions.setdefault("gramlot_pages", {})[integration.prefix] = integration
+    app.extensions.setdefault("gramlot_pages", {})[integration.mount_path] = integration
     return integration
 
 

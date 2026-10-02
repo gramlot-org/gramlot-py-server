@@ -1,0 +1,114 @@
+name: Publish release
+
+# Run by hand on the version tag (Actions → Publish release → Run workflow → tag vX.Y.Z).
+# PyPI uses trusted publishing from gramlot-org/gramlot-py-server, publish.yml,
+# environment release.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require the version tag on main, the matching version and release notes
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          python - <<'PYTHON'
+          import os, tomllib
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+          version = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']
+          assert os.environ['RELEASE_REF'] == f'refs/tags/v{version}', 'Run the workflow on the exact version tag'
+          assert Path(f'.github/release-notes/v{version}.md').is_file(), 'Missing release notes'
+          request = Request(f'https://api.github.com/repos/{os.environ["GH_REPO"]}/releases/tags/v{version}',
+                            headers={'Authorization': f'Bearer {os.environ["GH_TOKEN"]}'})
+          try:
+              with urlopen(request, timeout=30):
+                  raise SystemExit('The GitHub release already exists')
+          except HTTPError as error:
+              if error.code != 404:
+                  raise
+          PYTHON
+
+  verify:
+    needs: validate
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the wheel and the sdist
+        run: |
+          python -m pip install build twine
+          python -m build --outdir dist
+          python -m twine check dist/*
+      - name: Check that the wheel ships py.typed
+        run: unzip -l dist/*.whl | grep -q 'gramlot_py_server/py.typed'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      - name: Create the GitHub release with the artifacts and their hashes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum * > SHA256SUMS)
+          gh release create "$RELEASE_TAG" dist/* --verify-tag \
+            --title "gramlot-py-server ${RELEASE_TAG#v} — Python server adapters" \
+            --notes-file ".github/release-notes/${RELEASE_TAG}.md"
+
+  pypi:
+    needs: github-release
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/gramlot-py-server
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      - name: Keep only the Python distributions
+        run: find dist -type f ! -name '*.whl' ! -name '*.tar.gz' -delete
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

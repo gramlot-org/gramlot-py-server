@@ -3,41 +3,67 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from secrets import token_urlsafe
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse, Response
-from gramlot.server import Host, HostCapacity, PageExpired, PageNotFound, SourceNotFound, runtime_asset
+from gramlot.server import (
+    FileHost,
+    HostCapacity,
+    PageExpired,
+    PageNotFound,
+    SourceNotFound,
+    runtime_asset,
+)
 
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
+COMPANION_MEDIA_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    "_aux.js": "text/javascript; charset=utf-8",
+}
 
 
 class Pages:
-    """Own one neutral Host and its FastAPI route translations."""
+    """Own a Gramlot ``FileHost`` and its FastAPI route translations.
 
-    def __init__(self, pages: str | Path, *, prefix: str = "", page_ttl=1800, max_pages=1000):
-        self.prefix = "/" + prefix.strip("/") if prefix.strip("/") else ""
-        self.host = Host(
+    The routes are included at ``mount_path``, which is also passed to
+    ``open_page`` as the mount prefix of browser URLs.
+
+    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
+    there. Every other file of the folder is not served.
+
+    ``content_security_policy`` is the application's policy, sent as the
+    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
+    replaced by the nonce that ``open_page`` puts on the bootstrap script.
+    """
+
+    def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
+                 max_pages: int = 1000, content_security_policy: str | None = None) -> None:
+        self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
+        self.content_security_policy = content_security_policy
+        self.host = FileHost(
             pages,
-            runtime_url=f"{self.prefix}/assets/gramlot.js",
-            main_url=f"{self.prefix}/gramlot/main",
-            source_url=f"{self.prefix}/gramlot/source",
-            close_url=f"{self.prefix}/gramlot/close",
+            runtime_url="/assets/gramlot.js",
+            main_url="/gramlot/main",
+            source_url="/gramlot/source",
+            close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
         )
 
     def mount(self, app: FastAPI) -> None:
-        router = APIRouter(prefix=self.prefix)
+        router = APIRouter(prefix=self.mount_path)
         router.add_api_route("/assets/gramlot.js", self.asset, methods=["GET", "HEAD"])
         router.add_api_route("/gramlot/main", self.main, methods=["POST"])
         router.add_api_route("/gramlot/source", self.source, methods=["POST"])
         router.add_api_route("/gramlot/close", self.close, methods=["POST"])
-        router.add_api_route("/", self.page, methods=["GET"])
-        router.add_api_route("/{page_path:path}", self.page, methods=["GET"])
+        router.add_api_route("/", self.page, methods=["GET", "HEAD"])
+        router.add_api_route("/{page_path:path}", self.page, methods=["GET", "HEAD"])
         app.include_router(router)
         app.router.add_event_handler("shutdown", self.shutdown)
 
@@ -49,22 +75,40 @@ class Pages:
         return Response(body, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
     async def page(self, request: Request, page_path: str = "") -> Response:
+        suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
+        if suffix is not None:
+            return await self.companion(request, page_path, suffix)
+        if request.method != "GET":
+            return Response(status_code=405, headers={"Allow": "GET"})
         owner = request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page(page_path, owner=owner)
+            opened = await self.host.open_page(page_path, owner=owner, prefix=self.mount_path)
         except PageNotFound:
             return Response("Page not found", status_code=404)
         except HostCapacity:
             return Response("Page capacity reached", status_code=503)
-        response = HTMLResponse(opened.html, headers={"Cache-Control": "no-store"})
+        headers = {"Cache-Control": "no-store"}
+        if self.content_security_policy is not None:
+            headers["Content-Security-Policy"] = self.content_security_policy.replace("{nonce}", opened.nonce)
+        response = HTMLResponse(opened.html, headers=headers)
         response.set_cookie(
             OWNER_COOKIE,
             owner,
-            path=self.prefix or "/",
+            path=self.mount_path or "/",
             httponly=True,
             samesite="lax",
         )
         return response
+
+    async def companion(self, request: Request, page_path: str, suffix: str) -> Response:
+        """Serve the file of ``page_path`` when its real path is below the pages folder."""
+        root = self.host.pages_dir.resolve()
+        real = root.joinpath(*page_path.strip("/").split("/")).resolve()
+        if not (real.is_relative_to(root) and real.is_file()):
+            return Response("Not found", status_code=404)
+        body = b"" if request.method == "HEAD" else await asyncio.to_thread(real.read_bytes)
+        return Response(body, headers={"Content-Type": COMPANION_MEDIA_TYPES[suffix],
+                                       "Cache-Control": "no-store"})
 
     async def main(self, request: Request) -> Response:
         return await self._operation(request, "main")
@@ -126,11 +170,13 @@ class RequestTooLarge(ValueError):
 class Application(FastAPI):
     """Ready-made FastAPI application serving Gramlot pages."""
 
-    def __init__(self, pages: str | Path, *, prefix: str = "", page_ttl=1800,
-                 max_pages=1000, **fastapi_options):
+    def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
+                 max_pages: int = 1000, content_security_policy: str | None = None,
+                 **fastapi_options) -> None:
         super().__init__(**fastapi_options)
         self.gramlot_pages = mount_pages(
-            self, pages, prefix=prefix, page_ttl=page_ttl, max_pages=max_pages
+            self, pages, mount_path=mount_path, page_ttl=page_ttl, max_pages=max_pages,
+            content_security_policy=content_security_policy,
         )
 
 

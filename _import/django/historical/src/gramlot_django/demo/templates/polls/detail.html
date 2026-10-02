@@ -1,0 +1,9 @@
+{# Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0 #}
+{% extends "polls/base.html" %}{% block content %}
+<form action="{% url 'polls-vote' question.pk %}" method="post">{% csrf_token %}
+<fieldset><legend><h1>{{ question.question_text }}</h1></legend>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% for choice in question.choices.all %}<div><input type="radio" name="choice" id="choice-{{ choice.pk }}" value="{{ choice.pk }}"><label for="choice-{{ choice.pk }}">{{ choice.choice_text }}</label></div>{% endfor %}
+</fieldset><p><button type="submit">Vote</button></p></form>
+<a href="{% url 'polls-results' question.pk %}">View results</a>
+{% endblock %}

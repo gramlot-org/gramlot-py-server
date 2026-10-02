@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+uv run --frozen --extra dev --extra docs python scripts/check.py

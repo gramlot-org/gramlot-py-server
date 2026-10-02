@@ -1,0 +1,44 @@
+name: Publish verified PyPI release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Require the exact version tag on main
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          python - <<'PY'
+          import os, tomllib
+          version = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']
+          assert os.environ['RELEASE_REF'] == f'refs/tags/v{version}', 'Dispatch on the exact version tag'
+          PY
+  verify:
+    needs: validate
+    uses: ./.github/workflows/checks.yml
+  pypi:
+    # Native Django integration is local development; registry publication awaits owner approval.
+    if: false
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gramlot-django
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1

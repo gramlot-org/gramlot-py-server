@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/explore.css' %}">{% endblock %}
+{% block title %}Explore our breads{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+    <div class="container">
+        <script type="importmap">{{ gramlot_imports|safe }}</script>
+        <div id="root"></div>
+        <p id="error" role="status" hidden></p>
+        <script type="application/json" id="startup">{{ gramlot_startup|safe }}</script>
+        <script type="module" src="{{ gramlot_entry }}"></script>
+    </div>
+{% endblock %}

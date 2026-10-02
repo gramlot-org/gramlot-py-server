@@ -1,0 +1,6 @@
+{# Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0 #}
+{% extends "polls/base.html" %}{% block content %}
+<h1>Results</h1><h2>{{ question.question_text }}</h2>
+<ul>{% for choice in question.choices.all %}<li id="standard-result-{{ choice.pk }}">{{ choice.choice_text }}: {{ choice.votes }}</li>{% endfor %}</ul>
+<a href="{% url 'polls-detail' question.pk %}">Vote again</a>
+{% endblock %}

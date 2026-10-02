@@ -1,0 +1,71 @@
+name: Checks
+on:
+  push:
+    branches: [main, develop, 'codex/**', 'wf/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, python: '3.11', django: '>=5.2,<5.3'}
+          - {os: ubuntu-latest, python: '3.12', django: '>=6.0,<6.1'}
+          - {os: ubuntu-latest, python: '3.13', django: '>=6.0,<6.1'}
+          - {os: ubuntu-latest, python: '3.14', django: '>=6.0,<6.1'}
+          - {os: windows-latest, python: '3.12', django: '>=6.0,<6.1'}
+          - {os: macos-latest, python: '3.12', django: '>=6.0,<6.1'}
+    env:
+      CONSUMER_PYTHON: temp/consumer/${{ matrix.os == 'windows-latest' && 'Scripts/python.exe' || 'bin/python' }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: adapter
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          path: adapter
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: gramlot-org/gramlot
+          ref: main
+          path: core
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build current core with floating dependencies
+        working-directory: core
+        run: |
+          npm --prefix js install --package-lock=false
+          npm --prefix js run build
+          python -m pip install --upgrade --upgrade-strategy eager .
+      - name: Install native adapter and checks
+        run: python -m pip install '.[dev,docs]' 'Django${{ matrix.django }}'
+      - name: Lint, behavior and documentation
+        run: python scripts/check.py
+      - name: Build and validate distributions
+        run: |
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Verify installed wheel in a clean consumer
+        run: |
+          python -m venv temp/consumer
+          "$CONSUMER_PYTHON" -m pip install --upgrade --upgrade-strategy eager ../core
+          "$CONSUMER_PYTHON" -m pip install dist/*.whl 'Django${{ matrix.django }}' pytest
+          "$CONSUMER_PYTHON" -m pytest -q tests
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux' && matrix.python == '3.12'
+        with:
+          name: python-distributions
+          path: adapter/dist/*
+          if-no-files-found: error

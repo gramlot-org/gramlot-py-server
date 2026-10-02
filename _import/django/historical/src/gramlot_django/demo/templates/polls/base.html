@@ -1,0 +1,8 @@
+{# Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0 #}
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Polls{% endblock %}</title>
+<style>body{font:17px system-ui,sans-serif;color:#24332c;margin:0;background:#fafbf9}header{padding:20px 5%;background:#123b2a;color:white}header a{color:white;margin-right:24px}main{max-width:960px;margin:36px auto;padding:0 24px}a{color:#176640}li{margin:16px 0}button,input[type=submit]{padding:9px 18px;cursor:pointer}fieldset{border:1px solid #ccd5cd;padding:24px}label{display:inline-block;margin:10px 0}.error{color:#a02020}</style>
+{% block head %}{% endblock %}</head><body>
+<header><strong>Polls</strong><nav aria-label="Site navigation"><a href="{% url 'polls-index' %}">Polls home</a><a href="/polls/spa/polls/">Interactive workspace</a></nav></header>
+<main>{% block content %}{% endblock %}</main></body></html>

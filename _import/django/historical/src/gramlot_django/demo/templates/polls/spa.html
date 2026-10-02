@@ -1,0 +1,6 @@
+{# Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0 #}
+{% extends "polls/base.html" %}{% block title %}{{ gramlot_title }}{% endblock %}
+{% block head %}<script type="importmap">{{ gramlot_imports|safe }}</script>{% endblock %}
+{% block content %}<div id="root"></div><p id="error" role="alert" hidden></p>
+<script id="startup" type="application/json">{{ gramlot_startup|safe }}</script>
+<script type="module" src="{{ gramlot_entry }}"></script>{% endblock %}

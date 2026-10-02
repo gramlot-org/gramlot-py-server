@@ -1,0 +1,5 @@
+{# Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0 #}
+{% extends "polls/base.html" %}{% block content %}
+<h1>Polls</h1><p>Choose a question to vote.</p>
+<ul>{% for question in questions %}<li><a href="{% url 'polls-detail' question.pk %}">{{ question.question_text }}</a></li>{% empty %}<li>No polls are available.</li>{% endfor %}</ul>
+{% endblock %}

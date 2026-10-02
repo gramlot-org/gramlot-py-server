@@ -34,7 +34,7 @@ print(json.dumps({
 
 
 def test_example_serves_the_quick_start_page_and_the_companions(source_tags):
-    paths = [str(EXAMPLE), str(ROOT / "src"), os.environ.get("PYTHONPATH", "")]
+    paths = [str(EXAMPLE), os.environ.get("PYTHONPATH", "")]
     env = {**os.environ, "DJANGO_SETTINGS_MODULE": "settings", "PYTHONPATH": os.pathsep.join(filter(None, paths))}
     completed = subprocess.run([sys.executable, "-c", CHECK], cwd=EXAMPLE, env=env,
                                capture_output=True, text=True, check=True)

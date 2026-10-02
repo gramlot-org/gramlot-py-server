@@ -34,7 +34,7 @@ def test_page_source_lifecycle_and_owner(tmp_path):
         "    @source\n"
         "    def detail(self, root, name): root.p(name)\n"
     )
-    integration = Pages(pages, prefix="/hello")
+    integration = Pages(pages, mount_path="/hello")
     global urlpatterns
     urlpatterns = [path("hello/", include(integration.urls))]
     clear_url_caches()
@@ -44,7 +44,7 @@ def test_page_source_lifecycle_and_owner(tmp_path):
     assert b"/hello/assets/gramlot.js" in response.content
     assert b"/hello/gramlot/main" in response.content
     assert response.cookies["gramlot_owner"]["httponly"]
-    page_id = re.search(rb'"pageId": "([0-9a-f]+)"', response.content).group(1).decode()
+    page_id = re.search(rb'"pageId":"([0-9a-f]+)"', response.content).group(1).decode()
     asset = client.get("/hello/assets/gramlot.js")
     assert asset.status_code == 200
     assert b"Gramlot" in b"".join(asset.streaming_content)
@@ -77,7 +77,7 @@ def test_rejects_invalid_requests(tmp_path):
         "class Page(Base):\n"
         "    def main(self, root): root.p('ok')\n"
     )
-    integration = Pages(pages, prefix="/hello", max_pages=1)
+    integration = Pages(pages, mount_path="/hello", max_pages=1)
     global urlpatterns
     urlpatterns = [path("hello/", include(integration.urls))]
     clear_url_caches()
@@ -85,7 +85,7 @@ def test_rejects_invalid_requests(tmp_path):
     assert client.get("/hello/missing").status_code == 404
     opened = client.get("/hello/")
     assert opened.status_code == 200
-    page_id = re.search(rb'"pageId": "([0-9a-f]+)"', opened.content).group(1).decode()
+    page_id = re.search(rb'"pageId":"([0-9a-f]+)"', opened.content).group(1).decode()
     assert client.get("/hello/").status_code == 503
     endpoint = "/hello/gramlot/source"
     assert client.get(endpoint).status_code == 405
@@ -110,15 +110,63 @@ def test_application_errors_are_not_reported_as_missing_pages(tmp_path):
         "class Page(Base):\n"
         "    def main(self, root): raise LookupError('application failure')\n"
     )
-    integration = Pages(pages, prefix="/hello")
+    integration = Pages(pages, mount_path="/hello")
     global urlpatterns
     urlpatterns = [path("hello/", include(integration.urls))]
     clear_url_caches()
     client = Client(raise_request_exception=False)
     opened = client.get("/hello/")
-    page_id = re.search(rb'"pageId": "([0-9a-f]+)"', opened.content).group(1).decode()
+    page_id = re.search(rb'"pageId":"([0-9a-f]+)"', opened.content).group(1).decode()
     response = client.post(
         "/hello/gramlot/main", json.dumps({"pageId": page_id}),
         content_type="application/json",
     )
     assert response.status_code == 500
+
+
+STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+BOOTSTRAP = re.compile(
+    r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
+    r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
+)
+
+
+def test_mount_path_companions_and_content_security_policy(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/theme.css', 'local.css']\n"
+        "    def main(self, root): root.h1('Styled')\n"
+    )
+    (pages / "index.css").write_text("h1 { color: red; }")
+    (pages / "index_aux.js").write_text("export class Logic {}")
+    (pages / "index.md").write_text("# Readme")
+    (pages / "themes" / "theme.css").write_text("body { margin: 0; }")
+    (tmp_path / "outside.css").write_text("secret")
+    (pages / "escape.css").symlink_to(tmp_path / "outside.css")
+    integration = Pages(pages, mount_path="/hello", content_security_policy=STRICT_CSP)
+    global urlpatterns
+    urlpatterns = [path("hello/", include(integration.urls))]
+    clear_url_caches()
+    client = Client()
+    document = client.get("/hello/")
+    nonce, runtime, argument = BOOTSTRAP.search(document.content.decode()).groups()
+    assert document["Content-Security-Policy"] == STRICT_CSP.replace("{nonce}", nonce)
+    assert json.loads(runtime) == "/hello/assets/gramlot.js"
+    argument = json.loads(argument)
+    assert argument["config"]["closeUrl"] == "/hello/gramlot/close"
+    assert argument["resources"]["css"] == ["/hello/themes/theme.css", "local.css", "/hello/index.css"]
+    assert argument["resources"]["js"] == [{"url": "/hello/index_aux.js", "group": None}]
+    for url, media_type in (("/hello/themes/theme.css", "text/css"),
+                            ("/hello/index.css", "text/css"),
+                            ("/hello/index_aux.js", "text/javascript")):
+        response = client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith(media_type)
+        head = client.head(url)
+        assert head.status_code == 200 and head.content == b""
+    for url in ("/hello/index.py", "/hello/index.md", "/hello/missing.css", "/hello/escape.css"):
+        assert client.get(url).status_code == 404
+    assert client.post("/hello/index.css").status_code == 405

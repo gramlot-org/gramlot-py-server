@@ -1,3 +1,4 @@
+import json
 import re
 
 import httpx
@@ -55,7 +56,7 @@ def client_for(server, **options):
 
 
 def page_id_of(document):
-    return re.search(r'"pageId": "([^"]+)"', document.text).group(1)
+    return re.search(r'"pageId":"([^"]+)"', document.text).group(1)
 
 
 @pytest.mark.asyncio
@@ -70,7 +71,7 @@ async def test_protocol_owner_limits_asset_and_close(tmp_path):
         assert "httponly" in document.headers["set-cookie"].lower()
         page_id = page_id_of(document)
         expected_close = "/page/gramlot/close"
-        assert f'"closeUrl": "{expected_close}"' in document.text
+        assert f'"closeUrl":"{expected_close}"' in document.text
         asset = await client.get("/assets/gramlot.js")
         assert asset.status_code == 200
         assert asset.headers["content-type"].startswith("text/javascript")
@@ -141,3 +142,55 @@ async def test_requires_raw_body(tmp_path):
     async with client_for(site(tmp_path, raw=False)) as client:
         page_id = page_id_of(await client.get("/"))
         assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 500
+
+
+STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+BOOTSTRAP = re.compile(
+    r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
+    r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
+)
+
+
+@pytest.mark.asyncio
+async def test_mount_companions_and_content_security_policy(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/theme.css', 'local.css']\n"
+        "    def main(self, root): root.h1('Styled')\n"
+    )
+    (pages / "index.css").write_text("h1 { color: red; }")
+    (pages / "index_aux.js").write_text("export class Logic {}")
+    (pages / "index.md").write_text("# Readme")
+    (pages / "themes" / "theme.css").write_text("body { margin: 0; }")
+    (tmp_path / "outside.css").write_text("secret")
+    (pages / "escape.css").symlink_to(tmp_path / "outside.css")
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount="page", app_class=Application, pages=pages,
+                content_security_policy=STRICT_CSP,
+            ).request(body="raw")
+
+    async with client_for(AsgiServer(config=Site)) as client:
+        document = await client.get("/")
+        nonce, runtime, argument = BOOTSTRAP.search(document.text).groups()
+        assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
+        assert json.loads(runtime) == "/page/assets/gramlot.js"
+        resources = json.loads(argument)["resources"]
+        assert resources["css"] == ["/page/themes/theme.css", "local.css", "/page/index.css"]
+        assert resources["js"] == [{"url": "/page/index_aux.js", "group": None}]
+        for url, media_type in (("/themes/theme.css", "text/css"),
+                                ("/index.css", "text/css"),
+                                ("/index_aux.js", "text/javascript")):
+            response = await client.get(url)
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith(media_type)
+            head = await client.head(url)
+            assert head.status_code == 200 and head.content == b""
+        for url in ("/index.py", "/index.md", "/missing.css", "/escape.css"):
+            assert (await client.get(url)).status_code == 404
+        assert (await client.post("/index.css")).status_code == 405

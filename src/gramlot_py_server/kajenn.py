@@ -9,7 +9,14 @@ from pathlib import Path
 from secrets import token_urlsafe
 
 from genro_routes import RoutingClass, route
-from gramlot.server import Host, HostCapacity, PageExpired, PageNotFound, SourceNotFound, runtime_asset
+from gramlot.server import (
+    FileHost,
+    HostCapacity,
+    PageExpired,
+    PageNotFound,
+    SourceNotFound,
+    runtime_asset,
+)
 from kajenn import (
     HTTPBadRequest,
     HTTPException,
@@ -20,6 +27,10 @@ from kajenn import (
 
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
+COMPANION_MEDIA_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    "_aux.js": "text/javascript; charset=utf-8",
+}
 
 
 class _RuntimeAssets(RoutingClass):
@@ -51,24 +62,34 @@ class _Protocol(RoutingClass):
 
 
 class Application(RoutedApplication):
-    """A Kajenn routed application backed by ``gramlot.server.Host``.
+    """A Kajenn routed application backed by ``gramlot.server.FileHost``.
 
     Declare it in the site recipe with ``request(body="raw")``: the protocol
-    reads JSON with ``json.loads``, not with TYTX hydration.
+    reads JSON with ``json.loads``, not with TYTX hydration. The application's
+    Kajenn ``mount`` is passed to ``open_page`` as the mount prefix of browser
+    URLs.
+
+    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
+    there. Every other file of the folder is not served.
+
+    ``content_security_policy`` is the application's policy, sent as the
+    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
+    replaced by the nonce that ``open_page`` puts on the bootstrap script.
     """
 
-    def __init__(self, pages: str | Path, *, page_ttl: float = 1800,
-                 max_pages: int = 1000, **kwargs) -> None:
+    def __init__(self, pages: str | Path, *, page_ttl: float = 1800, max_pages: int = 1000,
+                 content_security_policy: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         if not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
             raise ValueError("mount must be a single lowercase URL segment")
-        prefix = f"/{self.mount}"
-        self.host = Host(
+        self.content_security_policy = content_security_policy
+        self.host = FileHost(
             pages,
-            runtime_url=f"{prefix}/assets/gramlot.js",
-            main_url=f"{prefix}/gramlot/main",
-            source_url=f"{prefix}/gramlot/source",
-            close_url=f"{prefix}/gramlot/close",
+            runtime_url="/assets/gramlot.js",
+            main_url="/gramlot/main",
+            source_url="/gramlot/source",
+            close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
         )
@@ -79,19 +100,37 @@ class Application(RoutedApplication):
 
     @route(media_type="text/html")
     async def index(self, *segments, _request, **_query):
+        page_path = "/".join(segments)
+        suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
+        if suffix is not None:
+            return self.companion(_request, page_path, suffix)
         self.require_method(_request, "GET")
         owner = _request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page("/".join(segments), owner=owner)
+            opened = await self.host.open_page(page_path, owner=owner, prefix=f"/{self.mount}")
         except PageNotFound as error:
             raise HTTPNotFound("Page not found") from error
         except HostCapacity as error:
             raise HTTPException(503, "Page capacity reached") from error
         _request.response.set_header("Cache-Control", "no-store")
+        if self.content_security_policy is not None:
+            policy = self.content_security_policy.replace("{nonce}", opened.nonce)
+            _request.response.set_header("Content-Security-Policy", policy)
         _request.response.set_cookie(
             OWNER_COOKIE, owner, path=f"/{self.mount}", httponly=True, samesite="lax"
         )
         return opened.html
+
+    def companion(self, request, page_path: str, suffix: str):
+        """Serve the file of ``page_path`` when its real path is below the pages folder."""
+        self.require_method(request, "GET", "HEAD")
+        root = self.host.pages_dir.resolve()
+        real = root.joinpath(*page_path.split("/")).resolve()
+        if not (real.is_relative_to(root) and real.is_file()):
+            raise HTTPNotFound("Not found")
+        request.response.set_header("Cache-Control", "no-store")
+        body = b"" if request.method == "HEAD" else real.read_bytes()
+        return self.result_wrapper(body, media_type=COMPANION_MEDIA_TYPES[suffix])
 
     def require_method(self, request, *methods: str) -> None:
         if request.method not in methods:
@@ -118,18 +157,21 @@ class Application(RoutedApplication):
         owner = request.cookies.get(OWNER_COOKIE)
         request.response.set_header("Cache-Control", "no-store")
         try:
+            result: str
             if operation == "main":
-                return await self.host.main(payload["pageId"], owner=owner)
-            if operation == "source":
-                return await self.host.source(
+                result = await self.host.main(payload["pageId"], owner=owner)
+            elif operation == "source":
+                result = await self.host.source(
                     payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
                 )
-            self.host.close_page(payload["pageId"], owner=owner)
-            return json.dumps({"ok": True})
+            else:
+                self.host.close_page(payload["pageId"], owner=owner)
+                result = json.dumps({"ok": True})
         except PageExpired as error:
             raise HTTPNotFound("Unknown page") from error
         except SourceNotFound as error:
             raise HTTPNotFound("Unknown Source method") from error
+        return result
 
 
 __all__ = ["Application"]

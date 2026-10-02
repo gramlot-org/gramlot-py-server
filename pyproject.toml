@@ -9,7 +9,7 @@ description = "Python server adapters for Gramlot pages: Uvicorn, Django, Flask,
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "Genropy Team", email = "info@softwell.it"}]
 dependencies = ["gramlot>=0.2.1"]
 
@@ -32,7 +32,7 @@ Documentation = "https://gramlot-py-server.readthedocs.io/"
 packages = ["src/gramlot_py_server"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/examples", "/docs", "/docs_llm", "/pyproject.toml", "/README.md", "/LICENSE"]
+include = ["/src", "/tests", "/examples", "/docs", "/docs_llm", "/pyproject.toml", "/README.md", "/LICENSE", "/NOTICE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

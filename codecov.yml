@@ -8,8 +8,20 @@ coverage:
         informational: true
 
 flags:
-  python:
-    paths: [src/gramlot_uvicorn/]
+  uvicorn:
+    paths: [src/gramlot_py_server/uvicorn.py]
+    carryforward: true
+  django:
+    paths: [src/gramlot_py_server/django.py]
+    carryforward: true
+  flask:
+    paths: [src/gramlot_py_server/flask.py]
+    carryforward: true
+  fastapi:
+    paths: [src/gramlot_py_server/fastapi.py]
+    carryforward: true
+  kajenn:
+    paths: [src/gramlot_py_server/kajenn.py]
     carryforward: true
 
 ignore:
@@ -17,6 +29,7 @@ ignore:
   - "docs/**"
   - "docs_llm/**"
   - "scripts/**"
+  - "examples/**"
 
 comment:
   layout: "flags, files"

@@ -3,12 +3,12 @@ import re
 from flask import Flask
 from genro_tytx import from_tytx
 
-from gramlot_flask import mount_native_html
+from gramlot_py_server.flask import mount_pages
 
 
 PAGE = """from gramlot import Page as BasePage, source
 class Page(BasePage):
-    title = 'Native test'
+    title = 'Test page'
     def main(self, root): root.h1('Hello')
     @source
     def details(self, root, name='Ada'): root.p(name)
@@ -19,10 +19,10 @@ class Page(BasePage):
 """
 
 
-def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
+def test_protocol_owner_limits_asset_and_close(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     app = Flask(__name__)
-    mount_native_html(app, tmp_path)
+    mount_pages(app, tmp_path)
     client = app.test_client()
     document = client.get("/")
     page_id = re.search(r'"pageId": "([^"]+)"', document.text).group(1)
@@ -52,7 +52,7 @@ def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
 def test_capacity_is_service_unavailable(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     app = Flask(__name__)
-    mount_native_html(app, tmp_path, max_pages=1)
+    mount_pages(app, tmp_path, max_pages=1)
     client = app.test_client()
     assert client.get("/").status_code == 200
     assert client.get("/").status_code == 503
@@ -61,7 +61,7 @@ def test_capacity_is_service_unavailable(tmp_path):
 def test_prefixed_close_url_matches_route(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     app = Flask(__name__)
-    mount_native_html(app, tmp_path, prefix="/nested")
+    mount_pages(app, tmp_path, prefix="/nested")
     client = app.test_client()
     document = client.get("/nested/")
     assert document.status_code == 200

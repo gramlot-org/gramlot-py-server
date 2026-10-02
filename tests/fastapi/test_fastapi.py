@@ -3,12 +3,12 @@ import re
 from fastapi.testclient import TestClient
 from genro_tytx import from_tytx
 
-from gramlot_fastapi import NativeHtmlApplication
+from gramlot_py_server.fastapi import Application
 
 
 PAGE = """from gramlot import Page as BasePage, source
 class Page(BasePage):
-    title = 'Native test'
+    title = 'Test page'
     def main(self, root): root.h1('Hello')
     @source
     def details(self, root, name='Ada'): root.p(name)
@@ -19,9 +19,9 @@ class Page(BasePage):
 """
 
 
-def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
+def test_protocol_owner_limits_asset_and_close(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
-    app = NativeHtmlApplication(tmp_path)
+    app = Application(tmp_path)
     with TestClient(app, raise_server_exceptions=False) as client:
         document = client.get("/")
         assert document.status_code == 200
@@ -50,19 +50,19 @@ def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
         assert client.post("/gramlot/main", json={"pageId": page_id}).status_code == 200
         assert client.post("/gramlot/close", json={"pageId": page_id}).json() == {"ok": True}
         assert client.post("/gramlot/main", json={"pageId": page_id}).status_code == 404
-    assert app.gramlot_native_html.host._pages == {}
+    assert app.gramlot_pages.host._pages == {}
 
 
 def test_capacity_is_service_unavailable(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
-    client = TestClient(NativeHtmlApplication(tmp_path, max_pages=1))
+    client = TestClient(Application(tmp_path, max_pages=1))
     assert client.get("/").status_code == 200
     assert client.get("/").status_code == 503
 
 
 def test_prefixed_close_url_matches_route(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
-    client = TestClient(NativeHtmlApplication(tmp_path, prefix="/nested"))
+    client = TestClient(Application(tmp_path, prefix="/nested"))
     document = client.get("/nested/")
     assert document.status_code == 200
     assert '"closeUrl": "/nested/gramlot/close"' in document.text

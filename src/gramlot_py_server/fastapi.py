@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""FastAPI integration for Gramlot's native HTML ``Host`` contract."""
+"""FastAPI integration for the Gramlot ``Host`` protocol."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 
 
-class NativeHtmlPages:
+class Pages:
     """Own one neutral Host and its FastAPI route translations."""
 
     def __init__(self, pages: str | Path, *, prefix: str = "", page_ttl=1800, max_pages=1000):
@@ -123,23 +123,23 @@ class RequestTooLarge(ValueError):
     pass
 
 
-class NativeHtmlApplication(FastAPI):
-    """Ready-made FastAPI application for native HTML Gramlot pages."""
+class Application(FastAPI):
+    """Ready-made FastAPI application serving Gramlot pages."""
 
     def __init__(self, pages: str | Path, *, prefix: str = "", page_ttl=1800,
                  max_pages=1000, **fastapi_options):
         super().__init__(**fastapi_options)
-        self.gramlot_native_html = mount_native_html(
+        self.gramlot_pages = mount_pages(
             self, pages, prefix=prefix, page_ttl=page_ttl, max_pages=max_pages
         )
 
 
-def mount_native_html(app: FastAPI, pages: str | Path, **options) -> NativeHtmlPages:
-    """Mount the bounded native HTML protocol on an existing FastAPI app."""
+def mount_pages(app: FastAPI, pages: str | Path, **options) -> Pages:
+    """Mount the bounded Gramlot page protocol on an existing FastAPI app."""
 
-    integration = NativeHtmlPages(pages, **options)
+    integration = Pages(pages, **options)
     integration.mount(app)
     return integration
 
 
-__all__ = ["NativeHtmlApplication", "NativeHtmlPages", "mount_native_html"]
+__all__ = ["Application", "Pages", "mount_pages"]

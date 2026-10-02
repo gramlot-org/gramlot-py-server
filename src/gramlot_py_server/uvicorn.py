@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Reusable, framework-neutral ASGI adapter for Gramlot native HTML."""
+"""ASGI application for Uvicorn or another ASGI server serving Gramlot pages."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ COMPANION_MEDIA_TYPES = {
 }
 
 
-class NativeHtmlASGI:
+class Application:
     """Serve a trusted page directory through Gramlot's ``FileHost``.
 
     ``mount_path`` is passed to ``open_page`` as the mount prefix of browser URLs
@@ -73,7 +73,7 @@ class NativeHtmlASGI:
             await self._lifespan(receive, send)
             return
         if scope.get("type") != "http":
-            raise ValueError("NativeHtmlASGI supports HTTP only")
+            raise ValueError("Application supports HTTP only")
         method = scope.get("method", "GET").upper()
         path = unquote(scope.get("path", "/"))
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
@@ -230,10 +230,10 @@ class RequestTooLarge(ValueError):
     """Internal signal for a request body over the public 4 KiB limit."""
 
 
-def create_asgi_application(pages: str | Path, **options: Any) -> NativeHtmlASGI:
+def create_application(pages: str | Path, **options: Any) -> Application:
     """Create a generic ASGI application for Uvicorn or another ASGI server."""
 
-    return NativeHtmlASGI(pages, **options)
+    return Application(pages, **options)
 
 
-__all__ = ["NativeHtmlASGI", "create_asgi_application"]
+__all__ = ["Application", "create_application"]

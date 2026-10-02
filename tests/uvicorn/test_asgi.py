@@ -5,7 +5,7 @@ import httpx
 import pytest
 from genro_tytx import from_tytx
 
-from gramlot_uvicorn import NativeHtmlASGI, create_asgi_application
+from gramlot_py_server.uvicorn import Application, create_application
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
@@ -24,7 +24,7 @@ def bootstrap(document):
 
 PAGE = """from gramlot import Page as BasePage, source
 class Page(BasePage):
-    title = 'Native test'
+    title = 'Test page'
     def main(self, root): root.h1('Hello')
     @source
     def details(self, root, name='Ada'): root.p(name)
@@ -36,10 +36,10 @@ class Page(BasePage):
 
 
 @pytest.mark.asyncio
-async def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
+async def test_protocol_owner_limits_asset_and_close(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
-    app = create_asgi_application(tmp_path)
-    assert isinstance(app, NativeHtmlASGI)
+    app = create_application(tmp_path)
+    assert isinstance(app, Application)
     base_url = "http://test"
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url=base_url) as client:
@@ -88,7 +88,7 @@ class Page(BasePage):
 @pytest.mark.asyncio
 async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
     (tmp_path / "index.py").write_text(MOUNTED_PAGE)
-    app = create_asgi_application(tmp_path, mount_path="/py")
+    app = create_application(tmp_path, mount_path="/py")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         document = (await client.get("/")).text
@@ -109,7 +109,7 @@ async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
 @pytest.mark.parametrize("policy", [STRICT_CSP, PERMISSIVE_CSP])
 async def test_content_security_policy_carries_the_bootstrap_nonce(tmp_path, policy):
     (tmp_path / "index.py").write_text(PAGE)
-    app = create_asgi_application(tmp_path, content_security_policy=policy)
+    app = create_application(tmp_path, content_security_policy=policy)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         first = await client.get("/")
@@ -147,7 +147,7 @@ async def test_companions_and_page_css_below_the_pages_folder(tmp_path):
     (pages / "themes" / "theme.css").write_text("body { margin: 0; }")
     (tmp_path / "outside.css").write_text("secret")
     (pages / "escape.css").symlink_to(tmp_path / "outside.css")
-    app = create_asgi_application(pages, mount_path="/py")
+    app = create_application(pages, mount_path="/py")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         _, _, argument = bootstrap((await client.get("/")).text)

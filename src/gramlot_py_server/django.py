@@ -17,8 +17,8 @@ MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 
 
-class NativeHtmlPages:
-    """Own a native Host and expose it at one Django URLconf mount point.
+class Pages:
+    """Own a Gramlot Host and expose it at one Django URLconf mount point.
 
     Mount ``urls`` at the same ``prefix`` supplied here. The cookie associates
     browser requests with in-process page records; it is not authentication.

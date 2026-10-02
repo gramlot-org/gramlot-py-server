@@ -1,4 +1,4 @@
-"""The installed Django adapter serves the native Gramlot browser protocol."""
+"""The Django adapter serves the Gramlot browser protocol."""
 
 import json
 import re
@@ -9,7 +9,7 @@ from django.test import Client
 from django.urls import clear_url_caches, include, path
 from genro_tytx import from_tytx
 
-from gramlot_django import NativeHtmlPages
+from gramlot_py_server.django import Pages
 
 if not settings.configured:
     settings.configure(
@@ -23,18 +23,18 @@ django.setup()
 urlpatterns = []
 
 
-def test_native_page_source_lifecycle_and_owner(tmp_path):
+def test_page_source_lifecycle_and_owner(tmp_path):
     pages = tmp_path / "pages"
     pages.mkdir()
     (pages / "index.py").write_text(
         "from gramlot import Page as Base, source\n"
         "class Page(Base):\n"
-        "    title = 'Django native page'\n"
+        "    title = 'Django page'\n"
         "    def main(self, root): root.h1('Hello Django')\n"
         "    @source\n"
         "    def detail(self, root, name): root.p(name)\n"
     )
-    integration = NativeHtmlPages(pages, prefix="/hello")
+    integration = Pages(pages, prefix="/hello")
     global urlpatterns
     urlpatterns = [path("hello/", include(integration.urls))]
     clear_url_caches()
@@ -77,7 +77,7 @@ def test_rejects_invalid_requests(tmp_path):
         "class Page(Base):\n"
         "    def main(self, root): root.p('ok')\n"
     )
-    integration = NativeHtmlPages(pages, prefix="/hello", max_pages=1)
+    integration = Pages(pages, prefix="/hello", max_pages=1)
     global urlpatterns
     urlpatterns = [path("hello/", include(integration.urls))]
     clear_url_caches()
@@ -110,7 +110,7 @@ def test_application_errors_are_not_reported_as_missing_pages(tmp_path):
         "class Page(Base):\n"
         "    def main(self, root): raise LookupError('application failure')\n"
     )
-    integration = NativeHtmlPages(pages, prefix="/hello")
+    integration = Pages(pages, prefix="/hello")
     global urlpatterns
     urlpatterns = [path("hello/", include(integration.urls))]
     clear_url_caches()

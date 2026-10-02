@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Flask integration for Gramlot's native HTML ``Host`` contract."""
+"""Flask integration for the Gramlot ``Host`` protocol."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 
 
-class NativeHtmlPages:
+class Pages:
     """Own one neutral Host and its WSGI route translations."""
 
     def __init__(self, pages: str | Path, *, prefix="", page_ttl=1800, max_pages=1000):
@@ -31,7 +31,7 @@ class NativeHtmlPages:
         )
 
     def blueprint(self) -> Blueprint:
-        name = "gramlot_native_html_" + (self.prefix.strip("/") or "root").replace("/", "_")
+        name = "gramlot_pages_" + (self.prefix.strip("/") or "root").replace("/", "_")
         blueprint = Blueprint(name, __name__, url_prefix=self.prefix or None)
         blueprint.add_url_rule("/assets/gramlot.js", "asset", self.asset, methods=["GET", "HEAD"])
         blueprint.add_url_rule("/gramlot/main", "main", self.main, methods=["POST"])
@@ -106,13 +106,13 @@ class NativeHtmlPages:
         return Response(result, mimetype="application/json", headers={"Cache-Control": "no-store"})
 
 
-def mount_native_html(app, pages: str | Path, **options) -> NativeHtmlPages:
-    """Mount the bounded native HTML protocol on an existing Flask app."""
+def mount_pages(app, pages: str | Path, **options) -> Pages:
+    """Mount the bounded Gramlot page protocol on an existing Flask app."""
 
-    integration = NativeHtmlPages(pages, **options)
+    integration = Pages(pages, **options)
     app.register_blueprint(integration.blueprint())
-    app.extensions.setdefault("gramlot_native_html", {})[integration.prefix] = integration
+    app.extensions.setdefault("gramlot_pages", {})[integration.prefix] = integration
     return integration
 
 
-__all__ = ["NativeHtmlPages", "mount_native_html"]
+__all__ = ["Pages", "mount_pages"]

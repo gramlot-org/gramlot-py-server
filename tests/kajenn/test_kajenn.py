@@ -6,20 +6,19 @@ from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
 
-from gramlot_kajenn import KajennNativeHtmlApplication
+from gramlot_py_server.kajenn import Application
 
 
-def test_native_public_api_excludes_generic_asgi():
-    import gramlot_kajenn
+def test_public_api_excludes_the_generic_asgi_factory():
+    from gramlot_py_server import kajenn
 
-    assert gramlot_kajenn.__all__ == ["KajennNativeHtmlApplication"]
-    assert not hasattr(gramlot_kajenn, "NativeHtmlASGI")
-    assert not hasattr(gramlot_kajenn, "create_asgi_application")
+    assert kajenn.__all__ == ["Application"]
+    assert not hasattr(kajenn, "create_application")
 
 
 PAGE = """from gramlot import Page as BasePage, source
 class Page(BasePage):
-    title = 'Native test'
+    title = 'Test page'
     def main(self, root): root.h1('Hello')
     @source
     def details(self, root, name='Ada'): root.p(name)
@@ -42,7 +41,7 @@ def site(pages, *, raw=True):
     class Site(DefaultConfiguration):
         def applications_section(self, cfg):
             application = cfg.applications().application(
-                code="native", mount="page", app_class=KajennNativeHtmlApplication, pages=pages
+                code="pages", mount="page", app_class=Application, pages=pages
             )
             if raw:
                 application.request(body="raw")
@@ -60,7 +59,7 @@ def page_id_of(document):
 
 
 @pytest.mark.asyncio
-async def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
+async def test_protocol_owner_limits_asset_and_close(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     server = site(tmp_path)
     async with client_for(server) as client:
@@ -110,7 +109,7 @@ async def test_native_html_protocol_owner_limits_asset_and_close(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_native_html_multi_segment_page_paths(tmp_path):
+async def test_multi_segment_page_paths(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     (tmp_path / "admin" / "users").mkdir(parents=True)
     (tmp_path / "admin" / "users" / "detail.py").write_text(NESTED_PAGE)
@@ -125,7 +124,7 @@ async def test_native_html_multi_segment_page_paths(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_native_html_http_method_filter(tmp_path):
+async def test_http_method_filter(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     async with client_for(site(tmp_path)) as client:
         assert (await client.post("/", json={})).status_code == 405
@@ -137,7 +136,7 @@ async def test_native_html_http_method_filter(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_native_html_requires_raw_body(tmp_path):
+async def test_requires_raw_body(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     async with client_for(site(tmp_path, raw=False)) as client:
         page_id = page_id_of(await client.get("/"))

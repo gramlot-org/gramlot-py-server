@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Kajenn integration for Gramlot's native HTML ``Host`` contract."""
+"""Kajenn integration for the Gramlot ``Host`` protocol."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class _Protocol(RoutingClass):
         return await self.application.operation(_request, body_raw, "close")
 
 
-class KajennNativeHtmlApplication(RoutedApplication):
+class Application(RoutedApplication):
     """A Kajenn routed application backed by ``gramlot.server.Host``.
 
     Declare it in the site recipe with ``request(body="raw")``: the protocol
@@ -100,7 +100,7 @@ class KajennNativeHtmlApplication(RoutedApplication):
     async def operation(self, request, body_raw: bytes | None, operation: str) -> str:
         self.require_method(request, "POST")
         if not self.raw_body:
-            raise RuntimeError("KajennNativeHtmlApplication requires request(body='raw')")
+            raise RuntimeError("Application requires request(body='raw')")
         content_type = str(request.content_type or "").split(";", 1)[0].strip().lower()
         if content_type != "application/json":
             raise HTTPUnsupportedMediaType("Expected application/json")
@@ -132,4 +132,4 @@ class KajennNativeHtmlApplication(RoutedApplication):
             raise HTTPNotFound("Unknown Source method") from error
 
 
-__all__ = ["KajennNativeHtmlApplication"]
+__all__ = ["Application"]

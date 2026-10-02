@@ -6,10 +6,10 @@ import httpx
 import pytest
 from genro_tytx import from_tytx
 
-from gramlot_uvicorn import create_asgi_application
+from gramlot_py_server.uvicorn import create_application
 
-ROOT = Path(__file__).resolve().parents[1]
-PAGES = ROOT / "tests" / "pages"
+ROOT = Path(__file__).resolve().parents[2]
+PAGES = ROOT / "tests" / "uvicorn" / "pages"
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
 
 
@@ -36,7 +36,7 @@ def test_readme_quick_start_page_is_the_tested_page():
 
 @pytest.mark.asyncio
 async def test_quick_start_page_serves_the_bound_field_and_the_formula():
-    app = create_asgi_application(PAGES)
+    app = create_application(PAGES)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         document = await client.get("/hello")
@@ -54,7 +54,7 @@ async def test_quick_start_page_serves_the_bound_field_and_the_formula():
 
 @pytest.mark.asyncio
 async def test_tutorial_page_with_companion_and_stylesheet_under_the_strict_profile():
-    app = create_asgi_application(PAGES, content_security_policy=STRICT_CSP)
+    app = create_application(PAGES, content_security_policy=STRICT_CSP)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         document = await client.get("/greeting")

@@ -125,11 +125,11 @@ class Application:
             await self._send(send, 503, b"Page capacity reached", "text/plain; charset=utf-8")
             return
         cookie = f"{OWNER_COOKIE}={owner}; Path={self.mount_path or '/'}; HttpOnly; SameSite=Lax"
-        headers = [(b"set-cookie", cookie.encode())]
+        response_headers = [(b"set-cookie", cookie.encode())]
         if self.content_security_policy is not None:
             policy = self.content_security_policy.replace("{nonce}", opened.nonce)
-            headers.append((b"content-security-policy", policy.encode()))
-        await self._send(send, 200, opened.html.encode(), "text/html; charset=utf-8", headers)
+            response_headers.append((b"content-security-policy", policy.encode()))
+        await self._send(send, 200, opened.html.encode(), "text/html; charset=utf-8", response_headers)
 
     async def _operation(self, operation, headers, receive, send) -> None:
         media_type = headers.get(b"content-type", b"").split(b";", 1)[0].strip().lower()

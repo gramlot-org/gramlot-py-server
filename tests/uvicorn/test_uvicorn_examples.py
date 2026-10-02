@@ -1,51 +1,36 @@
-"""The example pages of the README and the tutorial run on the adapter."""
+"""The Uvicorn example serves the pages of the README and the tutorial."""
 import re
 from pathlib import Path
 
 import httpx
 import pytest
-from genro_tytx import from_tytx
 
 from gramlot_py_server.uvicorn import create_application
 
-ROOT = Path(__file__).resolve().parents[2]
-PAGES = ROOT / "tests" / "uvicorn" / "pages"
+EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+PAGES = EXAMPLES / "pages"
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
 
 
-def nodes(source):
-    """Return ``(tag, attributes)`` of every node of a Source document, depth first."""
-    found = []
-
-    def walk(bag):
-        for node in bag.nodes:
-            found.append((node.label.split("_")[0], dict(node.attr)))
-            if hasattr(node.value, "nodes"):
-                walk(node.value)
-
-    walk(from_tytx(source))
-    return found
-
-
 def test_readme_quick_start_page_is_the_tested_page():
-    readme = (ROOT / "README.md").read_text()
+    readme = (EXAMPLES.parent / "README.md").read_text()
     blocks = re.findall(r"```python\n(.*?)```", readme, re.S)
     assert blocks, "README has no Python block"
     assert blocks[0] == (PAGES / "hello.py").read_text()
 
 
 @pytest.mark.asyncio
-async def test_quick_start_page_serves_the_bound_field_and_the_formula():
-    app = create_application(PAGES)
+async def test_quick_start_page_serves_the_bound_field_and_the_formula(load_example, source_tags, page_id):
+    app = load_example("uvicorn/app.py").application
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         document = await client.get("/hello")
         assert document.status_code == 200
         assert "<title>Hello</title>" in document.text
-        page_id = re.search(r'"pageId":"([0-9a-f]+)"', document.text).group(1)
-        main = await client.post("/gramlot/main", json={"pageId": page_id})
+        assert "'unsafe-eval'" in document.headers["content-security-policy"]
+        main = await client.post("/gramlot/main", json={"pageId": page_id(document.text)})
         assert main.status_code == 200
-        tags = {tag: attrs for tag, attrs in nodes(main.text)}
+        tags = source_tags(main.text)
         assert tags["input"]["value"] == "^.name"
         assert tags["input"]["live"] is True
         assert tags["dataFormula"]["formula"] == "'Hello, ' + name"
@@ -53,7 +38,7 @@ async def test_quick_start_page_serves_the_bound_field_and_the_formula():
 
 
 @pytest.mark.asyncio
-async def test_tutorial_page_with_companion_and_stylesheet_under_the_strict_profile():
+async def test_tutorial_page_with_companion_and_stylesheet_under_the_strict_profile(source_tags, page_id):
     app = create_application(PAGES, content_security_policy=STRICT_CSP)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -68,8 +53,7 @@ async def test_tutorial_page_with_companion_and_stylesheet_under_the_strict_prof
         assert companion.headers["content-type"] == "text/javascript; charset=utf-8"
         assert "greet(kwargs)" in companion.text
         assert (await client.get("/greeting.py")).status_code == 404
-        page_id = re.search(r'"pageId":"([0-9a-f]+)"', document.text).group(1)
-        main = await client.post("/gramlot/main", json={"pageId": page_id})
-        tags = {tag: attrs for tag, attrs in nodes(main.text)}
+        main = await client.post("/gramlot/main", json={"pageId": page_id(document.text)})
+        tags = source_tags(main.text)
         assert tags["dataFormula"]["func"] == "greet"
         assert "formula" not in tags["dataFormula"]

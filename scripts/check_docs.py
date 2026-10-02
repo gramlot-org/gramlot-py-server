@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMESPACE = "GS"
+NAMESPACE = "GP"
 
 
 def check_pairing():

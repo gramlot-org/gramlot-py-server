@@ -1,23 +1,26 @@
-# 130 · Reference
+# 120 · Uvicorn reference
 
-Document ID: **GS-130**.
+Document ID: **GP-120**.
 
-[Paired view](../docs/130-reference.md).
+Derived from GS-130 (gramlot-uvicorn).
 
-<a id="gs-130-005"></a>
+[Paired view](../docs_llm/120-reference.md).
+
+<a id="gp-120-005"></a>
 
 ## 005 · Python API
 
-Block ID: **GS-130-005**.
+Block ID: **GP-120-005**.
 
-`from gramlot_uvicorn import NativeHtmlASGI, create_asgi_application`
+`from gramlot_py_server.uvicorn import Application, create_application`
 
-- `create_asgi_application(pages, **options) -> NativeHtmlASGI`: builds the
-  application; `options` are those of `NativeHtmlASGI`.
-- `NativeHtmlASGI(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
+- `create_application(pages, **options) -> Application`: builds the
+  application. `options` are those of `Application`.
+- `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
   content_security_policy=None)`: the ASGI callable. It handles the `http` and
-  `lifespan` scopes; any other scope type raises `ValueError`. On
-  `lifespan.shutdown` it forgets every open page.
+  `lifespan` scopes. Any other scope type raises `ValueError`
+  ("Application supports HTTP only"). On `lifespan.shutdown` it forgets every
+  open page.
   - `host`: the core `FileHost` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
@@ -29,19 +32,19 @@ while a page is opened or a Source method runs, including an exception of the
 page's own code and `InvalidResourceName`, propagates to the ASGI server, which
 answers 500.
 
-<a id="gs-130-010"></a>
+<a id="gp-120-010"></a>
 
 ## 010 · HTTP endpoints
 
-Block ID: **GS-130-010**.
+Block ID: **GP-120-010**.
 
 All paths are without the mount prefix. Every response carries
-`Cache-Control: no-store` and `Content-Length`.
+`Cache-Control: no-store` and `Content-Length`. Error bodies are plain text.
 
 | Method and path | Answer |
 | --- | --- |
 | `GET /<page path>` | 200 `text/html`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
-| any other method on a page path | 405, `Allow: GET` |
+| any other method on a page path, `HEAD` included | 405, `Allow: GET` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript`, the runtime packaged with the core |
 | `GET`, `HEAD /<file>.css`, `/<file>_aux.js` | 200 `text/css` or `text/javascript` when the real path is below the pages folder; 404 `Not found` otherwise |
 | other methods on those paths | 405, `Allow: GET, HEAD` |
@@ -50,20 +53,22 @@ All paths are without the mount prefix. Every response carries
 | `POST /gramlot/close` | body `{"pageId": "…"}`; 200 `{"ok": true}` |
 | other methods on `/gramlot/*` | 405, `Allow: POST` |
 
-Common answers of the three protocol endpoints: 415 `Expected
-application/json`; 413 `Request too large` above 4096 bytes; 400 `Invalid JSON
-request` or `Source params must be a dictionary`; 404 `Unknown page` for a page
-ID that is expired, unknown or owned by another cookie.
+Common answers of the three protocol endpoints: 415
+`Expected application/json`; 413 `Request too large` above 4096 bytes; 400
+`Invalid JSON request` or `Source params must be a dictionary`; 404
+`Unknown page` for a page ID that is expired, unknown or owned by another
+cookie.
 
-<a id="gs-130-015"></a>
+<a id="gp-120-015"></a>
 
 ## 015 · Bootstrap document
 
-Block ID: **GS-130-015**.
+Block ID: **GP-120-015**.
 
-The HTML answered for a page: `<!doctype html>`, `<meta charset="utf-8">`, the
-`Page.title`, `<div id="gramlot-root">` and one `<script type="module"
-nonce="…">` that imports `PageBootstrap` from the runtime URL and runs it with
+The HTML answered for a page, by every adapter: `<!doctype html>`,
+`<meta charset="utf-8">`, the `Page.title`, `<div id="gramlot-root">` and one
+`<script type="module" nonce="…">`. The script imports `PageBootstrap` from
+the runtime URL and runs it with
 `{"config": {"pageId", "mainUrl", "sourceUrl", "closeUrl", "rootId"},
-"resources": {"css": [url…], "js": [{"url", "group"}…]}}`; the URLs carry the
+"resources": {"css": [url…], "js": [{"url", "group"}…]}}`. The URLs carry the
 mount prefix. The companion `_aux.js` has `"group": null`.

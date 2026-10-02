@@ -1,0 +1,153 @@
+# 505 · Kajenn
+
+Document ID: **GP-505**.
+
+Derived from GA-010 (gramlot-kajenn).
+
+[Paired view](../docs_llm/505-kajenn.md).
+
+`gramlot_py_server.kajenn.Application` serves a pages folder as an application
+of a Kajenn site. It is a Kajenn `RoutedApplication`. The rules common to every
+adapter are in the [Introduction](005-introduction.md) and in
+[Writing pages for these hosts](010-writing-pages.md).
+
+<a id="gp-505-005"></a>
+
+## 005 · Install
+
+Block ID: **GP-505-005**.
+
+```sh
+python -m pip install "gramlot-py-server[kajenn]"
+```
+
+The extra `kajenn` installs `kajenn>=0.1.0`, which provides the command
+`kajenn`.
+
+<a id="gp-505-010"></a>
+
+## 010 · Run the example
+
+Block ID: **GP-505-010**.
+
+The example lives in the repository, beside the folder `examples/pages`.
+
+`examples/kajenn/config.py`:
+
+```python
+"""Kajenn site of the example: ``kajenn serve config.py --port 8000``, pages under ``/pages``."""
+from pathlib import Path
+
+from kajenn.config.templates import DefaultConfiguration
+
+from gramlot_py_server.kajenn import Application
+
+PAGES = Path(__file__).resolve().parents[1] / "pages"
+
+
+class Site(DefaultConfiguration):
+    def applications_section(self, cfg):
+        cfg.applications().application(
+            code="pages",
+            mount="pages",
+            app_class=Application,
+            pages=PAGES,
+            content_security_policy=(
+                "script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'"
+            ),
+        ).request(body="raw")
+```
+
+From the folder `examples/kajenn`:
+
+```sh
+kajenn serve config.py --port 8000
+```
+
+Open <http://127.0.0.1:8000/pages/hello>. Without `--port`, Kajenn 0.1.0
+binds this configuration to a free port and the server log prints it. The
+permissive profile is sent because `hello.py` uses inline code. The test
+`tests/kajenn/test_kajenn_examples.py` serves this example through a Kajenn
+`AsgiServer`.
+
+<a id="gp-505-015"></a>
+
+## 015 · Mounting and options
+
+Block ID: **GP-505-015**.
+
+The application is declared in the site recipe, as in the example:
+
+- `app_class=Application` and `pages=` the pages folder.
+- `mount=` the mount of the application. It must be a single lowercase URL
+  segment: a letter, then letters, digits, `_` or `-`. Any other value raises
+  `ValueError` ("mount must be a single lowercase URL segment") when the
+  application is created.
+- `.request(body="raw")`. The protocol reads its JSON with `json.loads`, not
+  with Kajenn's TYTX hydration. Without it every protocol request raises
+  `RuntimeError` ("Application requires request(body='raw')") and answers 500.
+- `page_ttl`, `max_pages` and `content_security_policy`, with the meaning of
+  the [Uvicorn options](110-configuration.md). There is no `mount_path`
+  option.
+
+The Kajenn server removes the mount from the request path. The application
+passes `/<mount>` to `open_page` as the prefix of the browser URLs and uses it
+as the `Path` of the owner cookie: `/pages` in the example.
+
+<a id="gp-505-020"></a>
+
+## 020 · What is served and Kajenn specifics
+
+Block ID: **GP-505-020**.
+
+- **Routes.** The branch `assets` serves `gramlot.js` with `GET` and `HEAD`.
+  The branch `gramlot` holds `main`, `source` and `close`, which accept `POST`.
+  The `index` route serves the pages and the companions from the remaining
+  path segments.
+- **Methods.** A page accepts `GET` only; `HEAD` answers 405. A method that a
+  route does not accept answers 405 `Method not allowed`, without an `Allow`
+  header.
+- **Responses.** Pages, companions and protocol answers carry
+  `Cache-Control: no-store`. The runtime carries
+  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  Errors are Kajenn HTTP exceptions: the answer is `application/json` with the
+  body `{"error": "…"}`, for example `{"error": "Unknown page"}`.
+- **Request body.** The application reads the raw body and answers 413 when it
+  is longer than 4096 bytes. The media type of `Content-Type` is compared with
+  `application/json`; parameters such as `charset` are ignored.
+- **Cookies.** The page response carries `gramlot_owner`. In the example the
+  Kajenn site also sets its own `session_id` cookie; the adapter does not read
+  it.
+- **Errors.** An exception of the page's own code reaches Kajenn, which
+  answers 500.
+- **Workers.** The page registry lives in the process. Run one worker, or keep
+  a browser on the same worker.
+
+<a id="gp-505-025"></a>
+
+## 025 · API reference
+
+Block ID: **GP-505-025**.
+
+`from gramlot_py_server.kajenn import Application`
+
+`Application(pages, *, page_ttl=1800, max_pages=1000,
+content_security_policy=None, **kwargs)`: the other keyword arguments go to
+Kajenn's `RoutedApplication`. The site recipe passes them.
+
+- `host`: the core `FileHost` built on `pages` with the URLs
+  `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
+- `content_security_policy`: the configured policy or `None`.
+- `index`: the route of pages and companions.
+- `companion(request, page_path, suffix)`, `operation(request, body_raw,
+  operation)`, `require_method(request, *methods)`: the helpers of the routes.
+
+Paths below are without the mount.
+
+| Method and path | Answer |
+| --- | --- |
+| `GET /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
+| `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
+| `GET`, `HEAD /<file>.css`, `/<file>_aux.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
+| `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
+| other methods | 405 `Method not allowed` |

@@ -2,7 +2,7 @@
 from pathlib import Path
 import tomllib
 
-project = "gramlot-uvicorn"
+project = "gramlot-py-server"
 author = "Genropy Team"
 copyright = "2026, Softwell S.r.l."
 release = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text())["project"]["version"]

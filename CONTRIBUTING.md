@@ -4,7 +4,7 @@
 
 ```sh
 python -m venv .venv
-.venv/bin/pip install "gramlot>=0.2.5" -e ".[uvicorn,django,flask,fastapi,kajenn,test]"
+.venv/bin/pip install "gramlot>=0.2.5" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery,test]"
 .venv/bin/pip install -e ".[docs]"   # documentation only
 git config core.hooksPath hooks
 ```
@@ -26,10 +26,23 @@ and install it in editable mode: `.venv/bin/pip install -e ../gramlot`.
 CI installs each adapter with its own extra only and runs `tests/<framework>`;
 a test that needs another framework fails there.
 
+Browser checks, with Node.js 22 and Playwright (`PLAYWRIGHT_ENTRY` is the path of
+`playwright/index.mjs`); CI runs them in Chromium (GP-910):
+
+```sh
+node scripts/verify_browser.mjs .venv/bin/python "$PLAYWRIGHT_ENTRY" chromium webkit
+node scripts/verify_gallery_browser.mjs .venv/bin/python "$PLAYWRIGHT_ENTRY" chromium webkit
+.venv/bin/python -m build --wheel -o dist .
+.venv/bin/python scripts/verify_install.py django dist/gramlot_py_server-0.2.2-py3-none-any.whl "$PLAYWRIGHT_ENTRY"
+```
+
+`verify_install.py` runs the start command that `gramlot new` prints; add
+`--port PORT` when that port is in use on your machine.
+
 ## Documentation
 
 - Published guides, paired in `docs_llm/`, namespace GP: `docs/005-…` to
-  `docs/015-…` common, `docs/105-…` to `docs/120-…` Uvicorn, `docs/205-…`
+  `docs/020-…` common, `docs/105-…` to `docs/120-…` Uvicorn, `docs/205-…`
   Django, `docs/305-…` Flask, `docs/405-…` FastAPI, `docs/505-…` Kajenn.
   Internal notes: `docs/internal/` and `docs_llm/internal/`.
 - The README quick start is the templates of `gramlot <framework> new` in

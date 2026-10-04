@@ -105,7 +105,11 @@ Block ID: **GP-015-020**.
 
 **`ImportError` when a module is imported.** The extra of the framework is not
 installed: `pip install "gramlot-py-server[django]"` for
-`gramlot_py_server.django`, and the same for `flask`, `fastapi` and `kajenn`.
+`gramlot_py_server.django`, and the same for `flask`, `fastapi` and `kajenn`. The
+command `gramlot` reports the same case as
+`gramlot django: asgiref is not installed. Install the extra: …`, and a gallery
+without `gramlot-examples` as `The gallery needs gramlot-examples: …`; the
+other messages of the command are in [The gramlot command](020-command.md).
 
 **Two cores.** The package declares `gramlot>=0.2.5`. `pip show gramlot`
 reports the version and the location of the core that Python imports. When a

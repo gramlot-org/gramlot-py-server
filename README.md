@@ -204,7 +204,8 @@ pages to it.
   in [docs_llm/](docs_llm/):
   - common: [Introduction](https://gramlot-py-server.readthedocs.io/en/latest/005-introduction.html),
     [Writing pages for these hosts](https://gramlot-py-server.readthedocs.io/en/latest/010-writing-pages.html),
-    [Troubleshooting](https://gramlot-py-server.readthedocs.io/en/latest/015-troubleshooting.html);
+    [Troubleshooting](https://gramlot-py-server.readthedocs.io/en/latest/015-troubleshooting.html),
+    [The gramlot command](https://gramlot-py-server.readthedocs.io/en/latest/020-command.html): `new` and `gallery`;
   - Uvicorn: [Tutorial](https://gramlot-py-server.readthedocs.io/en/latest/105-tutorial.html),
     [Configuration](https://gramlot-py-server.readthedocs.io/en/latest/110-configuration.html),
     [Deployment](https://gramlot-py-server.readthedocs.io/en/latest/115-deployment.html),
@@ -220,23 +221,35 @@ pages to it.
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.2.1 (PyPI `gramlot`) |
-| Python | 3.11 and 3.12 in CI; 3.12.12 locally |
+| Gramlot core | 0.2.5 (PyPI `gramlot`) |
+| Gallery | `gramlot-examples` 0.2.5 (extra `gallery`) |
+| Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.0 |
-| Browsers | not run for this package; the core runtime it serves, unchanged since 0.2.0, passed the core 0.2.0 qualification on Chromium 153, WebKit 26.6 and Firefox 155 |
+| Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |
 
 ## Tests and contributing
 
 ```sh
-python -m pip install -e ".[uvicorn,django,flask,fastapi,kajenn,test]"
+python -m pip install -e ".[uvicorn,django,flask,fastapi,kajenn,gallery,test]"
 python -m pytest -q                      # every adapter
 python -m pytest -q tests/flask          # one adapter, with its extra only
 python scripts/check_docs.py             # paired guides and Sphinx build
 ```
 
+The browser checks need Node.js and Playwright; `PLAYWRIGHT_ENTRY` is the path
+of `playwright/index.mjs`:
+
+```sh
+node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+python scripts/verify_install.py flask dist/gramlot_py_server-0.2.2-py3-none-any.whl "$PLAYWRIGHT_ENTRY"
+```
+
 CI runs each adapter with its own extra against the released core and, as an
-informational job, every adapter against the core's `main` checkout, and builds
-the documentation; coverage goes to Codecov with one flag per framework. See
+informational job, every adapter against the core's `main` checkout; it runs the
+browser checks in Chromium and a clean install of each environment from the
+built wheel, and builds the documentation; coverage goes to Codecov with one
+flag per framework. See
 [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md); the internal
 notes are in [docs/internal/](docs/internal/).
 

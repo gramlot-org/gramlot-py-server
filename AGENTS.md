@@ -30,7 +30,7 @@ framework, which arrives with the extra of the same name.
 - Keep code, comments and maintained documentation in English.
 - Pair `docs` and `docs_llm` guides; namespace **GP**; shared Document and
   Block IDs and lowercase anchors; three-digit filenames spaced by five.
-  Published guides: `005`–`015` common, `105`–`120` Uvicorn, `205` Django,
+  Published guides: `005`–`020` common, `105`–`120` Uvicorn, `205` Django,
   `305` Flask, `405` FastAPI, `505` Kajenn. Internal notes `905` and `910` live
   in `docs/internal/` and `docs_llm/internal/`, out of the published build.
   Document IDs are never reused: new guides take new numbers. A guide derived

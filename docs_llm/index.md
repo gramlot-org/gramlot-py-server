@@ -11,6 +11,7 @@ This package serves a folder of Python `Page` modules from the web framework of 
 005-introduction
 010-writing-pages
 015-troubleshooting
+020-command
 ```
 
 ```{toctree}

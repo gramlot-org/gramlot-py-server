@@ -20,6 +20,7 @@ and one extra per framework.
    005-introduction
    010-writing-pages
    015-troubleshooting
+   020-command
 
 .. toctree::
    :maxdepth: 2

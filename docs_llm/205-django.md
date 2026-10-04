@@ -25,18 +25,29 @@ The extra `django` installs `Django>=5.2,<6.2` and `asgiref>=3.8.1,<4`.
 
 <a id="gp-205-010"></a>
 
-## 010 · Run the example
+## 010 · Create a project
 
 Block ID: **GP-205-010**.
 
-The example lives in the repository, beside the folder `examples/pages`.
+`gramlot django new` writes the quick start project of the README
+([The gramlot command](020-command.md)):
 
-`examples/django/settings.py`:
+```sh
+gramlot django new my-site
+cd my-site
+python -m pip install -r requirements.txt
+django-admin runserver --settings=settings --pythonpath=.
+```
+
+Beside `pages/index.py`, `pages/index.js` and `requirements.txt` the project has
+`settings.py` and `urls.py`:
+
+`settings.py`:
 
 ```python
-"""Django settings of the example: ``django-admin runserver --settings=settings --pythonpath=.``."""
+"""Django settings: ``django-admin runserver --settings=settings --pythonpath=.``."""
 
-SECRET_KEY = "example-only-change-me"
+SECRET_KEY = "development-only-change-me"
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 ROOT_URLCONF = "urls"
@@ -44,37 +55,32 @@ INSTALLED_APPS: list[str] = []
 MIDDLEWARE = ["django.middleware.csrf.CsrfViewMiddleware"]
 ```
 
-`examples/django/urls.py`:
+`urls.py`:
 
 ```python
-"""URLconf of the example: the Gramlot pages at the site root."""
+"""URLconf: the Gramlot pages at the site root."""
 from pathlib import Path
-
-from django.urls import include, path
 
 from gramlot_py_server.django import Pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 pages = Pages(
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 
-urlpatterns = [path("", include(pages.urls))]
+urlpatterns = [*pages.urlpatterns]
 ```
 
-From the folder `examples/django`:
+Open <http://127.0.0.1:8000/>. The page shows a field with `Ada` and the text
+`Hello, Ada`. It has no inline code, so the project sends the strict profile.
+The test `tests/django/test_django_project.py` creates the project and serves it
+with Django's test client, in a child process configured from its `settings.py`.
+The adapter tests of `tests/django/test_django.py` run with `CsrfViewMiddleware`
+and CSRF checks enabled.
 
-```sh
-django-admin runserver --settings=settings --pythonpath=.
-```
-
-Open <http://127.0.0.1:8000/hello>. The permissive profile is sent because
-`hello.py` uses inline code. The test `tests/django/test_django_examples.py`
-serves this example with Django's test client, in a child process configured
-from `settings.py`. The adapter tests of `tests/django/test_django.py` run with
-`CsrfViewMiddleware` and CSRF checks enabled.
+`gramlot django gallery` serves the example gallery with this adapter.
 
 <a id="gp-205-015"></a>
 
@@ -144,6 +150,15 @@ the companions.
 Block ID: **GP-205-025**.
 
 `from gramlot_py_server.django import Pages`
+
+Module functions, outside `__all__`:
+
+- `serve(pages, *, host="127.0.0.1", port=8000, **options)`: configures Django
+  with a `ROOT_URLCONF` that holds `Pages(pages, **options).urlpatterns` and runs
+  `runserver` without the reloader. The process must not have configured Django
+  before.
+- `commands(verbs)`: adds the verbs `new` and `gallery` of `gramlot django`, an
+  entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
 content_security_policy=None, assets=None)`

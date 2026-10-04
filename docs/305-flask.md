@@ -25,42 +25,51 @@ The extra `flask` installs `flask>=3.1,<4`.
 
 <a id="gp-305-010"></a>
 
-## 010 · Run the example
+## 010 · Create a project
 
 Block ID: **GP-305-010**.
 
-The example lives in the repository, beside the folder `examples/pages`.
+`gramlot flask new` writes the quick start project of the README
+([The gramlot command](020-command.md)):
 
-`examples/flask/app.py`:
+```sh
+gramlot flask new my-site
+cd my-site
+python -m pip install -r requirements.txt
+flask --app app run --port 8000
+```
+
+Beside `pages/index.py`, `pages/index.js` and `requirements.txt` the project has
+`app.py`:
+
+`app.py`:
 
 ```python
-"""Serve the example pages inside a Flask app: ``flask --app app run``."""
+"""Serve the pages inside a Flask app: ``flask --app app run --port 8000``."""
 from pathlib import Path
 
 from flask import Flask
 
 from gramlot_py_server.flask import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = Flask(__name__)
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-From the folder `examples/flask`:
+Open <http://127.0.0.1:8000/>. The page shows a field with `Ada` and the text
+`Hello, Ada`. It has no inline code, so the project sends the strict profile.
+The Flask development server listens on port 8000, like the other environments:
+on macOS the default port 5000 is taken by AirPlay Receiver. The test
+`tests/flask/test_flask_project.py` creates the project and serves it with
+Flask's test client.
 
-```sh
-flask --app app run
-```
-
-The Flask development server listens on port 5000. Open
-<http://127.0.0.1:5000/hello>. The permissive profile is sent because
-`hello.py` uses inline code. The test `tests/flask/test_flask_examples.py`
-serves this example with Flask's test client.
+`gramlot flask gallery` serves the example gallery with this adapter.
 
 <a id="gp-305-015"></a>
 
@@ -132,6 +141,13 @@ Block ID: **GP-305-020**.
 Block ID: **GP-305-025**.
 
 `from gramlot_py_server.flask import Pages, mount_pages`
+
+Module functions, outside `__all__`:
+
+- `serve(pages, *, host="127.0.0.1", port=8000, **options)`: mounts the pages on
+  a new Flask app with `mount_pages` and runs its development server.
+- `commands(verbs)`: adds the verbs `new` and `gallery` of `gramlot flask`, an
+  entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages`, registers
   its blueprint and records it in `app.extensions["gramlot_pages"]`.

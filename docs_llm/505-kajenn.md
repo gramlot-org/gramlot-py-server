@@ -26,23 +26,34 @@ The extra `kajenn` installs `kajenn>=0.1.0`, which provides the command
 
 <a id="gp-505-010"></a>
 
-## 010 · Run the example
+## 010 · Create a project
 
 Block ID: **GP-505-010**.
 
-The example lives in the repository, beside the folder `examples/pages`.
+`gramlot kajenn new` writes the quick start project of the README
+([The gramlot command](020-command.md)):
 
-`examples/kajenn/config.py`:
+```sh
+gramlot kajenn new my-site
+cd my-site
+python -m pip install -r requirements.txt
+kajenn serve config.py --port 8000
+```
+
+Beside `pages/index.py`, `pages/index.js` and `requirements.txt` the project has
+`config.py`:
+
+`config.py`:
 
 ```python
-"""Kajenn site of the example: ``kajenn serve config.py --port 8000``, pages under ``/pages``."""
+"""Kajenn site: ``kajenn serve config.py --port 8000``, pages under ``/pages/``."""
 from pathlib import Path
 
 from kajenn.config.templates import DefaultConfiguration
 
 from gramlot_py_server.kajenn import Application
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 
 class Site(DefaultConfiguration):
@@ -53,22 +64,18 @@ class Site(DefaultConfiguration):
             app_class=Application,
             pages=PAGES,
             content_security_policy=(
-                "script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'"
+                "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
             ),
         ).request(body="raw")
 ```
 
-From the folder `examples/kajenn`:
+Open <http://127.0.0.1:8000/pages/>. The page shows a field with `Ada` and the
+text `Hello, Ada`. It has no inline code, so the project sends the strict
+profile. Without `--port`, Kajenn 0.1.0 binds this configuration to a free port
+and the server log prints it. The test `tests/kajenn/test_kajenn_project.py`
+creates the project and serves it through a Kajenn `AsgiServer`.
 
-```sh
-kajenn serve config.py --port 8000
-```
-
-Open <http://127.0.0.1:8000/pages/hello>. Without `--port`, Kajenn 0.1.0
-binds this configuration to a free port and the server log prints it. The
-permissive profile is sent because `hello.py` uses inline code. The test
-`tests/kajenn/test_kajenn_examples.py` serves this example through a Kajenn
-`AsgiServer`.
+`gramlot kajenn gallery` serves the example gallery with this adapter.
 
 <a id="gp-505-015"></a>
 
@@ -79,10 +86,10 @@ Block ID: **GP-505-015**.
 The application is declared in the site recipe, as in the example:
 
 - `app_class=Application` and `pages=` the pages folder.
-- `mount=` the mount of the application. It must be a single lowercase URL
-  segment: a letter, then letters, digits, `_` or `-`. Any other value raises
-  `ValueError` ("mount must be a single lowercase URL segment") when the
-  application is created.
+- `mount=` the mount of the application: a single lowercase URL segment (a
+  letter, then letters, digits, `_` or `-`), or `""` for the site root, without
+  prefix. Any other value raises `ValueError` ("mount must be a single lowercase
+  URL segment or empty") when the application is created.
 - `.request(body="raw")`. The protocol reads its JSON with `json.loads`, not
   with Kajenn's TYTX hydration. Without it every protocol request raises
   `RuntimeError` ("Application requires request(body='raw')") and answers 500.
@@ -96,7 +103,9 @@ as the `Path` of the owner cookie: `/pages` in the example. Kajenn routes
 `/pages` and `/pages/` alike; the application tells them apart by the ASGI
 `raw_path` and answers `/pages` with 301 to `/pages/`, with the query string:
 pages link each other with relative URLs. A server that sends no `raw_path`
-serves `/pages` as `/pages/`.
+serves `/pages` as `/pages/`. With `mount=""` the application answers every
+path that no other application claims, the prefix is empty and the cookie
+`Path` is `/`.
 
 <a id="gp-505-020"></a>
 
@@ -135,6 +144,14 @@ Block ID: **GP-505-020**.
 Block ID: **GP-505-025**.
 
 `from gramlot_py_server.kajenn import Application`
+
+Module functions, outside `__all__`:
+
+- `serve(pages, *, host="127.0.0.1", port=8000, mount_path="", **options)`:
+  declares an `Application` with the Kajenn mount `mount_path` in a Kajenn site
+  and serves it; an empty `mount_path` puts it at the site root.
+- `commands(verbs)`: adds the verbs `new` and `gallery` of `gramlot kajenn`, an
+  entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 `Application(pages, *, page_ttl=1800, max_pages=1000,
 content_security_policy=None, assets=None, **kwargs)`: the other keyword arguments go to

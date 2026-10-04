@@ -28,42 +28,51 @@ part of either extra: it needs `pip install "fastapi[standard]"`.
 
 <a id="gp-405-010"></a>
 
-## 010 · Run the example
+## 010 · Create a project
 
 Block ID: **GP-405-010**.
 
-The example lives in the repository, beside the folder `examples/pages`.
+`gramlot fastapi new` writes the quick start project of the README
+([The gramlot command](020-command.md)):
 
-`examples/fastapi/app.py`:
+```sh
+gramlot fastapi new my-site
+cd my-site
+python -m pip install -r requirements.txt
+uvicorn app:app
+```
+
+Beside `pages/index.py`, `pages/index.js` and `requirements.txt` the project has
+`app.py`:
+
+`app.py`:
 
 ```python
-"""Serve the example pages inside a FastAPI app: ``fastapi dev app.py`` or ``uvicorn app:app``."""
+"""Serve the pages inside a FastAPI app: ``uvicorn app:app``."""
 from pathlib import Path
 
 from fastapi import FastAPI
 
 from gramlot_py_server.fastapi import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = FastAPI()
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-From the folder `examples/fastapi`:
+Open <http://127.0.0.1:8000/>. The page shows a field with `Ada` and the text
+`Hello, Ada`. It has no inline code, so the project sends the strict profile.
+`requirements.txt` installs FastAPI with Uvicorn. With `fastapi[standard]`
+installed, `fastapi dev app.py` also works. The test
+`tests/fastapi/test_fastapi_project.py` creates the project and serves it with
+FastAPI's `TestClient`.
 
-```sh
-uvicorn app:app
-```
-
-or, with `fastapi[standard]` installed, `fastapi dev app.py`. Open
-<http://127.0.0.1:8000/hello>. The permissive profile is sent because
-`hello.py` uses inline code. The test `tests/fastapi/test_fastapi_examples.py`
-serves this example with FastAPI's `TestClient`.
+`gramlot fastapi gallery` serves the example gallery with this adapter.
 
 <a id="gp-405-015"></a>
 
@@ -135,6 +144,13 @@ Block ID: **GP-405-020**.
 Block ID: **GP-405-025**.
 
 `from gramlot_py_server.fastapi import Application, Pages, mount_pages`
+
+Module functions, outside `__all__`:
+
+- `serve(pages, *, host="127.0.0.1", port=8000, **options)`: runs
+  `Application(pages, **options)` with Uvicorn, which must be installed.
+- `commands(verbs)`: adds the verbs `new` and `gallery` of `gramlot fastapi`, an
+  entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages` and calls
   `mount(app)`.

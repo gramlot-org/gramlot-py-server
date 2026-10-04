@@ -50,6 +50,7 @@ with the extra of the same name, which installs its framework:
 | `flask` | `gramlot_py_server.flask` | `Pages`, `mount_pages(app, pages, **options)` | [Flask](305-flask.md) |
 | `fastapi` | `gramlot_py_server.fastapi` | `Pages`, `mount_pages(app, pages, **options)`, `Application` | [FastAPI](405-fastapi.md) |
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`, a Kajenn `RoutedApplication` | [Kajenn](505-kajenn.md) |
+| `gallery` | `gramlot_py_server.gallery` | `gramlot <environment> gallery`; installs `gramlot-examples` | [The gramlot command](020-command.md) |
 
 ```sh
 python -m pip install "gramlot-py-server[flask]"
@@ -60,6 +61,11 @@ FastAPI or Kajenn module without its extra raises `ImportError`.
 `gramlot_py_server.uvicorn` imports no framework: it is a plain ASGI
 application, and the extra `uvicorn` installs the server that runs it. The
 extras `test` and `docs` install the test suite and the documentation build.
+
+The package installs the command `gramlot <environment> <verb>`:
+`gramlot django new my-site` writes the quick start project of a framework,
+`gramlot django gallery` serves the example gallery with its adapter. See
+[The gramlot command](020-command.md).
 
 <a id="gp-005-015"></a>
 
@@ -113,7 +119,7 @@ How the prefix is given depends on the framework:
 | Django | `mount_path` | `Pages.urlpatterns` in the URLconf |
 | Flask | `mount_path` | the blueprint `url_prefix` |
 | FastAPI | `mount_path` | the router `prefix` |
-| Kajenn | the Kajenn `mount` of the application | the Kajenn server |
+| Kajenn | the Kajenn `mount` of the application; `""` for the site root | the Kajenn server |
 
 The request paths carry the prefix: `/py/hello`, `/py/assets/gramlot.js`. The
 adapter removes it and answers 404 to every path outside it. A proxy in front

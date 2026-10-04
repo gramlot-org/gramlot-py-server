@@ -18,11 +18,13 @@ core `gramlot.server`, the standard library and its own framework, which
 arrives with the extra of the same name. `kajenn.py` also imports
 `genro_routes`, a dependency of Kajenn. `uvicorn.py` imports no framework: it
 is a plain ASGI callable, and the extra `uvicorn` installs only the server that
-runs it. No module imports another module of the package.
+runs it. An adapter module imports no other adapter module; it imports
+`scaffold` and `gallery` of the package for its verbs (section 020).
 
-There is no shared module. Each module defines its own copy of the small
-constants: `MAX_REQUEST_BYTES = 4096`, `OWNER_COOKIE = "gramlot_owner"` and
-`COMPANION_MEDIA_TYPES` for `.css` and `.js`. `uvicorn.py` and
+There is no shared module for the HTTP contract. Each adapter module defines its
+own copy of the small constants and helpers: `MAX_REQUEST_BYTES = 4096`,
+`OWNER_COOKIE = "gramlot_owner"`, `COMPANION_MEDIA_TYPES` for `.css` and `.js`,
+`THEMES`, `THEME_MEDIA_TYPES` and `theme_file`. `uvicorn.py` and
 `fastapi.py` also define their own `RequestTooLarge`. A change to the common
 contract is made in all five modules, with their tests.
 
@@ -77,8 +79,10 @@ before it treats the path as a page path.
 GET and HEAD of `/themes/…` serve every file below `gramlot/resources/themes`
 of the installed core, as the runtime: `theme_file(path)` in each module
 returns an `assets` entry, with the media type of the extension. The table is
-`MimeTypes()`, the built-in one, which ignores the system files, plus the font
-types it lacks (`.woff`, `.woff2`, `.ttf`, `.otf`); `text/*` types carry
+`THEME_MEDIA_TYPES` first, then `MimeTypes()`, the built-in table, which ignores
+the system files. `THEME_MEDIA_TYPES` holds the types the built-in table lacks
+in some Python version: `.woff`, `.woff2`, `.ttf`, `.otf` and `.webp` in every
+one, `.md` before 3.12 (the CI on 3.11 found it). `text/*` types carry
 `charset=utf-8`. A path the core does not have goes on, so a `themes/` folder
 of the application below the pages folder is still served as companions.
 
@@ -88,3 +92,35 @@ map after the runtime and the core themes, and before the companions. In Kajenn 
 captures the paths below `assets/`; its `index` route passes them back to the
 `index` route of the application, so a map URL such as
 `/assets/branding/logo.svg` reaches the map.
+
+<a id="gp-905-020"></a>
+
+## 020 · The gramlot command
+
+Block ID: **GP-905-020**.
+
+`cli.py` holds `main`, the console script `gramlot`. It reads the names of the
+entry points of the group `gramlot_py_server.commands`, parses the first
+argument against them and loads only that entry point: the function
+`commands(verbs)` of the adapter module. A `ModuleNotFoundError` while it loads
+becomes the message that names the extra. Each verb sets `run` on its parser.
+
+- `scaffold.py`: `add_new` and `new_project`. The project is the copy of
+  `templates/<environment>/` and `templates/pages/`, the README quick start;
+  `tests/test_readme.py` compares them.
+- `gallery/__init__.py`: `add_gallery`, `stage` and `run_gallery`. `stage`
+  writes the pages of GE-010 section 025 of `gramlot-examples` into a temporary
+  folder and returns the `assets` of `build_gallery` with each logic module as
+  JavaScript. `gallery/<environment>/` holds the catalogue of each environment;
+  its page and module are copies of the templates, checked by
+  `tests/test_gallery.py`.
+- `serve(pages, *, host, port, **options)` in each adapter module runs the
+  server of the framework: `uvicorn.run`, `Flask.run`, Django `runserver` with a
+  `ROOT_URLCONF` object (`_URLconf`: Django caches the resolver by it, so it
+  must be hashable), Kajenn `AsgiServer.serve` with a site declared in code.
+  The gallery and `scripts/serve_adapter.py` use it.
+
+`uvicorn.py` and `fastapi.py` import Uvicorn inside `serve`, so
+`gramlot_py_server.uvicorn` still imports no framework and FastAPI without
+Uvicorn imports. Kajenn accepts an empty
+`mount`, the site root, for the gallery without prefix.

@@ -14,6 +14,13 @@ Block ID: **GP-120-005**.
 
 `from gramlot_py_server.uvicorn import Application, create_application`
 
+Module functions, outside `__all__`:
+
+- `serve(pages, *, host="127.0.0.1", port=8000, **options)`: runs Uvicorn with
+  `create_application(pages, **options)` until it stops. Uvicorn must be installed.
+- `commands(verbs)`: adds the verbs `new` and `gallery` of `gramlot uvicorn`, an
+  entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
+
 - `create_application(pages, **options) -> Application`: builds the
   application. `options` are those of `Application`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,

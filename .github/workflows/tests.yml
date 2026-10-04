@@ -57,7 +57,56 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install "gramlot>=0.2.5" -e ".[test]"
-      - run: python -m pytest -q tests/test_readme.py tests/test_cli.py
+      - run: python -m pytest -q tests/test_readme.py tests/test_cli.py tests/test_gallery.py
+
+  browser:
+    # Required: the five adapters under a mount path and the gallery of each environment, in Chromium.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install "gramlot>=0.2.5" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery]"
+      - name: Install Playwright Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/playwright" --no-fund --no-audit playwright
+          "$RUNNER_TEMP/playwright/node_modules/.bin/playwright" install --with-deps chromium
+          echo "PLAYWRIGHT_ENTRY=$RUNNER_TEMP/playwright/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Adapters under /py
+        run: node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+      - name: Gallery of every environment
+        run: node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+
+  install:
+    # Required: gramlot <environment> new and gallery from a clean install of the built wheel.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [uvicorn, django, flask, fastapi, kajenn]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Playwright Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/playwright" --no-fund --no-audit playwright
+          "$RUNNER_TEMP/playwright/node_modules/.bin/playwright" install --with-deps chromium
+          echo "PLAYWRIGHT_ENTRY=$RUNNER_TEMP/playwright/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Build the wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel -o dist .
+      - name: New project and gallery from a clean install
+        run: python scripts/verify_install.py ${{ matrix.framework }} dist/gramlot_py_server-*.whl "$PLAYWRIGHT_ENTRY" chromium
 
   core-main:
     # Informational: every adapter against the main branch of gramlot-org/gramlot.

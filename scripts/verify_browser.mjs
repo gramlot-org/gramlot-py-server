@@ -3,7 +3,8 @@
  * PYTHON has gramlot-py-server installed with every framework extra. For each adapter,
  * scripts/serve_adapter.py serves a pages folder at /py with the strict CSP profile and
  * an assets map. Checks: /py answers 301 to /py/, whose page shows an image of the
- * assets map by a relative URL; foo.py takes its Logic from the page module foo.js.
+ * assets map by a relative URL and applies the core theme of its Page.css; foo.py takes
+ * its Logic from the page module foo.js.
  */
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
@@ -24,6 +25,7 @@ const indexPage = `from gramlot import Page as Base
 
 class Page(Base):
     title = "Index"
+    css = ("/themes/gramlot-base/theme.css",)
 
     def main(self, root):
         root.h1("Index", id="title")
@@ -119,6 +121,9 @@ try {
             assert.equal(await index.page.locator('#title').textContent(), 'Index', index.label);
             assert.ok(await index.page.locator('#logo').evaluate(image => image.complete && image.naturalWidth > 0),
                 `${index.label}: logo of the assets map`);
+            assert.ok(await index.page.evaluate(() => [...document.styleSheets].some(sheet =>
+                sheet.href?.endsWith('/py/themes/gramlot-base/theme.css') && sheet.cssRules.length > 0)),
+                `${index.label}: core theme`);
             assert.deepEqual(index.errors, [], index.label);
             await index.page.close();
             console.log(`PASS ${index.label}`);

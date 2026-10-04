@@ -1,10 +1,12 @@
 import json
 import re
+from importlib.resources import files
 
 import httpx
 import pytest
 from genro_tytx import from_tytx
 
+from gramlot_py_server import uvicorn as uvicorn_module
 from gramlot_py_server.uvicorn import Application, create_application
 
 
@@ -251,3 +253,50 @@ async def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
         response = await client.get("/py?a=1")
         assert response.status_code == 301 and response.headers["location"] == "/py/?a=1"
         assert (await client.get("/py/")).status_code == 200
+
+
+CORE_THEME = files("gramlot").joinpath("resources", "themes", "gramlot-base", "theme.css").read_bytes()
+
+
+@pytest.mark.asyncio
+async def test_core_themes_below_the_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/gramlot-base/theme.css']\n"
+        "    def main(self, root): root.h1('Themed')\n"
+    )
+    (pages / "themes" / "own.css").write_text("h1 { color: red; }")
+    app = create_application(pages, mount_path="/py")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/py/themes/gramlot-base/theme.css")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/css; charset=utf-8"
+        assert response.content == CORE_THEME
+        head = await client.head("/py/themes/gramlot-base/theme.css")
+        assert head.status_code == 200 and head.content == b""
+        readme = await client.get("/py/themes/gramlot-base/README.md")
+        assert readme.headers["content-type"] == "text/markdown; charset=utf-8"
+        assert (await client.post("/py/themes/gramlot-base/theme.css")).status_code == 405
+        assert (await client.get("/py/themes/gramlot-base/missing.css")).status_code == 404
+        assert (await client.get("/py/themes/own.css")).content == b"h1 { color: red; }"
+    assert await raw_get(app, "/py/themes/../../outside.css") == 404
+
+
+def test_theme_media_types_and_real_path(tmp_path, monkeypatch):
+    themes = tmp_path / "themes"
+    (themes / "set").mkdir(parents=True)
+    for name in ("font.woff2", "logo.svg", "data.bin", "style.css"):
+        (themes / "set" / name).write_bytes(b"x")
+    (tmp_path / "outside.css").write_text("secret")
+    (themes / "set" / "escape.css").symlink_to(tmp_path / "outside.css")
+    monkeypatch.setattr(uvicorn_module, "THEMES", themes)
+    types = {name: uvicorn_module.theme_file(f"/themes/set/{name}")["type"]
+             for name in ("font.woff2", "logo.svg", "data.bin", "style.css")}
+    assert types == {"font.woff2": "font/woff2", "logo.svg": "image/svg+xml",
+                     "data.bin": "application/octet-stream", "style.css": "text/css; charset=utf-8"}
+    for path in ("/themes/set/escape.css", "/themes/set", "/themes/missing.css", "/other/set/style.css"):
+        assert uvicorn_module.theme_file(path) is None

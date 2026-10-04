@@ -1,5 +1,6 @@
 import json
 import re
+from importlib.resources import files
 
 from flask import Flask
 from genro_tytx import from_tytx
@@ -178,3 +179,31 @@ def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
     response = client.get("/nested?a=1")
     assert response.status_code == 301 and response.headers["Location"].endswith("/nested/?a=1")
     assert client.get("/nested/").status_code == 200
+
+
+CORE_THEME = files("gramlot").joinpath("resources", "themes", "gramlot-base", "theme.css").read_bytes()
+
+
+def test_core_themes_below_the_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/gramlot-base/theme.css']\n"
+        "    def main(self, root): root.h1('Themed')\n"
+    )
+    (pages / "themes" / "own.css").write_text("h1 { color: red; }")
+    app = Flask(__name__)
+    mount_pages(app, pages, mount_path="/nested")
+    client = app.test_client()
+    response = client.get("/nested/themes/gramlot-base/theme.css")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/css; charset=utf-8"
+    assert response.data == CORE_THEME
+    head = client.head("/nested/themes/gramlot-base/theme.css")
+    assert head.status_code == 200 and head.data == b""
+    assert client.get("/nested/themes/gramlot-base/README.md").headers["Content-Type"] == "text/markdown; charset=utf-8"
+    assert client.post("/nested/themes/gramlot-base/theme.css").status_code == 405
+    assert client.get("/nested/themes/gramlot-base/missing.css").status_code == 404
+    assert client.get("/nested/themes/own.css").data == b"h1 { color: red; }"

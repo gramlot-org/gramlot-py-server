@@ -1,5 +1,6 @@
 import json
 import re
+from importlib.resources import files
 
 import httpx
 import pytest
@@ -264,3 +265,32 @@ async def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
         response = await client.get("/page?a=1")
         assert response.status_code == 301 and response.headers["location"] == "/page/?a=1"
         assert (await client.get("/page/")).status_code == 200
+
+
+CORE_THEME = files("gramlot").joinpath("resources", "themes", "gramlot-base", "theme.css").read_bytes()
+
+
+@pytest.mark.asyncio
+async def test_core_themes_below_the_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/gramlot-base/theme.css']\n"
+        "    def main(self, root): root.h1('Themed')\n"
+    )
+    (pages / "themes" / "own.css").write_text("h1 { color: red; }")
+    transport = httpx.ASGITransport(app=site(pages), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/page/themes/gramlot-base/theme.css")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/css; charset=utf-8"
+        assert response.content == CORE_THEME
+        head = await client.head("/page/themes/gramlot-base/theme.css")
+        assert head.status_code == 200 and head.content == b""
+        readme = await client.get("/page/themes/gramlot-base/README.md")
+        assert readme.headers["content-type"] == "text/markdown; charset=utf-8"
+        assert (await client.post("/page/themes/gramlot-base/theme.css")).status_code == 405
+        assert (await client.get("/page/themes/gramlot-base/missing.css")).status_code == 404
+        assert (await client.get("/page/themes/own.css")).content == b"h1 { color: red; }"

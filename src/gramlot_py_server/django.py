@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+from importlib.resources import files
+from mimetypes import MimeTypes
 from pathlib import Path
 from secrets import token_urlsafe
 
@@ -28,6 +30,30 @@ COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
 }
+# The core themes, served below the mount path as the runtime is. The built-in
+# table of MimeTypes() ignores the system files; it lacks the font types.
+THEMES = Path(str(files("gramlot").joinpath("resources", "themes")))
+MEDIA_TYPES = MimeTypes()
+FONT_MEDIA_TYPES = {".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf"}
+
+
+def theme_file(path: str) -> dict | None:
+    """The file of the core themes at ``path`` (``/themes/…``), as an ``assets`` entry.
+
+    Every file whose real path is below ``gramlot/resources/themes`` is served
+    with the media type of its extension; ``None`` lets the request go on.
+    """
+    if not path.startswith("/themes/"):
+        return None
+    root = THEMES.resolve()
+    real = root.joinpath(*path.removeprefix("/themes/").split("/")).resolve()
+    if not (real.is_relative_to(root) and real.is_file()):
+        return None
+    media_type = FONT_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
+    media_type = media_type or "application/octet-stream"
+    if media_type.startswith("text/"):
+        media_type += "; charset=utf-8"
+    return {"file": real, "type": media_type}
 
 
 class Pages:
@@ -43,6 +69,10 @@ class Pages:
     pages folder: the companions of ``FileHost`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
+
+    GET and HEAD serve every file below the themes folder of the core at
+    ``/themes/…``, with the media type of its extension; a path the core does
+    not have goes on to ``assets``, the companions and the pages.
 
     ``assets`` maps URLs below the mount path to files served by GET and HEAD,
     each ``{"file": path, "type": media type}``, as ``build_gallery`` of
@@ -97,7 +127,7 @@ class Pages:
         return response
 
     def page(self, request, page_path=""):
-        asset = self.assets.get("/" + page_path)
+        asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
         if asset is not None:
             return self.static(request, asset)
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)

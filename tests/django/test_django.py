@@ -1,7 +1,7 @@
 """The Django adapter serves the Gramlot browser protocol."""
-
 import json
 import re
+from importlib.resources import files
 
 import django
 from django.conf import settings
@@ -238,3 +238,33 @@ def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
     response = client.get("/hello?a=1")
     assert response.status_code == 301 and response["Location"].endswith("/hello/?a=1")
     assert client.get("/hello/").status_code == 200
+
+
+CORE_THEME = files("gramlot").joinpath("resources", "themes", "gramlot-base", "theme.css").read_bytes()
+
+
+def test_core_themes_below_the_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/gramlot-base/theme.css']\n"
+        "    def main(self, root): root.h1('Themed')\n"
+    )
+    (pages / "themes" / "own.css").write_text("h1 { color: red; }")
+    integration = Pages(pages, mount_path="/hello")
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client()
+    response = client.get("/hello/themes/gramlot-base/theme.css")
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/css; charset=utf-8"
+    assert response.content == CORE_THEME
+    head = client.head("/hello/themes/gramlot-base/theme.css")
+    assert head.status_code == 200 and head.content == b""
+    assert client.get("/hello/themes/gramlot-base/README.md")["Content-Type"] == "text/markdown; charset=utf-8"
+    assert client.post("/hello/themes/gramlot-base/theme.css").status_code == 405
+    assert client.get("/hello/themes/gramlot-base/missing.css").status_code == 404
+    assert client.get("/hello/themes/own.css").content == b"h1 { color: red; }"

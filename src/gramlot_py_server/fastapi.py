@@ -21,6 +21,7 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 MAX_REQUEST_BYTES = 4096
@@ -243,9 +244,17 @@ def mount_pages(app: FastAPI, pages: str | Path, **options) -> Pages:
     return integration
 
 
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, **options) -> None:
+    """Serve ``pages`` in a FastAPI ``Application`` under Uvicorn until it stops."""
+    import uvicorn
+
+    uvicorn.run(Application(pages, **options), host=host, port=port)
+
+
 def commands(verbs) -> None:
     """The verbs of ``gramlot fastapi``: an entry point of ``gramlot_py_server.commands``."""
     add_new(verbs, "fastapi", start="uvicorn app:app", url="http://127.0.0.1:8000/")
+    add_gallery(verbs, "fastapi", serve)
 
 
 __all__ = ["Application", "Pages", "mount_pages"]

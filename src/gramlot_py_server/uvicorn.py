@@ -22,6 +22,7 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 JSON_MEDIA_TYPE = "application/json"
@@ -296,9 +297,17 @@ def create_application(pages: str | Path, **options: Any) -> Application:
     return Application(pages, **options)
 
 
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, **options: Any) -> None:
+    """Serve ``pages`` with Uvicorn until it stops; ``options`` are those of ``Application``."""
+    import uvicorn
+
+    uvicorn.run(create_application(pages, **options), host=host, port=port)
+
+
 def commands(verbs) -> None:
     """The verbs of ``gramlot uvicorn``: an entry point of ``gramlot_py_server.commands``."""
     add_new(verbs, "uvicorn", start="uvicorn app:application", url="http://127.0.0.1:8000/")
+    add_gallery(verbs, "uvicorn", serve)
 
 
 __all__ = ["Application", "create_application"]

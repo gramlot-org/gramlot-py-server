@@ -22,6 +22,7 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 MAX_REQUEST_BYTES = 4096
@@ -217,9 +218,37 @@ class Pages:
         return response
 
 
+class _URLconf:
+    """A ``ROOT_URLCONF`` object: Django reads its ``urlpatterns`` and caches it by identity."""
+
+    def __init__(self, urlpatterns):
+        self.urlpatterns = urlpatterns
+
+
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, **options) -> None:
+    """Serve ``pages`` with the Django development server until it stops.
+
+    Django is configured here with the URLconf of one ``Pages``: the process must
+    not have configured it before.
+    """
+    import django
+    from django.conf import settings
+    from django.core.management import call_command
+
+    settings.configure(
+        SECRET_KEY=token_urlsafe(32),
+        ALLOWED_HOSTS=["127.0.0.1", "localhost", host],
+        ROOT_URLCONF=_URLconf(Pages(pages, **options).urlpatterns),
+        MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"],
+    )
+    django.setup()
+    call_command("runserver", f"{host}:{port}", use_reloader=False)
+
+
 def commands(verbs) -> None:
     """The verbs of ``gramlot django``: an entry point of ``gramlot_py_server.commands``."""
     add_new(verbs, "django", start="django-admin runserver --settings=settings --pythonpath=.", url="http://127.0.0.1:8000/")
+    add_gallery(verbs, "django", serve)
 
 
 __all__ = ["Pages"]

@@ -1,0 +1,18 @@
+{
+  "environment": "fastapi",
+  "families": [
+    {
+      "key": "fastapi_pages",
+      "title": "FastAPI",
+      "examples": [
+        {
+          "key": "fastapi-01",
+          "title": "Quick start",
+          "folder": "01_quick_start",
+          "description": "The page of the README quick start, served by gramlot-py-server with FastAPI.",
+          "explanation": "Page builds the page on the server; the Logic of the page module 01_quick_start.js holds the greeting, which runs in the browser."
+        }
+      ]
+    }
+  ]
+}

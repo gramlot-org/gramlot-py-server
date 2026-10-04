@@ -10,7 +10,7 @@ from mimetypes import MimeTypes
 from pathlib import Path
 from secrets import token_urlsafe
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, Flask, Response, request
 from gramlot.server import (
     FileHost,
     HostCapacity,
@@ -20,6 +20,7 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 MAX_REQUEST_BYTES = 4096
@@ -212,9 +213,17 @@ def mount_pages(app, pages: str | Path, **options) -> Pages:
     return integration
 
 
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 5000, **options) -> None:
+    """Serve ``pages`` in a Flask app with the Flask development server until it stops."""
+    app = Flask(__name__)
+    mount_pages(app, pages, **options)
+    app.run(host=host, port=port)
+
+
 def commands(verbs) -> None:
     """The verbs of ``gramlot flask``: an entry point of ``gramlot_py_server.commands``."""
     add_new(verbs, "flask", start="flask --app app run", url="http://127.0.0.1:5000/")
+    add_gallery(verbs, "flask", serve)
 
 
 __all__ = ["Pages", "mount_pages"]

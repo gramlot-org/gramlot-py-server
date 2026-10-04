@@ -27,6 +27,7 @@ from kajenn import (
     RoutedApplication,
 )
 
+from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 MAX_REQUEST_BYTES = 4096
@@ -103,6 +104,7 @@ class Application(RoutedApplication):
     URLs. The mount without the final slash (``/py``) answers 301 to ``/py/``:
     pages link each other with relative URLs. Kajenn routes ``/py`` and ``/py/``
     alike; the application tells them apart by the ASGI ``raw_path``.
+    An empty ``mount`` puts the application at the site root, without prefix.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
     pages folder: the companions of ``FileHost`` (stylesheet, page module or
@@ -126,8 +128,8 @@ class Application(RoutedApplication):
                  content_security_policy: str | None = None, assets: dict | None = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
-        if not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
-            raise ValueError("mount must be a single lowercase URL segment")
+        if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
+            raise ValueError("mount must be a single lowercase URL segment or empty")
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
         self.host = FileHost(
@@ -147,7 +149,7 @@ class Application(RoutedApplication):
     @route(media_type="text/html")
     async def index(self, *segments, _request, **_query):
         page_path = "/".join(segments)
-        if _request.scope.get("raw_path") == f"/{self.mount}".encode():
+        if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
             return self.redirect(_request)
         asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
         if asset is not None:
@@ -158,7 +160,7 @@ class Application(RoutedApplication):
         self.require_method(_request, "GET")
         owner = _request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page(page_path, owner=owner, prefix=f"/{self.mount}")
+            opened = await self.host.open_page(page_path, owner=owner, prefix=self.prefix)
         except PageNotFound as error:
             raise HTTPNotFound("Page not found") from error
         except HostCapacity as error:
@@ -168,9 +170,14 @@ class Application(RoutedApplication):
             policy = self.content_security_policy.replace("{nonce}", opened.nonce)
             _request.response.set_header("Content-Security-Policy", policy)
         _request.response.set_cookie(
-            OWNER_COOKIE, owner, path=f"/{self.mount}", httponly=True, samesite="lax"
+            OWNER_COOKIE, owner, path=self.prefix or "/", httponly=True, samesite="lax"
         )
         return opened.html
+
+    @property
+    def prefix(self) -> str:
+        """The mount prefix of the browser URLs: ``/<mount>``, or ``""`` at the site root."""
+        return f"/{self.mount}" if self.mount else ""
 
     def redirect(self, request):
         """Answer the mount without the final slash with 301 to the mount with it."""
@@ -239,9 +246,25 @@ class Application(RoutedApplication):
         return result
 
 
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, mount_path: str = "",
+          **options) -> None:
+    """Serve ``pages`` in a Kajenn site until it stops; ``mount_path`` is the Kajenn mount."""
+    from kajenn import AsgiServer
+    from kajenn.config.templates import DefaultConfiguration
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount=mount_path.strip("/"), app_class=Application, pages=pages, **options,
+            ).request(body="raw")
+
+    AsgiServer(config=Site).serve(host=host, port=port)
+
+
 def commands(verbs) -> None:
     """The verbs of ``gramlot kajenn``: an entry point of ``gramlot_py_server.commands``."""
     add_new(verbs, "kajenn", start="kajenn serve config.py --port 8000", url="http://127.0.0.1:8000/pages/")
+    add_gallery(verbs, "kajenn", serve)
 
 
 __all__ = ["Application"]

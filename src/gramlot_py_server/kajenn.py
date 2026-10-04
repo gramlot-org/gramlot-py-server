@@ -25,6 +25,8 @@ from kajenn import (
     RoutedApplication,
 )
 
+from gramlot_py_server.scaffold import add_new
+
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
@@ -205,6 +207,11 @@ class Application(RoutedApplication):
         except SourceNotFound as error:
             raise HTTPNotFound("Unknown Source method") from error
         return result
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot kajenn``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "kajenn", start="kajenn serve config.py --port 8000", url="http://127.0.0.1:8000/pages/")
 
 
 __all__ = ["Application"]

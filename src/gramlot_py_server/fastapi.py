@@ -19,6 +19,8 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.scaffold import add_new
+
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
@@ -209,6 +211,11 @@ def mount_pages(app: FastAPI, pages: str | Path, **options) -> Pages:
     integration = Pages(pages, **options)
     integration.mount(app)
     return integration
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot fastapi``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "fastapi", start="uvicorn app:app", url="http://127.0.0.1:8000/")
 
 
 __all__ = ["Application", "Pages", "mount_pages"]

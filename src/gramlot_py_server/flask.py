@@ -18,6 +18,8 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.scaffold import add_new
+
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
@@ -178,6 +180,11 @@ def mount_pages(app, pages: str | Path, **options) -> Pages:
     app.register_blueprint(integration.blueprint())
     app.extensions.setdefault("gramlot_pages", {})[integration.mount_path] = integration
     return integration
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot flask``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "flask", start="flask --app app run", url="http://127.0.0.1:5000/")
 
 
 __all__ = ["Pages", "mount_pages"]

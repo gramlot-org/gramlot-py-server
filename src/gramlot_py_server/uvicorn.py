@@ -20,6 +20,8 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.scaffold import add_new
+
 JSON_MEDIA_TYPE = "application/json"
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
@@ -262,6 +264,11 @@ def create_application(pages: str | Path, **options: Any) -> Application:
     """Create a generic ASGI application for Uvicorn or another ASGI server."""
 
     return Application(pages, **options)
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot uvicorn``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "uvicorn", start="uvicorn app:application", url="http://127.0.0.1:8000/")
 
 
 __all__ = ["Application", "create_application"]

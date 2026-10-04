@@ -20,6 +20,8 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.scaffold import add_new
+
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
@@ -183,6 +185,11 @@ class Pages:
         response = HttpResponse(result, content_type="application/json")
         response["Cache-Control"] = "no-store"
         return response
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot django``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "django", start="django-admin runserver --settings=settings --pythonpath=.", url="http://127.0.0.1:8000/")
 
 
 __all__ = ["Pages"]

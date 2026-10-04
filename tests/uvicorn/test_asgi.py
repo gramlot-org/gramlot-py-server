@@ -7,6 +7,7 @@ import pytest
 from genro_tytx import from_tytx
 
 from gramlot_py_server import uvicorn as uvicorn_module
+from gallery_checks import check_index_main, expected, page_id, staged
 from gramlot_py_server.uvicorn import Application, create_application
 
 
@@ -300,3 +301,18 @@ def test_theme_media_types_and_real_path(tmp_path, monkeypatch):
                      "data.bin": "application/octet-stream", "style.css": "text/css; charset=utf-8"}
     for path in ("/themes/set/escape.css", "/themes/set", "/themes/missing.css", "/other/set/style.css"):
         assert uvicorn_module.theme_file(path) is None
+
+
+@pytest.mark.asyncio
+async def test_gallery_under_the_mount_path(tmp_path):
+    folder, assets = staged(tmp_path, "uvicorn")
+    app = create_application(folder, mount_path="/py", assets=assets)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for url, kind in expected("uvicorn"):
+            response = await client.get(url)
+            assert response.status_code == 200, url
+            assert response.headers["content-type"].startswith(kind), url
+        document = (await client.get("/py/")).text
+        main = await client.post("/py/gramlot/main", json={"pageId": page_id(document)})
+        check_index_main(main.text)

@@ -5,6 +5,7 @@ from importlib.resources import files
 from fastapi.testclient import TestClient
 from genro_tytx import from_tytx
 
+from gallery_checks import check_index_main, expected, page_id, staged
 from gramlot_py_server.fastapi import Application
 
 PAGE = """from gramlot import Page as BasePage, source
@@ -201,3 +202,15 @@ def test_core_themes_below_the_mount_path(tmp_path):
     assert client.post("/nested/themes/gramlot-base/theme.css").status_code == 405
     assert client.get("/nested/themes/gramlot-base/missing.css").status_code == 404
     assert client.get("/nested/themes/own.css").content == b"h1 { color: red; }"
+
+
+def test_gallery_under_the_mount_path(tmp_path):
+    folder, assets = staged(tmp_path, "fastapi")
+    client = TestClient(Application(folder, mount_path="/py", assets=assets))
+    for url, kind in expected("fastapi"):
+        response = client.get(url)
+        assert response.status_code == 200, url
+        assert response.headers["content-type"].startswith(kind), url
+    document = client.get("/py/").text
+    main = client.post("/py/gramlot/main", json={"pageId": page_id(document)})
+    check_index_main(main.text)

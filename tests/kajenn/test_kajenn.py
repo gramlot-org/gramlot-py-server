@@ -8,6 +8,7 @@ from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
 
+from gallery_checks import check_index_main, expected, page_id, staged
 from gramlot_py_server.kajenn import Application
 
 
@@ -294,3 +295,45 @@ async def test_core_themes_below_the_mount_path(tmp_path):
         assert (await client.post("/page/themes/gramlot-base/theme.css")).status_code == 405
         assert (await client.get("/page/themes/gramlot-base/missing.css")).status_code == 404
         assert (await client.get("/page/themes/own.css")).content == b"h1 { color: red; }"
+
+
+@pytest.mark.asyncio
+async def test_gallery_under_the_mount_path(tmp_path):
+    folder, assets = staged(tmp_path, "kajenn")
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="gallery", mount="py", app_class=Application, pages=folder, assets=assets,
+            ).request(body="raw")
+
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for url, kind in expected("kajenn"):
+            response = await client.get(url)
+            assert response.status_code == 200, url
+            assert response.headers["content-type"].startswith(kind), url
+        document = (await client.get("/py/")).text
+        main = await client.post("/py/gramlot/main", json={"pageId": page_id(document)})
+        check_index_main(main.text)
+
+
+@pytest.mark.asyncio
+async def test_empty_mount_serves_the_pages_at_the_site_root(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount="", app_class=Application, pages=tmp_path,
+            ).request(body="raw")
+
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        document = await client.get("/")
+        assert document.status_code == 200
+        assert '"mainUrl":"/gramlot/main"' in document.text
+        assert "Path=/;" in document.headers["set-cookie"]
+        main = await client.post("/gramlot/main", json={"pageId": page_id_of(document)})
+        assert main.status_code == 200
+        assert (await client.get("/assets/gramlot.js")).status_code == 200

@@ -1,7 +1,7 @@
 gramlot-py-server
 =================
 
-.. image:: _static/gramlot-logo.png
+.. image:: _static/gramlot-logo.svg
    :width: 160
    :alt: Gramlot
 
@@ -20,6 +20,7 @@ and one extra per framework.
    005-introduction
    010-writing-pages
    015-troubleshooting
+   020-command
 
 .. toctree::
    :maxdepth: 2

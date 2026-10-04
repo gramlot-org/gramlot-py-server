@@ -1,0 +1,1 @@
+gramlot-py-server[fastapi,uvicorn]>=0.2.2

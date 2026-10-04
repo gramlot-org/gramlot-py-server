@@ -22,14 +22,18 @@ uses inline code (a `formula` string, `script`, `==`, button `action`,
 `connect_on<event>`, `_if`/`_else`) and the adapter sends the strict profile.
 The message names the node and the attribute, for example
 `dataFormula 'dataFormula_0' 'formula'`. Move the code to a method of
-`class Logic` in the page companion `_aux.js` and name it with `func=`, or send
+`class Logic` in the page module `<page>.js` and name it with `func=`, or send
 the permissive profile (`'unsafe-eval'` in `script-src`).
 
-**404 on `/<page>_aux.js` or `/<page>.css`.** The file is not beside the page
-file with the page's name, or its real path leaves the pages folder (a symbolic
-link to another folder). For a folder page `orders/orders.py` the companions
-live in `orders/`. Check the names: `orders_aux.js`, not `orders.aux.js` or
-`orders-aux.js`.
+**404 on `/<page>.js`, `/<page>_aux.js` or `/<page>.css`.** The file is not
+beside the page file with the page's name, or its real path leaves the pages
+folder (a symbolic link to another folder). For a folder page
+`orders/orders.py` the companions live in `orders/`. Check the names:
+`orders_aux.js`, not `orders.aux.js` or `orders-aux.js`.
+
+**The console reports "the module exports no class Logic".** `orders.js`
+beside `orders.py` is the logic module of the page and must export
+`class Logic`, even an empty one.
 
 **500 on `GET /<page>`.** The page module raised while it was imported, has no
 class `Page` extending `gramlot.Page`, or declares `css_requires` or
@@ -41,9 +45,9 @@ class `Page` extending `gramlot.Page`, or declares `css_requires` or
 - no `<path>.py` and no `<path>/<name>.py` below the pages folder;
 - a segment with a character outside letters, digits, `_` and `-`;
 - a path ending in `_aux`;
-- a prefix that reaches the adapter in the request path. With Uvicorn the front
-  server must strip it; with Django the `include()` must sit at the same path as
-  `mount_path`.
+- a request path outside the mount prefix, for example a proxy that removes
+  the prefix before it passes the request on. The path must reach the adapter
+  with the prefix; with Django the URLconf holds `Pages.urlpatterns`.
 
 **404 on `/favicon.ico`.** The browser asks for an icon. The adapters serve
 none. Serve it from the application or the proxy, or ignore it.
@@ -101,9 +105,13 @@ Block ID: **GP-015-020**.
 
 **`ImportError` when a module is imported.** The extra of the framework is not
 installed: `pip install "gramlot-py-server[django]"` for
-`gramlot_py_server.django`, and the same for `flask`, `fastapi` and `kajenn`.
+`gramlot_py_server.django`, and the same for `flask`, `fastapi` and `kajenn`. The
+command `gramlot` reports the same case as
+`gramlot django: asgiref is not installed. Install the extra: …`, and a gallery
+without `gramlot-examples` as `The gallery needs gramlot-examples: …`; the
+other messages of the command are in [The gramlot command](020-command.md).
 
-**Two cores.** The package declares `gramlot>=0.2.1`. `pip show gramlot`
+**Two cores.** The package declares `gramlot>=0.2.5`. `pip show gramlot`
 reports the version and the location of the core that Python imports. When a
 copy from PyPI and a copy installed in editable mode from a checkout are both
 present, the report names the one that wins. Uninstall the other, or keep one

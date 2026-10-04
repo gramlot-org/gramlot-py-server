@@ -7,8 +7,8 @@ Derived from GS-110 (gramlot-uvicorn).
 [Paired view](../docs_llm/105-tutorial.md).
 
 This tutorial uses the files of `examples/pages` and `examples/uvicorn/app.py`
-of the repository. The test `tests/uvicorn/test_uvicorn_examples.py` serves
-them with `gramlot` 0.2.1: it checks the bootstrap documents, the companions,
+of the repository. The test `tests/uvicorn/test_uvicorn_tutorial.py` serves
+them with `gramlot` 0.2.5: it checks the bootstrap documents, the companions,
 the Content Security Policy header and the Source of `main`. It does not run a
 browser.
 
@@ -149,7 +149,7 @@ The application sends the permissive profile because `hello.py` uses inline
 code. `greeting.py` uses named logic only, so the strict profile is enough for
 it: replace the policy with
 `"script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"`. The second
-test of `tests/uvicorn/test_uvicorn_examples.py` serves `greeting` under the
+test of `tests/uvicorn/test_uvicorn_tutorial.py` serves `greeting` under the
 strict profile.
 
 From the folder `examples/uvicorn`:

@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+from importlib.resources import files
+from mimetypes import MimeTypes
 from pathlib import Path
 from secrets import token_urlsafe
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, Flask, Response, request
 from gramlot.server import (
     FileHost,
     HostCapacity,
@@ -18,23 +20,69 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.gallery import add_gallery
+from gramlot_py_server.scaffold import add_new
+
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
-    "_aux.js": "text/javascript; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
 }
+# The core themes, served below the mount path as the runtime is. The built-in
+# table of MimeTypes() ignores the system files; THEME_MEDIA_TYPES adds the types it
+# lacks in some Python version: fonts and WebP in every one, Markdown before 3.12.
+THEMES = Path(str(files("gramlot").joinpath("resources", "themes")))
+MEDIA_TYPES = MimeTypes()
+THEME_MEDIA_TYPES = {
+    ".woff2": "font/woff2",
+    ".woff": "font/woff",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+    ".webp": "image/webp",
+    ".md": "text/markdown",
+}
+
+
+def theme_file(path: str) -> dict | None:
+    """The file of the core themes at ``path`` (``/themes/…``), as an ``assets`` entry.
+
+    Every file whose real path is below ``gramlot/resources/themes`` is served
+    with the media type of its extension; ``None`` lets the request go on.
+    """
+    if not path.startswith("/themes/"):
+        return None
+    root = THEMES.resolve()
+    real = root.joinpath(*path.removeprefix("/themes/").split("/")).resolve()
+    if not (real.is_relative_to(root) and real.is_file()):
+        return None
+    media_type = THEME_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
+    media_type = media_type or "application/octet-stream"
+    if media_type.startswith("text/"):
+        media_type += "; charset=utf-8"
+    return {"file": real, "type": media_type}
 
 
 class Pages:
     """Own a Gramlot ``FileHost`` and its WSGI route translations.
 
     The blueprint is registered at ``mount_path``, which is also passed to
-    ``open_page`` as the mount prefix of browser URLs.
+    ``open_page`` as the mount prefix of browser URLs. The prefix without the
+    final slash (``/py``) answers 301 to ``/py/``: pages link each other with
+    relative URLs.
 
-    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
-    there. Every other file of the folder is not served.
+    GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
+    Every other file of the folder is not served.
+
+    GET and HEAD serve every file below the themes folder of the core at
+    ``/themes/…``, with the media type of its extension; a path the core does
+    not have goes on to ``assets``, the companions and the pages.
+
+    ``assets`` maps URLs below the mount path to files served by GET and HEAD,
+    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
+    ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
@@ -42,9 +90,11 @@ class Pages:
     """
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
-                 max_pages: int = 1000, content_security_policy: str | None = None) -> None:
+                 max_pages: int = 1000, content_security_policy: str | None = None,
+                 assets: dict | None = None) -> None:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
+        self.assets = dict(assets or {})
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -62,15 +112,25 @@ class Pages:
         blueprint.add_url_rule("/gramlot/main", "main", self.main, methods=["POST"])
         blueprint.add_url_rule("/gramlot/source", "source", self.source, methods=["POST"])
         blueprint.add_url_rule("/gramlot/close", "close", self.close, methods=["POST"])
+        if self.mount_path:
+            blueprint.add_url_rule("", "mount", self.redirect, strict_slashes=False)
         blueprint.add_url_rule("/", "index", self.page, defaults={"page_path": ""})
         blueprint.add_url_rule("/<path:page_path>", "page", self.page)
         return blueprint
+
+    def redirect(self) -> Response:
+        query = request.query_string.decode("latin-1")
+        location = self.mount_path + "/" + (f"?{query}" if query else "")
+        return Response(status=301, headers={"Location": location})
 
     def asset(self) -> Response:
         body = b"" if request.method == "HEAD" else runtime_asset().read_bytes()
         return Response(body, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
 
     def page(self, page_path="") -> Response:
+        asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
+        if asset is not None:
+            return self.static(asset)
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
         if suffix is not None:
             return self.companion(page_path, suffix)
@@ -93,6 +153,11 @@ class Pages:
             samesite="Lax",
         )
         return response
+
+    def static(self, asset) -> Response:
+        """Serve one file of ``assets`` with its media type."""
+        body = b"" if request.method == "HEAD" else Path(asset["file"]).read_bytes()
+        return Response(body, content_type=asset["type"], headers={"Cache-Control": "no-store"})
 
     def companion(self, page_path: str, suffix: str) -> Response:
         """Serve the file of ``page_path`` when its real path is below the pages folder."""
@@ -154,6 +219,19 @@ def mount_pages(app, pages: str | Path, **options) -> Pages:
     app.register_blueprint(integration.blueprint())
     app.extensions.setdefault("gramlot_pages", {})[integration.mount_path] = integration
     return integration
+
+
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, **options) -> None:
+    """Serve ``pages`` in a Flask app with the Flask development server until it stops."""
+    app = Flask(__name__)
+    mount_pages(app, pages, **options)
+    app.run(host=host, port=port)
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot flask``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "flask", start="flask --app app run --port 8000", url="http://127.0.0.1:8000/")
+    add_gallery(verbs, "flask", serve)
 
 
 __all__ = ["Pages", "mount_pages"]

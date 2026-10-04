@@ -18,28 +18,36 @@ server. One package holds one adapter per framework; each comes with its extra:
 | Extra | Module | Names |
 | --- | --- | --- |
 | `uvicorn` | `gramlot_py_server.uvicorn` | `Application`, `create_application(pages, **options)`: an ASGI application for Uvicorn or any ASGI server |
-| `django` | `gramlot_py_server.django` | `Pages`: its `urls` go into a URLconf |
+| `django` | `gramlot_py_server.django` | `Pages`: its `urlpatterns` go into a URLconf |
 | `flask` | `gramlot_py_server.flask` | `Pages`, `mount_pages(app, pages, **options)` |
 | `fastapi` | `gramlot_py_server.fastapi` | `Pages`, `mount_pages(app, pages, **options)`, `Application` |
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`: a Kajenn routed application |
 
 Every adapter serves one folder of `Page` modules through the core `FileHost`:
 it sends the bootstrap document, answers the main and remote Source requests,
-serves the page companions (`.css` and `_aux.js`) and the browser runtime, with
-a mount prefix and a Content Security Policy of your choice. It does not serve
-JavaScript pages
+serves the page companions (`.css` and `.js`), an optional map of assets and
+the browser runtime, with a mount prefix and a Content Security Policy of your
+choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
 
 ## Quick start
 
-Python 3.11 or later. Install the package with the extra of your framework:
+Python 3.11 or later. Install the package with the extra of your framework,
+then create a project with `gramlot <framework> new <folder>`:
 
 ```sh
 python -m pip install "gramlot-py-server[uvicorn]"
+gramlot uvicorn new hello
+cd hello
+uvicorn app:application
 ```
 
-Create a folder `pages` and write `pages/hello.py`:
+Open <http://127.0.0.1:8000/>. The page shows a field with `Ada` and the text
+`Hello, Ada`. Typing `Grace` in the field changes the text to `Hello, Grace` at
+every keystroke.
+
+The command writes the same page for every framework, `pages/index.py`:
 
 ```python
 from gramlot import Page as BasePage
@@ -53,39 +61,46 @@ class Page(BasePage):
         pane.html_label("Name", for_="name")
         pane.input(id="name", value="^.name", live=True)
         pane.p("^.greeting")
-        pane.dataFormula(".greeting", "'Hello, ' + name", name="^.name", _init=True)
+        pane.dataFormula(".greeting", func="greeting", name="^.name", _init=True)
         pane.dataSetter(".name", "Ada")
 ```
 
-The formula of this page is inline code, so every example below sends the
-permissive Content Security Policy profile. Each one lives in
-[`examples/`](examples/), beside a folder `pages`; the docstring of each file
-gives the command that starts it. The page opens at
-<http://127.0.0.1:8000/hello>, on port 5000 for the Flask development server.
-FastAPI needs a server: install `gramlot-py-server[fastapi,uvicorn]`.
+and its page module `pages/index.js`. The formula names its method with
+`func="greeting"`; the method is in the `Logic` export and runs in the browser:
 
-Uvicorn, `examples/uvicorn/app.py`:
+```js
+export class Logic {
+    greeting(kwargs) { return 'Hello, ' + kwargs.name; }
+}
+```
+
+The page has no inline code, so every project sends the strict Content Security
+Policy profile. Beside `pages/` the command writes `requirements.txt`, with the
+extra of the framework, and the files of the framework below. The docstring of
+each file gives the command that starts it, which `gramlot` also prints.
+
+Uvicorn, `gramlot uvicorn new`, `app.py`:
 
 ```python
-"""Serve the example pages with Uvicorn: ``uvicorn app:application``."""
+"""Serve the pages with Uvicorn: ``uvicorn app:application``."""
 from pathlib import Path
 
 from gramlot_py_server.uvicorn import create_application
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 application = create_application(
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-Django, `examples/django/settings.py` and `examples/django/urls.py`:
+Django, `gramlot django new`, `settings.py` and `urls.py`:
 
 ```python
-"""Django settings of the example: ``django-admin runserver --settings=settings --pythonpath=.``."""
+"""Django settings: ``django-admin runserver --settings=settings --pythonpath=.``."""
 
-SECRET_KEY = "example-only-change-me"
+SECRET_KEY = "development-only-change-me"
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 ROOT_URLCONF = "urls"
@@ -94,75 +109,74 @@ MIDDLEWARE = ["django.middleware.csrf.CsrfViewMiddleware"]
 ```
 
 ```python
-"""URLconf of the example: the Gramlot pages at the site root."""
+"""URLconf: the Gramlot pages at the site root."""
 from pathlib import Path
-
-from django.urls import include, path
 
 from gramlot_py_server.django import Pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 pages = Pages(
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 
-urlpatterns = [path("", include(pages.urls))]
+urlpatterns = [*pages.urlpatterns]
 ```
 
-Flask, `examples/flask/app.py`:
+Flask, `gramlot flask new`, `app.py`:
 
 ```python
-"""Serve the example pages inside a Flask app: ``flask --app app run``."""
+"""Serve the pages inside a Flask app: ``flask --app app run --port 8000``."""
 from pathlib import Path
 
 from flask import Flask
 
 from gramlot_py_server.flask import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = Flask(__name__)
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-FastAPI, `examples/fastapi/app.py`:
+FastAPI, `gramlot fastapi new`, `app.py`; `requirements.txt` installs FastAPI
+with Uvicorn:
 
 ```python
-"""Serve the example pages inside a FastAPI app: ``fastapi dev app.py`` or ``uvicorn app:app``."""
+"""Serve the pages inside a FastAPI app: ``uvicorn app:app``."""
 from pathlib import Path
 
 from fastapi import FastAPI
 
 from gramlot_py_server.fastapi import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = FastAPI()
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-Kajenn, `examples/kajenn/config.py` (the page opens at
-<http://127.0.0.1:8000/pages/hello>):
+Kajenn, `gramlot kajenn new`, `config.py`; the page opens at
+<http://127.0.0.1:8000/pages/>:
 
 ```python
-"""Kajenn site of the example: ``kajenn serve config.py --port 8000``, pages under ``/pages``."""
+"""Kajenn site: ``kajenn serve config.py --port 8000``, pages under ``/pages/``."""
 from pathlib import Path
 
 from kajenn.config.templates import DefaultConfiguration
 
 from gramlot_py_server.kajenn import Application
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 
 class Site(DefaultConfiguration):
@@ -173,15 +187,16 @@ class Site(DefaultConfiguration):
             app_class=Application,
             pages=PAGES,
             content_security_policy=(
-                "script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'"
+                "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
             ),
         ).request(body="raw")
 ```
 
-The page shows a field with `Ada` and the text `Hello, Ada`. Typing `Grace` in
-the field changes the text to `Hello, Grace` at every keystroke. The tests
-`tests/<framework>/test_<framework>_examples.py` serve these examples in CI, and
-`tests/test_readme.py` checks that this README shows the same files.
+The tests `tests/<framework>/test_<framework>_project.py` create each project
+with `gramlot <framework> new` and serve it, and `tests/test_readme.py` checks
+that this README shows the same files. A project that already exists, such as a
+Django site, needs no `new`: the guide of its framework shows how to add the
+pages to it.
 
 ## Next steps
 
@@ -189,7 +204,8 @@ the field changes the text to `Hello, Grace` at every keystroke. The tests
   in [docs_llm/](docs_llm/):
   - common: [Introduction](https://gramlot-py-server.readthedocs.io/en/latest/005-introduction.html),
     [Writing pages for these hosts](https://gramlot-py-server.readthedocs.io/en/latest/010-writing-pages.html),
-    [Troubleshooting](https://gramlot-py-server.readthedocs.io/en/latest/015-troubleshooting.html);
+    [Troubleshooting](https://gramlot-py-server.readthedocs.io/en/latest/015-troubleshooting.html),
+    [The gramlot command](https://gramlot-py-server.readthedocs.io/en/latest/020-command.html): `new` and `gallery`;
   - Uvicorn: [Tutorial](https://gramlot-py-server.readthedocs.io/en/latest/105-tutorial.html),
     [Configuration](https://gramlot-py-server.readthedocs.io/en/latest/110-configuration.html),
     [Deployment](https://gramlot-py-server.readthedocs.io/en/latest/115-deployment.html),
@@ -205,23 +221,35 @@ the field changes the text to `Hello, Grace` at every keystroke. The tests
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.2.1 (PyPI `gramlot`) |
-| Python | 3.11 and 3.12 in CI; 3.12.12 locally |
+| Gramlot core | 0.2.5 (PyPI `gramlot`) |
+| Gallery | `gramlot-examples` 0.2.5 (extra `gallery`) |
+| Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.0 |
-| Browsers | not run for this package; the core runtime it serves, unchanged since 0.2.0, passed the core 0.2.0 qualification on Chromium 153, WebKit 26.6 and Firefox 155 |
+| Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |
 
 ## Tests and contributing
 
 ```sh
-python -m pip install -e ".[uvicorn,django,flask,fastapi,kajenn,test]"
+python -m pip install -e ".[uvicorn,django,flask,fastapi,kajenn,gallery,test]"
 python -m pytest -q                      # every adapter
 python -m pytest -q tests/flask          # one adapter, with its extra only
 python scripts/check_docs.py             # paired guides and Sphinx build
 ```
 
+The browser checks need Node.js and Playwright; `PLAYWRIGHT_ENTRY` is the path
+of `playwright/index.mjs`:
+
+```sh
+node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+python scripts/verify_install.py flask dist/gramlot_py_server-0.2.2-py3-none-any.whl "$PLAYWRIGHT_ENTRY"
+```
+
 CI runs each adapter with its own extra against the released core and, as an
-informational job, every adapter against the core's `main` checkout, and builds
-the documentation; coverage goes to Codecov with one flag per framework. See
+informational job, every adapter against the core's `main` checkout; it runs the
+browser checks in Chromium and a clean install of each environment from the
+built wheel, and builds the documentation; coverage goes to Codecov with one
+flag per framework. See
 [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md); the internal
 notes are in [docs/internal/](docs/internal/).
 

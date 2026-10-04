@@ -1,5 +1,6 @@
 import json
 import re
+from importlib.resources import files
 
 import httpx
 import pytest
@@ -7,6 +8,7 @@ from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
 
+from gallery_checks import check_index_main, expected, page_id, staged
 from gramlot_py_server.kajenn import Application
 
 
@@ -194,3 +196,144 @@ async def test_mount_companions_and_content_security_policy(tmp_path):
         for url in ("/index.py", "/index.md", "/missing.css", "/escape.css"):
             assert (await client.get(url)).status_code == 404
         assert (await client.post("/index.css")).status_code == 405
+
+
+PAGE_MODULE = """import {Page as BasePage} from '@gramlot/gramlot/page';
+export class Page extends BasePage { main(root) { root.h1('JavaScript version'); } }
+export class Logic { greet() { return 'Hello'; } }
+"""
+
+
+@pytest.mark.asyncio
+async def test_page_module_is_served_for_its_logic(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "foo.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Module')\n"
+    )
+    (pages / "foo.js").write_text(PAGE_MODULE)
+    async with client_for(site(pages)) as client:
+        argument = json.loads(BOOTSTRAP.search((await client.get("/foo")).text).group(3))
+        assert argument["resources"]["js"] == [{"url": "/page/foo.js", "group": None}]
+        response = await client.get("/foo.js")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/javascript; charset=utf-8"
+        assert response.text == PAGE_MODULE
+        head = await client.head("/foo.js")
+        assert head.status_code == 200 and head.content == b""
+        assert (await client.get("/foo.py")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Index')\n"
+    )
+    (tmp_path / "logo.svg").write_text("<svg/>")
+    (tmp_path / "notices.json").write_text("[]")
+    assets = {
+        "/assets/branding/logo.svg": {"file": tmp_path / "logo.svg", "type": "image/svg+xml"},
+        "/gallery/dist/notices.json": {"file": str(tmp_path / "notices.json"), "type": "application/json"},
+    }
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount="page", app_class=Application, pages=pages, assets=assets,
+            ).request(body="raw")
+
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for url, media_type, body in (("/page/assets/branding/logo.svg", "image/svg+xml", b"<svg/>"),
+                                      ("/page/gallery/dist/notices.json", "application/json", b"[]")):
+            response = await client.get(url)
+            assert response.status_code == 200
+            assert response.headers["content-type"] == media_type
+            assert response.content == body
+            head = await client.head(url)
+            assert head.status_code == 200 and head.content == b""
+        assert (await client.post("/page/assets/branding/logo.svg")).status_code == 405
+        for url in ("/page/assets/branding/other.svg", "/assets/branding/logo.svg"):
+            assert (await client.get(url)).status_code == 404
+        response = await client.get("/page")
+        assert response.status_code == 301 and response.headers["location"] == "/page/"
+        response = await client.get("/page?a=1")
+        assert response.status_code == 301 and response.headers["location"] == "/page/?a=1"
+        assert (await client.get("/page/")).status_code == 200
+
+
+CORE_THEME = files("gramlot").joinpath("resources", "themes", "gramlot-base", "theme.css").read_bytes()
+
+
+@pytest.mark.asyncio
+async def test_core_themes_below_the_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/gramlot-base/theme.css']\n"
+        "    def main(self, root): root.h1('Themed')\n"
+    )
+    (pages / "themes" / "own.css").write_text("h1 { color: red; }")
+    transport = httpx.ASGITransport(app=site(pages), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/page/themes/gramlot-base/theme.css")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/css; charset=utf-8"
+        assert response.content == CORE_THEME
+        head = await client.head("/page/themes/gramlot-base/theme.css")
+        assert head.status_code == 200 and head.content == b""
+        readme = await client.get("/page/themes/gramlot-base/README.md")
+        assert readme.headers["content-type"] == "text/markdown; charset=utf-8"
+        assert (await client.post("/page/themes/gramlot-base/theme.css")).status_code == 405
+        assert (await client.get("/page/themes/gramlot-base/missing.css")).status_code == 404
+        assert (await client.get("/page/themes/own.css")).content == b"h1 { color: red; }"
+
+
+@pytest.mark.asyncio
+async def test_gallery_under_the_mount_path(tmp_path):
+    folder, assets = staged(tmp_path, "kajenn")
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="gallery", mount="py", app_class=Application, pages=folder, assets=assets,
+            ).request(body="raw")
+
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for url, kind in expected("kajenn"):
+            response = await client.get(url)
+            assert response.status_code == 200, url
+            assert response.headers["content-type"].startswith(kind), url
+        document = (await client.get("/py/")).text
+        main = await client.post("/py/gramlot/main", json={"pageId": page_id(document)})
+        check_index_main(main.text)
+
+
+@pytest.mark.asyncio
+async def test_empty_mount_serves_the_pages_at_the_site_root(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount="", app_class=Application, pages=tmp_path,
+            ).request(body="raw")
+
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        document = await client.get("/")
+        assert document.status_code == 200
+        assert '"mainUrl":"/gramlot/main"' in document.text
+        assert "Path=/;" in document.headers["set-cookie"]
+        main = await client.post("/gramlot/main", json={"pageId": page_id_of(document)})
+        assert main.status_code == 200
+        assert (await client.get("/assets/gramlot.js")).status_code == 200

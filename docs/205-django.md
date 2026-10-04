@@ -7,7 +7,7 @@ Derived from GD-090 (gramlot-django).
 [Paired view](../docs_llm/205-django.md).
 
 `gramlot_py_server.django.Pages` serves a pages folder from a Django project.
-Its views go into a URLconf with `include()`. The rules common to every adapter
+Its `urlpatterns` go into a URLconf. The rules common to every adapter
 are in the [Introduction](005-introduction.md) and in
 [Writing pages for these hosts](010-writing-pages.md).
 
@@ -82,20 +82,27 @@ from `settings.py`. The adapter tests of `tests/django/test_django.py` run with
 
 Block ID: **GP-205-015**.
 
-Include `pages.urls` at the same path given as `mount_path`:
+Add `pages.urlpatterns` to the URLconf:
 
 ```python
 pages = Pages(PAGES, mount_path="/py")
-urlpatterns = [path("py/", include(pages.urls))]
+urlpatterns = [*pages.urlpatterns]
 ```
 
-The URLconf removes `py/` from the path before the views of `Pages` see it.
-`mount_path` goes to `open_page` as the prefix of the browser URLs and to the
-`Path` of the owner cookie. A different value in the two places gives URLs that
-the URLconf does not route. The page `index` opens at `/py/`.
+`pages.urlpatterns` is `[path("py", …), path("py/", include(pages.urls))]`.
+The first pattern answers `/py` with 301 to `/py/`, with the query string:
+pages link each other with relative URLs. The URLconf removes `py/` from the
+path before the views of `Pages` see it. `mount_path` goes to `open_page` as
+the prefix of the browser URLs and to the `Path` of the owner cookie. The page
+`index` opens at `/py/`. Without a prefix `pages.urlpatterns` is
+`[path("", include(pages.urls))]`, the URLconf of the quick start.
 
-`Pages` takes `page_ttl`, `max_pages` and `content_security_policy` with the
-meaning of the [Uvicorn options](110-configuration.md). One `Pages` instance
+`include(pages.urls)` written by hand at the path of `mount_path` serves the
+same pages without the 301 of `/py`. A different path in `include()` and in
+`mount_path` gives browser URLs that the URLconf does not route.
+
+`Pages` takes `page_ttl`, `max_pages`, `content_security_policy` and `assets`
+with the meaning of the [Uvicorn options](110-configuration.md). One `Pages` instance
 owns one page registry. Create it once, at URLconf import, not per request.
 
 <a id="gp-205-020"></a>
@@ -106,7 +113,8 @@ Block ID: **GP-205-020**.
 
 `pages.urls` holds six patterns, in this order: `assets/gramlot.js`,
 `gramlot/main`, `gramlot/source`, `gramlot/close`, `""` and
-`<path:page_path>`. The last two serve the pages and the companions.
+`<path:page_path>`. The last two serve the pages, the files of `assets` and
+the companions.
 
 - **CSRF.** The Gramlot runtime posts JSON without a Django CSRF token, so the
   views of `main`, `source` and `close` are wrapped in `csrf_exempt`. The page
@@ -138,20 +146,25 @@ Block ID: **GP-205-025**.
 `from gramlot_py_server.django import Pages`
 
 `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-content_security_policy=None)`
+content_security_policy=None, assets=None)`
 
+- `urlpatterns`: the URL patterns for the URLconf, `urls` included at
+  `mount_path` and the 301 of the bare prefix.
 - `urls`: the list of URL patterns to pass to `include()`.
 - `host`: the core `FileHost` built on `pages` with the URLs
   `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
 - `mount_path`: the normalized prefix (`""` or `/py`).
 - `content_security_policy`: the configured policy or `None`.
-- `asset`, `page`, `companion`, `main`, `source`, `close`: the views behind
-  `urls`.
+- `assets`: the map of URLs to files, `{}` when not given.
+- `asset`, `page`, `static`, `companion`, `main`, `source`, `close`: the views
+  behind `urls`; `redirect`: the view of the bare prefix.
 
 | Method and path | Answer |
 | --- | --- |
 | `GET`, `HEAD /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
 | other methods on a page path | 405, or 403 from `CsrfViewMiddleware` for `POST` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript`, the runtime; 405 for other methods |
-| `GET`, `HEAD /<file>.css`, `/<file>_aux.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise; other methods as on a page path |
+| `GET /py` (the bare prefix) | 301, `Location: /py/` with the query string |
+| `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map; 405 for other methods |
+| `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise; other methods as on a page path |
 | `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md); 405 for other methods |

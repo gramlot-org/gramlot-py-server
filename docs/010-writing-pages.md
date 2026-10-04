@@ -42,19 +42,26 @@ Beside the page file, with the page's name:
 | File | Role | Served at |
 | --- | --- | --- |
 | `orders.css` | the page stylesheet | `/orders.css` |
+| `orders.js` | the page module, exporting `class Logic` | `/orders.js` |
 | `orders_aux.js` | the page's JavaScript module, exporting `class Logic` | `/orders_aux.js` |
 | `orders.md` | the README of the page | not served |
 
-The URLs carry the mount prefix, for example `/py/orders.css`. Both companions
-are optional. The bootstrap loads the `Page.css` URLs first, then `orders.css`,
-then imports `orders_aux.js`. A folder page keeps its companions in its folder,
+The URLs carry the mount prefix, for example `/py/orders.css`. Every companion
+is optional. The logic of `orders.py` is the `Logic` export of `orders.js`,
+else of `orders_aux.js`; with both files the opening of the page raises
+`ValueError`. `orders.js` may also export a `Page`, the JavaScript version of
+the same page, which the Python host leaves unused. The module imports the
+runtime as `@gramlot/gramlot/page`: the import map of the bootstrap resolves
+it. The bootstrap loads the `Page.css` URLs first, then `orders.css`, then
+imports the logic module. A folder page keeps its companions in its folder,
 beside `orders/orders.py`.
 
-The companion rule: `GET` and `HEAD` answer a `.css` or `_aux.js` file whose
-real path is below the pages folder. Any other file answers 404. Another method
-is refused; the status depends on the adapter and is in its guide. The
-companion runs in the browser, so it is public. Server-only logic belongs in
-Python modules that the page imports, never in the companion.
+The companion rule: `GET` and `HEAD` answer a `.css` or `.js` file whose real
+path is below the pages folder, so a page module and its relative imports reach
+the browser. Any other file answers 404. Another method is refused; the status
+depends on the adapter and is in its guide. The `.js` files of the folder run
+in the browser, so they are public. Server-only logic belongs in Python modules
+that the page imports, never in a `.js` file of the pages folder.
 
 <a id="gp-010-015"></a>
 
@@ -140,10 +147,12 @@ Paths are shown without the mount prefix.
 | --- | --- |
 | `GET /<page path>` | the bootstrap document of the page |
 | `GET`, `HEAD /assets/gramlot.js` | the Gramlot browser runtime packaged with the core |
-| `GET`, `HEAD` of a `.css` or `_aux.js` file below the pages folder | the file |
+| `GET`, `HEAD` of a URL of the `assets` option | the file, with its media type |
+| `GET`, `HEAD` of a `.css` or `.js` file below the pages folder | the file |
 | `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | the page protocol |
 
 Nothing else of the pages folder leaves the server: no `.py`, no `.md`, no
-other asset. Static assets of the application live outside the pages folder
-and are served by the application or its web server. The answers to other
+other asset. Other static assets of the application live outside the pages
+folder; the `assets` option serves a list of them below the prefix, or the
+application and its web server serve them. The answers to other
 methods and paths differ between frameworks; each guide lists them.

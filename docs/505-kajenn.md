@@ -86,13 +86,17 @@ The application is declared in the site recipe, as in the example:
 - `.request(body="raw")`. The protocol reads its JSON with `json.loads`, not
   with Kajenn's TYTX hydration. Without it every protocol request raises
   `RuntimeError` ("Application requires request(body='raw')") and answers 500.
-- `page_ttl`, `max_pages` and `content_security_policy`, with the meaning of
-  the [Uvicorn options](110-configuration.md). There is no `mount_path`
-  option.
+- `page_ttl`, `max_pages`, `content_security_policy` and `assets`, with the
+  meaning of the [Uvicorn options](110-configuration.md). There is no
+  `mount_path` option.
 
 The Kajenn server removes the mount from the request path. The application
 passes `/<mount>` to `open_page` as the prefix of the browser URLs and uses it
-as the `Path` of the owner cookie: `/pages` in the example.
+as the `Path` of the owner cookie: `/pages` in the example. Kajenn routes
+`/pages` and `/pages/` alike; the application tells them apart by the ASGI
+`raw_path` and answers `/pages` with 301 to `/pages/`, with the query string:
+pages link each other with relative URLs. A server that sends no `raw_path`
+serves `/pages` as `/pages/`.
 
 <a id="gp-505-020"></a>
 
@@ -100,10 +104,11 @@ as the `Path` of the owner cookie: `/pages` in the example.
 
 Block ID: **GP-505-020**.
 
-- **Routes.** The branch `assets` serves `gramlot.js` with `GET` and `HEAD`.
-  The branch `gramlot` holds `main`, `source` and `close`, which accept `POST`.
-  The `index` route serves the pages and the companions from the remaining
-  path segments.
+- **Routes.** The branch `assets` serves `gramlot.js` with `GET` and `HEAD`;
+  its `index` route passes every other path below `assets/` to the `index`
+  route of the application. The branch `gramlot` holds `main`, `source` and
+  `close`, which accept `POST`. The `index` route serves the files of `assets`,
+  the pages and the companions from the remaining path segments.
 - **Methods.** A page accepts `GET` only; `HEAD` answers 405. A method that a
   route does not accept answers 405 `Method not allowed`, without an `Allow`
   header.
@@ -132,15 +137,17 @@ Block ID: **GP-505-025**.
 `from gramlot_py_server.kajenn import Application`
 
 `Application(pages, *, page_ttl=1800, max_pages=1000,
-content_security_policy=None, **kwargs)`: the other keyword arguments go to
+content_security_policy=None, assets=None, **kwargs)`: the other keyword arguments go to
 Kajenn's `RoutedApplication`. The site recipe passes them.
 
 - `host`: the core `FileHost` built on `pages` with the URLs
   `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
 - `content_security_policy`: the configured policy or `None`.
-- `index`: the route of pages and companions.
-- `companion(request, page_path, suffix)`, `operation(request, body_raw,
-  operation)`, `require_method(request, *methods)`: the helpers of the routes.
+- `assets`: the map of URLs to files, `{}` when not given.
+- `index`: the route of assets, pages and companions.
+- `redirect(request)`, `static(request, asset)`, `companion(request,
+  page_path, suffix)`, `operation(request, body_raw, operation)`,
+  `require_method(request, *methods)`: the helpers of the routes.
 
 Paths below are without the mount.
 
@@ -148,6 +155,8 @@ Paths below are without the mount.
 | --- | --- |
 | `GET /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
-| `GET`, `HEAD /<file>.css`, `/<file>_aux.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
+| `GET /pages` (the mount without the final slash) | 301, `Location: /pages/` with the query string |
+| `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
+| `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
 | `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
 | other methods | 405 `Method not allowed` |

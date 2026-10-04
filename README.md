@@ -18,16 +18,16 @@ server. One package holds one adapter per framework; each comes with its extra:
 | Extra | Module | Names |
 | --- | --- | --- |
 | `uvicorn` | `gramlot_py_server.uvicorn` | `Application`, `create_application(pages, **options)`: an ASGI application for Uvicorn or any ASGI server |
-| `django` | `gramlot_py_server.django` | `Pages`: its `urls` go into a URLconf |
+| `django` | `gramlot_py_server.django` | `Pages`: its `urlpatterns` go into a URLconf |
 | `flask` | `gramlot_py_server.flask` | `Pages`, `mount_pages(app, pages, **options)` |
 | `fastapi` | `gramlot_py_server.fastapi` | `Pages`, `mount_pages(app, pages, **options)`, `Application` |
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`: a Kajenn routed application |
 
 Every adapter serves one folder of `Page` modules through the core `FileHost`:
 it sends the bootstrap document, answers the main and remote Source requests,
-serves the page companions (`.css` and `_aux.js`) and the browser runtime, with
-a mount prefix and a Content Security Policy of your choice. It does not serve
-JavaScript pages
+serves the page companions (`.css` and `.js`), an optional map of assets and
+the browser runtime, with a mount prefix and a Content Security Policy of your
+choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
 

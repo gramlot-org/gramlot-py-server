@@ -91,7 +91,7 @@ async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
     app = create_application(tmp_path, mount_path="/py")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        document = (await client.get("/")).text
+        document = (await client.get("/py/")).text
     _, runtime, argument = bootstrap(document)
     assert runtime == "/py/assets/gramlot.js"
     config = argument["config"]
@@ -103,6 +103,22 @@ async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
     ]
     assert "<link" not in document
     assert "/py/py/" not in document
+
+
+@pytest.mark.asyncio
+async def test_mount_path_is_the_prefix_of_the_request_paths(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+    app = create_application(tmp_path, mount_path="/py")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        _, _, argument = bootstrap((await client.get("/py/index")).text)
+        page_id = argument["config"]["pageId"]
+        main = await client.post("/py/gramlot/main", json={"pageId": page_id})
+        assert main.status_code == 200
+        assert (await client.get("/py/assets/gramlot.js")).status_code == 200
+        for path in ("/", "/index", "/assets/gramlot.js", "/py", "/pyindex", "/other/index"):
+            assert (await client.get(path)).status_code == 404
+        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
 
 
 @pytest.mark.asyncio
@@ -150,7 +166,7 @@ async def test_companions_and_page_css_below_the_pages_folder(tmp_path):
     app = create_application(pages, mount_path="/py")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        _, _, argument = bootstrap((await client.get("/")).text)
+        _, _, argument = bootstrap((await client.get("/py/")).text)
         resources = argument["resources"]
         assert resources["css"] == [
             "/py/themes/theme.css", "local.css", "https://cdn.example/remote.css", "/py/index.css"
@@ -159,13 +175,13 @@ async def test_companions_and_page_css_below_the_pages_folder(tmp_path):
         for url, media_type in (("/py/themes/theme.css", "text/css"),
                                 ("/py/index.css", "text/css"),
                                 ("/py/index_aux.js", "text/javascript")):
-            response = await client.get(url.removeprefix("/py"))
+            response = await client.get(url)
             assert response.status_code == 200
             assert response.headers["content-type"].startswith(media_type)
-            head = await client.head(url.removeprefix("/py"))
+            head = await client.head(url)
             assert head.status_code == 200 and head.content == b""
-        assert (await client.get("/index_aux.js")).text == "export class Logic {}"
-        for path in ("/index.py", "/index.md", "/missing.css", "/escape.css"):
+        assert (await client.get("/py/index_aux.js")).text == "export class Logic {}"
+        for path in ("/py/index.py", "/py/index.md", "/py/missing.css", "/py/escape.css"):
             assert (await client.get(path)).status_code == 404
-        assert (await client.post("/index.css")).status_code == 405
-    assert await raw_get(app, "/../outside.css") == 404
+        assert (await client.post("/py/index.css")).status_code == 405
+    assert await raw_get(app, "/py/../outside.css") == 404

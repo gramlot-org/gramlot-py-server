@@ -32,10 +32,10 @@ COMPANION_MEDIA_TYPES = {
 class Application:
     """Serve a trusted page directory through Gramlot's ``FileHost``.
 
-    ``mount_path`` is passed to ``open_page`` as the mount prefix of browser URLs
-    but is not expected in ASGI ``scope['path']``. This makes the adapter usable
-    both at an ASGI root and behind a server which strips an application mount
-    before dispatch.
+    ``mount_path`` is the prefix of the request paths and is passed to
+    ``open_page`` as the mount prefix of browser URLs. With ``mount_path="/py"``
+    the application answers ``/py/…`` with the prefix removed and 404 to every
+    other path, as the Django, Flask and FastAPI adapters do.
 
     GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
     pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
@@ -77,6 +77,11 @@ class Application:
         method = scope.get("method", "GET").upper()
         path = unquote(scope.get("path", "/"))
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
+        if self.mount_path:
+            if not path.startswith(self.mount_path + "/"):
+                await self._send(send, 404, b"Not found", "text/plain; charset=utf-8")
+                return
+            path = path[len(self.mount_path):]
 
         if path == "/assets/gramlot.js":
             if method not in {"GET", "HEAD"}:

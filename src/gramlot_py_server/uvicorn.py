@@ -25,7 +25,7 @@ MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
-    "_aux.js": "text/javascript; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
 }
 
 
@@ -37,9 +37,10 @@ class Application:
     the application answers ``/py/…`` with the prefix removed and 404 to every
     other path, as the Django, Flask and FastAPI adapters do.
 
-    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
-    there. Every other file of the folder is not served.
+    GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
+    Every other file of the folder is not served.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is

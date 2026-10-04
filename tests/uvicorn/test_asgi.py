@@ -185,3 +185,33 @@ async def test_companions_and_page_css_below_the_pages_folder(tmp_path):
             assert (await client.get(path)).status_code == 404
         assert (await client.post("/py/index.css")).status_code == 405
     assert await raw_get(app, "/py/../outside.css") == 404
+
+
+PAGE_MODULE = """import {Page as BasePage} from '@gramlot/gramlot/page';
+export class Page extends BasePage { main(root) { root.h1('JavaScript version'); } }
+export class Logic { greet() { return 'Hello'; } }
+"""
+
+
+@pytest.mark.asyncio
+async def test_page_module_is_served_for_its_logic(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "foo.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Module')\n"
+    )
+    (pages / "foo.js").write_text(PAGE_MODULE)
+    app = create_application(pages, mount_path="/py")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        _, _, argument = bootstrap((await client.get("/py/foo")).text)
+        assert argument["resources"]["js"] == [{"url": "/py/foo.js", "group": None}]
+        response = await client.get("/py/foo.js")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/javascript; charset=utf-8"
+        assert response.text == PAGE_MODULE
+        head = await client.head("/py/foo.js")
+        assert head.status_code == 200 and head.content == b""
+        assert (await client.get("/py/foo.py")).status_code == 404

@@ -114,3 +114,32 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     for url in ("/nested/index.py", "/nested/index.md", "/nested/missing.css", "/nested/escape.css"):
         assert client.get(url).status_code == 404
     assert client.post("/nested/index.css").status_code == 405
+
+
+PAGE_MODULE = """import {Page as BasePage} from '@gramlot/gramlot/page';
+export class Page extends BasePage { main(root) { root.h1('JavaScript version'); } }
+export class Logic { greet() { return 'Hello'; } }
+"""
+
+
+def test_page_module_is_served_for_its_logic(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "foo.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Module')\n"
+    )
+    (pages / "foo.js").write_text(PAGE_MODULE)
+    app = Flask(__name__)
+    mount_pages(app, pages, mount_path="/nested")
+    client = app.test_client()
+    argument = json.loads(BOOTSTRAP.search(client.get("/nested/foo").text).group(3))
+    assert argument["resources"]["js"] == [{"url": "/nested/foo.js", "group": None}]
+    response = client.get("/nested/foo.js")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/javascript; charset=utf-8"
+    assert response.text == PAGE_MODULE
+    head = client.head("/nested/foo.js")
+    assert head.status_code == 200 and head.data == b""
+    assert client.get("/nested/foo.py").status_code == 404

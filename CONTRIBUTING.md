@@ -4,7 +4,7 @@
 
 ```sh
 python -m venv .venv
-.venv/bin/pip install "gramlot>=0.2.1" -e ".[uvicorn,django,flask,fastapi,kajenn,test]"
+.venv/bin/pip install "gramlot>=0.2.5" -e ".[uvicorn,django,flask,fastapi,kajenn,test]"
 .venv/bin/pip install -e ".[docs]"   # documentation only
 git config core.hooksPath hooks
 ```

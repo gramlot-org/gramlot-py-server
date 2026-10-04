@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install the released core and the adapter with its extra
-        run: python -m pip install "gramlot>=0.2.1" -e ".[${{ matrix.framework }},test]" coverage
+        run: python -m pip install "gramlot>=0.2.5" -e ".[${{ matrix.framework }},test]" coverage
       - name: Show the core version
         run: python -m pip show gramlot
       - name: Test with coverage
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install "gramlot>=0.2.1" -e ".[test]"
+      - run: python -m pip install "gramlot>=0.2.5" -e ".[test]"
       - run: python -m pytest -q tests/test_readme.py
 
   core-main:

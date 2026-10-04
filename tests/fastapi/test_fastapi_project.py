@@ -1,17 +1,18 @@
-"""The FastAPI example serves the pages of the README and the tutorial."""
+"""``gramlot fastapi new`` creates the quick start project, which serves its page."""
 from fastapi.testclient import TestClient
+from project_checks import check_document, check_files, check_main
 
 
-def test_example_serves_the_quick_start_page_and_the_companions(load_example, source_tags, page_id):
-    with TestClient(load_example("fastapi/app.py").app) as client:
-        document = client.get("/hello")
+def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags, page_id):
+    folder, module = new_project("fastapi", "app.py")
+    check_files(folder, "app.py", "gramlot-py-server[fastapi,uvicorn]>=0.2.2", "uvicorn app:app",
+                capsys.readouterr().out)
+    with TestClient(module.app) as client:
+        document = client.get("/")
         assert document.status_code == 200
-        assert "<title>Hello</title>" in document.text
-        assert "'unsafe-eval'" in document.headers["content-security-policy"]
+        check_document(document.text, document.headers["content-security-policy"])
+        logic = client.get("/index.js")
+        assert logic.headers["content-type"] == "text/javascript; charset=utf-8"
+        assert "greet(kwargs)" in logic.text
         main = client.post("/gramlot/main", json={"pageId": page_id(document.text)})
-        tags = source_tags(main.text)
-        assert tags["input"]["value"] == "^.name"
-        assert tags["dataFormula"]["formula"] == "'Hello, ' + name"
-        assert client.get("/greeting").status_code == 200
-        assert client.get("/greeting.css").headers["content-type"] == "text/css; charset=utf-8"
-        assert "greet(kwargs)" in client.get("/greeting_aux.js").text
+        check_main(source_tags(main.text))

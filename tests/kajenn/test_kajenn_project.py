@@ -1,24 +1,23 @@
-"""The Kajenn example serves the pages of the README and the tutorial."""
+"""``gramlot kajenn new`` creates the quick start project, which serves its page."""
 import httpx
 import pytest
 from kajenn import AsgiServer
+from project_checks import check_document, check_files, check_main
 
 
 @pytest.mark.asyncio
-async def test_example_serves_the_quick_start_page_and_the_companions(load_example, source_tags, page_id):
-    server = AsgiServer(config=load_example("kajenn/config.py").Site)
-    transport = httpx.ASGITransport(app=server)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test/pages") as client:
-        document = await client.get("/hello")
+async def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags, page_id):
+    folder, module = new_project("kajenn", "config.py")
+    check_files(folder, "config.py", "gramlot-py-server[kajenn]>=0.2.2", "kajenn serve config.py --port 8000",
+                capsys.readouterr().out)
+    transport = httpx.ASGITransport(app=AsgiServer(config=module.Site))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.get("/pages")).headers["location"] == "/pages/"
+        document = await client.get("/pages/")
         assert document.status_code == 200
-        assert "<title>Hello</title>" in document.text
-        assert "'unsafe-eval'" in document.headers["content-security-policy"]
-        assert '"mainUrl":"/pages/gramlot/main"' in document.text
-        main = await client.post("/gramlot/main", json={"pageId": page_id(document.text)})
-        tags = source_tags(main.text)
-        assert tags["input"]["value"] == "^.name"
-        assert tags["dataFormula"]["formula"] == "'Hello, ' + name"
-        assert (await client.get("/greeting")).status_code == 200
-        css = await client.get("/greeting.css")
-        assert css.headers["content-type"] == "text/css; charset=utf-8"
-        assert "greet(kwargs)" in (await client.get("/greeting_aux.js")).text
+        check_document(document.text, document.headers["content-security-policy"], prefix="/pages")
+        logic = await client.get("/pages/index.js")
+        assert logic.headers["content-type"] == "text/javascript; charset=utf-8"
+        assert "greet(kwargs)" in logic.text
+        main = await client.post("/pages/gramlot/main", json={"pageId": page_id(document.text)})
+        check_main(source_tags(main.text))

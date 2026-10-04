@@ -290,15 +290,16 @@ async def test_core_themes_below_the_mount_path(tmp_path):
 def test_theme_media_types_and_real_path(tmp_path, monkeypatch):
     themes = tmp_path / "themes"
     (themes / "set").mkdir(parents=True)
-    for name in ("font.woff2", "logo.svg", "data.bin", "style.css"):
+    for name in ("font.woff2", "logo.svg", "data.bin", "style.css", "photo.webp", "notes.md"):
         (themes / "set" / name).write_bytes(b"x")
     (tmp_path / "outside.css").write_text("secret")
     (themes / "set" / "escape.css").symlink_to(tmp_path / "outside.css")
     monkeypatch.setattr(uvicorn_module, "THEMES", themes)
     types = {name: uvicorn_module.theme_file(f"/themes/set/{name}")["type"]
-             for name in ("font.woff2", "logo.svg", "data.bin", "style.css")}
+             for name in ("font.woff2", "logo.svg", "data.bin", "style.css", "photo.webp", "notes.md")}
     assert types == {"font.woff2": "font/woff2", "logo.svg": "image/svg+xml",
-                     "data.bin": "application/octet-stream", "style.css": "text/css; charset=utf-8"}
+                     "data.bin": "application/octet-stream", "style.css": "text/css; charset=utf-8",
+                     "photo.webp": "image/webp", "notes.md": "text/markdown; charset=utf-8"}
     for path in ("/themes/set/escape.css", "/themes/set", "/themes/missing.css", "/other/set/style.css"):
         assert uvicorn_module.theme_file(path) is None
 

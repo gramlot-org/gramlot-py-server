@@ -32,10 +32,18 @@ COMPANION_MEDIA_TYPES = {
     ".js": "text/javascript; charset=utf-8",
 }
 # The core themes, served below the mount path as the runtime is. The built-in
-# table of MimeTypes() ignores the system files; it lacks the font types.
+# table of MimeTypes() ignores the system files; THEME_MEDIA_TYPES adds the types it
+# lacks in some Python version: fonts and WebP in every one, Markdown before 3.12.
 THEMES = Path(str(files("gramlot").joinpath("resources", "themes")))
 MEDIA_TYPES = MimeTypes()
-FONT_MEDIA_TYPES = {".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf"}
+THEME_MEDIA_TYPES = {
+    ".woff2": "font/woff2",
+    ".woff": "font/woff",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+    ".webp": "image/webp",
+    ".md": "text/markdown",
+}
 
 
 def theme_file(path: str) -> dict | None:
@@ -50,7 +58,7 @@ def theme_file(path: str) -> dict | None:
     real = root.joinpath(*path.removeprefix("/themes/").split("/")).resolve()
     if not (real.is_relative_to(root) and real.is_file()):
         return None
-    media_type = FONT_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
+    media_type = THEME_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
     media_type = media_type or "application/octet-stream"
     if media_type.startswith("text/"):
         media_type += "; charset=utf-8"

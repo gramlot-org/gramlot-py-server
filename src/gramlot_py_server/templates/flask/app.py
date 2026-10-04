@@ -1,4 +1,4 @@
-"""Serve the pages inside a Flask app: ``flask --app app run``."""
+"""Serve the pages inside a Flask app: ``flask --app app run --port 8000``."""
 from pathlib import Path
 
 from flask import Flask

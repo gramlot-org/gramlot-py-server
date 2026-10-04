@@ -8,7 +8,7 @@ changes the greeting at every keystroke.
 `pages/index.js`, with `requirements.txt` and `app.py`:
 
 ```python
-"""Serve the pages inside a Flask app: ``flask --app app run``."""
+"""Serve the pages inside a Flask app: ``flask --app app run --port 8000``."""
 from pathlib import Path
 
 from flask import Flask
@@ -28,5 +28,5 @@ mount_pages(
 ```sh
 cd my-site
 python -m pip install -r requirements.txt
-flask --app app run
+flask --app app run --port 8000
 ```

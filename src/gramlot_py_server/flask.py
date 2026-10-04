@@ -213,7 +213,7 @@ def mount_pages(app, pages: str | Path, **options) -> Pages:
     return integration
 
 
-def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 5000, **options) -> None:
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, **options) -> None:
     """Serve ``pages`` in a Flask app with the Flask development server until it stops."""
     app = Flask(__name__)
     mount_pages(app, pages, **options)
@@ -222,7 +222,7 @@ def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 5000, **opt
 
 def commands(verbs) -> None:
     """The verbs of ``gramlot flask``: an entry point of ``gramlot_py_server.commands``."""
-    add_new(verbs, "flask", start="flask --app app run", url="http://127.0.0.1:5000/")
+    add_new(verbs, "flask", start="flask --app app run --port 8000", url="http://127.0.0.1:8000/")
     add_gallery(verbs, "flask", serve)
 
 

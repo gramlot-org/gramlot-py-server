@@ -14,9 +14,8 @@ then:
 4. ``gramlot ENVIRONMENT gallery --mount /py``, then ``/py/e01`` and
    ``/py/ENVIRONMENT-01`` in a real browser.
 
-``--port`` serves the project on PORT instead of the default port of the printed
-command (macOS listens on 5000 with AirPlay Receiver); without it the command runs
-as printed. Node.js runs scripts/verify_url_browser.mjs with PLAYWRIGHT_ENTRY.
+``--port`` serves the project on PORT instead of the port of the printed command,
+for a machine where that port is in use; without it the command runs as printed. Node.js runs scripts/verify_url_browser.mjs with PLAYWRIGHT_ENTRY.
 """
 
 import argparse
@@ -44,7 +43,7 @@ def free_port():
 
 def with_port(environment, command, url, port):
     """The start command and the URL with ``port`` in place of the default port."""
-    if environment == "kajenn":
+    if re.search(r"--port \d+", command):
         command = re.sub(r"--port \d+", f"--port {port}", command)
     elif environment == "django":
         command = f"{command} {port}"

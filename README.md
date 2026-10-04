@@ -124,10 +124,10 @@ pages = Pages(
 urlpatterns = [*pages.urlpatterns]
 ```
 
-Flask, `gramlot flask new`, `app.py`; the page opens on port 5000:
+Flask, `gramlot flask new`, `app.py`:
 
 ```python
-"""Serve the pages inside a Flask app: ``flask --app app run``."""
+"""Serve the pages inside a Flask app: ``flask --app app run --port 8000``."""
 from pathlib import Path
 
 from flask import Flask

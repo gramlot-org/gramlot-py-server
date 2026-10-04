@@ -1,7 +1,7 @@
 """The Django adapter serves the Gramlot browser protocol."""
-
 import json
 import re
+from importlib.resources import files
 
 import django
 from django.conf import settings
@@ -9,6 +9,7 @@ from django.test import Client
 from django.urls import clear_url_caches, include, path
 from genro_tytx import from_tytx
 
+from gallery_checks import check_index_main, expected, page_id, staged
 from gramlot_py_server.django import Pages
 
 if not settings.configured:
@@ -170,3 +171,117 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     for url in ("/hello/index.py", "/hello/index.md", "/hello/missing.css", "/hello/escape.css"):
         assert client.get(url).status_code == 404
     assert client.post("/hello/index.css").status_code == 405
+
+
+PAGE_MODULE = """import {Page as BasePage} from '@gramlot/gramlot/page';
+export class Page extends BasePage { main(root) { root.h1('JavaScript version'); } }
+export class Logic { greet() { return 'Hello'; } }
+"""
+
+
+def test_page_module_is_served_for_its_logic(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "foo.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Module')\n"
+    )
+    (pages / "foo.js").write_text(PAGE_MODULE)
+    integration = Pages(pages, mount_path="/hello")
+    global urlpatterns
+    urlpatterns = [path("hello/", include(integration.urls))]
+    clear_url_caches()
+    client = Client()
+    argument = json.loads(BOOTSTRAP.search(client.get("/hello/foo").content.decode()).group(3))
+    assert argument["resources"]["js"] == [{"url": "/hello/foo.js", "group": None}]
+    response = client.get("/hello/foo.js")
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/javascript; charset=utf-8"
+    assert response.content.decode() == PAGE_MODULE
+    head = client.head("/hello/foo.js")
+    assert head.status_code == 200 and head.content == b""
+    assert client.get("/hello/foo.py").status_code == 404
+
+
+def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Index')\n"
+    )
+    (tmp_path / "logo.svg").write_text("<svg/>")
+    (tmp_path / "notices.json").write_text("[]")
+    assets = {
+        "/assets/branding/logo.svg": {"file": tmp_path / "logo.svg", "type": "image/svg+xml"},
+        "/gallery/dist/notices.json": {"file": str(tmp_path / "notices.json"), "type": "application/json"},
+    }
+    integration = Pages(pages, mount_path="/hello", assets=assets)
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client()
+    for url, media_type, body in (("/hello/assets/branding/logo.svg", "image/svg+xml", b"<svg/>"),
+                                  ("/hello/gallery/dist/notices.json", "application/json", b"[]")):
+        response = client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == media_type
+        assert response.content == body
+        head = client.head(url)
+        assert head.status_code == 200 and head.content == b""
+    assert client.post("/hello/assets/branding/logo.svg").status_code == 405
+    for url in ("/hello/assets/branding/other.svg", "/assets/branding/logo.svg"):
+        assert client.get(url).status_code == 404
+    response = client.get("/hello")
+    assert response.status_code == 301 and response["Location"].endswith("/hello/")
+    response = client.get("/hello?a=1")
+    assert response.status_code == 301 and response["Location"].endswith("/hello/?a=1")
+    assert client.get("/hello/").status_code == 200
+
+
+CORE_THEME = files("gramlot").joinpath("resources", "themes", "gramlot-base", "theme.css").read_bytes()
+
+
+def test_core_themes_below_the_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    (pages / "themes").mkdir(parents=True)
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    css = ['/themes/gramlot-base/theme.css']\n"
+        "    def main(self, root): root.h1('Themed')\n"
+    )
+    (pages / "themes" / "own.css").write_text("h1 { color: red; }")
+    integration = Pages(pages, mount_path="/hello")
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client()
+    response = client.get("/hello/themes/gramlot-base/theme.css")
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/css; charset=utf-8"
+    assert response.content == CORE_THEME
+    head = client.head("/hello/themes/gramlot-base/theme.css")
+    assert head.status_code == 200 and head.content == b""
+    assert client.get("/hello/themes/gramlot-base/README.md")["Content-Type"] == "text/markdown; charset=utf-8"
+    assert client.post("/hello/themes/gramlot-base/theme.css").status_code == 405
+    assert client.get("/hello/themes/gramlot-base/missing.css").status_code == 404
+    assert client.get("/hello/themes/own.css").content == b"h1 { color: red; }"
+
+
+def test_gallery_under_the_mount_path(tmp_path):
+    folder, assets = staged(tmp_path, "django")
+    integration = Pages(folder, mount_path="/py", assets=assets)
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client()
+    for url, kind in expected("django"):
+        response = client.get(url)
+        assert response.status_code == 200, url
+        assert response["Content-Type"].startswith(kind), url
+    document = client.get("/py/").content.decode()
+    main = client.post("/py/gramlot/main", json.dumps({"pageId": page_id(document)}), content_type="application/json")
+    check_index_main(main.content.decode())

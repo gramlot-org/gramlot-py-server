@@ -22,8 +22,10 @@ server. It holds one adapter module per framework. Each adapter takes a folder
 of Python `Page` modules and serves it through the core `FileHost`:
 
 - it opens a page when a browser asks for it and answers the bootstrap document;
-- it serves the Gramlot browser runtime packaged with the core;
-- it serves the page companions, `.css` and `_aux.js`;
+- it serves the Gramlot browser runtime and the themes packaged with the core;
+- it serves the page companions, the `.css` and `.js` files below the pages
+  folder: stylesheets and the page modules that hold the page `Logic`;
+- it serves the files of an optional assets map;
 - it answers the main and remote Source requests of the running page;
 - it forgets the page when the browser closes it.
 
@@ -38,16 +40,17 @@ does not talk to a database.
 
 Block ID: **GP-005-010**.
 
-Python 3.11 or later. The package declares `gramlot>=0.2.1`. Each adapter comes
+Python 3.11 or later. The package declares `gramlot>=0.2.5`. Each adapter comes
 with the extra of the same name, which installs its framework:
 
 | Extra | Module | Names | Guide |
 | --- | --- | --- | --- |
 | `uvicorn` | `gramlot_py_server.uvicorn` | `Application`, `create_application(pages, **options)` | [Uvicorn tutorial](105-tutorial.md) |
-| `django` | `gramlot_py_server.django` | `Pages`; its `urls` go into a URLconf | [Django](205-django.md) |
+| `django` | `gramlot_py_server.django` | `Pages`; its `urlpatterns` go into a URLconf | [Django](205-django.md) |
 | `flask` | `gramlot_py_server.flask` | `Pages`, `mount_pages(app, pages, **options)` | [Flask](305-flask.md) |
 | `fastapi` | `gramlot_py_server.fastapi` | `Pages`, `mount_pages(app, pages, **options)`, `Application` | [FastAPI](405-fastapi.md) |
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`, a Kajenn `RoutedApplication` | [Kajenn](505-kajenn.md) |
+| `gallery` | `gramlot_py_server.gallery` | `gramlot <environment> gallery`; installs `gramlot-examples` | [The gramlot command](020-command.md) |
 
 ```sh
 python -m pip install "gramlot-py-server[flask]"
@@ -58,6 +61,11 @@ FastAPI or Kajenn module without its extra raises `ImportError`.
 `gramlot_py_server.uvicorn` imports no framework: it is a plain ASGI
 application, and the extra `uvicorn` installs the server that runs it. The
 extras `test` and `docs` install the test suite and the documentation build.
+
+The package installs the command `gramlot <environment> <verb>`:
+`gramlot django new my-site` writes the quick start project of a framework,
+`gramlot django gallery` serves the example gallery with its adapter. See
+[The gramlot command](020-command.md).
 
 <a id="gp-005-015"></a>
 
@@ -76,8 +84,10 @@ five adapters answer the same paths:
 2. **Bootstrap.** The module script imports the runtime from
    `/assets/gramlot.js`. It runs `PageBootstrap` with the page ID, the URLs of
    the main, source and close endpoints, and the resources of the page: the
-   `Page.css` URLs, the companion stylesheet `hello.css` and the companion
-   module `hello_aux.js` when they exist beside the page file.
+   `Page.css` URLs, the companion stylesheet `hello.css` and the module that
+   holds the page logic: `hello.js` beside the page file, else `hello_aux.js`.
+   An import map before the script maps `@gramlot/gramlot/page` to the runtime
+   URL, so the page module imports the runtime already loaded.
 3. **Main.** The runtime posts `{"pageId": …}` to `/gramlot/main`. The adapter
    runs `Page.main(root)` on the server and answers the Source tree as TYTX. The
    runtime renders the DOM from it and installs the data binding.
@@ -105,11 +115,17 @@ How the prefix is given depends on the framework:
 
 | Adapter | Option | Who removes the prefix from the request path |
 | --- | --- | --- |
-| Uvicorn | `mount_path` | the front server, before dispatch |
-| Django | `mount_path` | the URLconf `include()` at the same path |
+| Uvicorn | `mount_path` | the application |
+| Django | `mount_path` | `Pages.urlpatterns` in the URLconf |
 | Flask | `mount_path` | the blueprint `url_prefix` |
 | FastAPI | `mount_path` | the router `prefix` |
-| Kajenn | the Kajenn `mount` of the application | the Kajenn server |
+| Kajenn | the Kajenn `mount` of the application; `""` for the site root | the Kajenn server |
+
+The request paths carry the prefix: `/py/hello`, `/py/assets/gramlot.js`. The
+adapter removes it and answers 404 to every path outside it. A proxy in front
+of the adapter passes the path unchanged. The prefix without the final slash,
+`/py`, answers 301 to `/py/`, with the query string: pages link each other with
+relative URLs, which resolve against `/py/`.
 
 `mount_path` is normalized: `"py"`, `"/py"` and `"/py/"` give `/py`; `""` and
 `"/"` give no prefix.
@@ -120,9 +136,20 @@ How the prefix is given depends on the framework:
 
 Block ID: **GP-005-025**.
 
-- **Companions.** `GET` and `HEAD` answer a `.css` or `_aux.js` file whose real
+- **Companions.** `GET` and `HEAD` answer a `.css` or `.js` file whose real
   path is below the pages folder. Every other file of the folder, including the
   `.py` pages, is not served.
+- **Core themes.** `GET` and `HEAD` of `/themes/…` answer every file whose
+  real path is below the themes folder of the core package
+  (`gramlot/resources/themes`), with the media type of its extension, as the
+  runtime: `Page.css = ["/themes/gramlot-base/theme.css"]` works without other
+  settings. A path the core does not have goes on to the assets, the
+  companions and the pages.
+- **Assets.** The option `assets` maps URLs below the prefix to files:
+  `{"/gallery/dist/gallery.js": {"file": path, "type": "application/javascript"}}`,
+  the form that `build_gallery` of `gramlot-examples` returns. `GET` and `HEAD`
+  answer the file with its media type; the map comes before the companions and
+  the pages.
 - **Owner cookie.** The first `GET` of a page sets `gramlot_owner` (`HttpOnly`,
   `SameSite=Lax`) with a random token when the browser sends none. `main`,
   `source` and `close` succeed only with the cookie of the owner of the page.

@@ -1,11 +1,11 @@
-"""The README shows the example files that the framework tests serve."""
+"""The README shows the templates that ``gramlot <framework> new`` writes."""
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES = ROOT / "examples"
-SHOWN = [
-    "pages/hello.py",
+TEMPLATES = ROOT / "src" / "gramlot_py_server" / "templates"
+PYTHON = [
+    "pages/index.py",
     "uvicorn/app.py",
     "django/settings.py",
     "django/urls.py",
@@ -13,9 +13,10 @@ SHOWN = [
     "fastapi/app.py",
     "kajenn/config.py",
 ]
+JAVASCRIPT = ["pages/index.js"]
 
 
-def test_readme_python_blocks_are_the_example_files_in_order():
+def test_readme_code_blocks_are_the_templates_in_order():
     readme = (ROOT / "README.md").read_text()
-    blocks = re.findall(r"```python\n(.*?)```", readme, re.S)
-    assert blocks == [(EXAMPLES / name).read_text() for name in SHOWN]
+    assert re.findall(r"```python\n(.*?)```", readme, re.S) == [(TEMPLATES / name).read_text() for name in PYTHON]
+    assert re.findall(r"```js\n(.*?)```", readme, re.S) == [(TEMPLATES / name).read_text() for name in JAVASCRIPT]

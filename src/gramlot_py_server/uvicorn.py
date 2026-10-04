@@ -6,6 +6,8 @@ from __future__ import annotations
 import asyncio
 import json
 from http.cookies import SimpleCookie
+from importlib.resources import files
+from mimetypes import MimeTypes
 from pathlib import Path
 from secrets import token_urlsafe
 from typing import Any
@@ -20,26 +22,71 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from gramlot_py_server.gallery import add_gallery
+from gramlot_py_server.scaffold import add_new
+
 JSON_MEDIA_TYPE = "application/json"
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
-    "_aux.js": "text/javascript; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
 }
+# The core themes, served below the mount path as the runtime is. The built-in
+# table of MimeTypes() ignores the system files; THEME_MEDIA_TYPES adds the types it
+# lacks in some Python version: fonts and WebP in every one, Markdown before 3.12.
+THEMES = Path(str(files("gramlot").joinpath("resources", "themes")))
+MEDIA_TYPES = MimeTypes()
+THEME_MEDIA_TYPES = {
+    ".woff2": "font/woff2",
+    ".woff": "font/woff",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+    ".webp": "image/webp",
+    ".md": "text/markdown",
+}
+
+
+def theme_file(path: str) -> dict | None:
+    """The file of the core themes at ``path`` (``/themes/…``), as an ``assets`` entry.
+
+    Every file whose real path is below ``gramlot/resources/themes`` is served
+    with the media type of its extension; ``None`` lets the request go on.
+    """
+    if not path.startswith("/themes/"):
+        return None
+    root = THEMES.resolve()
+    real = root.joinpath(*path.removeprefix("/themes/").split("/")).resolve()
+    if not (real.is_relative_to(root) and real.is_file()):
+        return None
+    media_type = THEME_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
+    media_type = media_type or "application/octet-stream"
+    if media_type.startswith("text/"):
+        media_type += "; charset=utf-8"
+    return {"file": real, "type": media_type}
 
 
 class Application:
     """Serve a trusted page directory through Gramlot's ``FileHost``.
 
-    ``mount_path`` is passed to ``open_page`` as the mount prefix of browser URLs
-    but is not expected in ASGI ``scope['path']``. This makes the adapter usable
-    both at an ASGI root and behind a server which strips an application mount
-    before dispatch.
+    ``mount_path`` is the prefix of the request paths and is passed to
+    ``open_page`` as the mount prefix of browser URLs. With ``mount_path="/py"``
+    the application answers ``/py/…`` with the prefix removed and 404 to every
+    other path, as the Django, Flask and FastAPI adapters do. ``/py`` without the
+    final slash answers 301 to ``/py/``: pages link each other with relative URLs.
 
-    GET and HEAD serve a ``.css`` or ``_aux.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` and ``Page.css`` files placed
-    there. Every other file of the folder is not served.
+    GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
+    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
+    Every other file of the folder is not served.
+
+    GET and HEAD serve every file below the themes folder of the core at
+    ``/themes/…``, with the media type of its extension; a path the core does
+    not have goes on to ``assets``, the companions and the pages.
+
+    ``assets`` maps URLs below the mount path to files served by GET and HEAD,
+    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
+    ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
@@ -54,10 +101,12 @@ class Application:
         page_ttl: float = 1800,
         max_pages: int = 1000,
         content_security_policy: str | None = None,
+        assets: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.mount_path = mount_path
         self.content_security_policy = content_security_policy
+        self.assets = dict(assets or {})
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -77,6 +126,17 @@ class Application:
         method = scope.get("method", "GET").upper()
         path = unquote(scope.get("path", "/"))
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
+        if self.mount_path:
+            if path == self.mount_path:
+                location = self.mount_path + "/"
+                if scope.get("query_string"):
+                    location += "?" + scope["query_string"].decode("latin-1")
+                await self._send(send, 301, b"", "text/plain", [(b"location", location.encode())])
+                return
+            if not path.startswith(self.mount_path + "/"):
+                await self._send(send, 404, b"Not found", "text/plain; charset=utf-8")
+                return
+            path = path[len(self.mount_path):]
 
         if path == "/assets/gramlot.js":
             if method not in {"GET", "HEAD"}:
@@ -84,6 +144,15 @@ class Application:
                 return
             body = b"" if method == "HEAD" else await self._runtime_bytes()
             await self._send(send, 200, body, "text/javascript; charset=utf-8")
+            return
+
+        asset = theme_file(path) or self.assets.get(path)
+        if asset is not None:
+            if method not in {"GET", "HEAD"}:
+                await self._send(send, 405, b"", "text/plain", [(b"allow", b"GET, HEAD")])
+                return
+            body = b"" if method == "HEAD" else await asyncio.to_thread(Path(asset["file"]).read_bytes)
+            await self._send(send, 200, body, asset["type"])
             return
 
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if path.endswith(suffix)), None)
@@ -234,6 +303,19 @@ def create_application(pages: str | Path, **options: Any) -> Application:
     """Create a generic ASGI application for Uvicorn or another ASGI server."""
 
     return Application(pages, **options)
+
+
+def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, **options: Any) -> None:
+    """Serve ``pages`` with Uvicorn until it stops; ``options`` are those of ``Application``."""
+    import uvicorn
+
+    uvicorn.run(create_application(pages, **options), host=host, port=port)
+
+
+def commands(verbs) -> None:
+    """The verbs of ``gramlot uvicorn``: an entry point of ``gramlot_py_server.commands``."""
+    add_new(verbs, "uvicorn", start="uvicorn app:application", url="http://127.0.0.1:8000/")
+    add_gallery(verbs, "uvicorn", serve)
 
 
 __all__ = ["Application", "create_application"]

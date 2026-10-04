@@ -1,0 +1,1 @@
+gramlot-py-server[kajenn]>=0.2.2

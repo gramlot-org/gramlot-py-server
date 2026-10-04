@@ -1,0 +1,1 @@
+gramlot-py-server[django]>=0.2.2

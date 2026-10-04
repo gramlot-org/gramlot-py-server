@@ -11,7 +11,7 @@ extensions = ["myst_parser"]
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 exclude_patterns = ["_build", ".DS_Store", "internal"]
 html_theme = "sphinx_rtd_theme"
-html_logo = "_static/gramlot-logo.png"
+html_logo = "_static/gramlot-logo.svg"
 
 
 def paired_view_links(app, docname, source):

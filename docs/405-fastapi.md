@@ -28,42 +28,51 @@ part of either extra: it needs `pip install "fastapi[standard]"`.
 
 <a id="gp-405-010"></a>
 
-## 010 · Run the example
+## 010 · Create a project
 
 Block ID: **GP-405-010**.
 
-The example lives in the repository, beside the folder `examples/pages`.
+`gramlot fastapi new` writes the quick start project of the README
+([The gramlot command](020-command.md)):
 
-`examples/fastapi/app.py`:
+```sh
+gramlot fastapi new my-site
+cd my-site
+python -m pip install -r requirements.txt
+uvicorn app:app
+```
+
+Beside `pages/index.py`, `pages/index.js` and `requirements.txt` the project has
+`app.py`:
+
+`app.py`:
 
 ```python
-"""Serve the example pages inside a FastAPI app: ``fastapi dev app.py`` or ``uvicorn app:app``."""
+"""Serve the pages inside a FastAPI app: ``uvicorn app:app``."""
 from pathlib import Path
 
 from fastapi import FastAPI
 
 from gramlot_py_server.fastapi import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = FastAPI()
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-From the folder `examples/fastapi`:
+Open <http://127.0.0.1:8000/>. The page shows a field with `Ada` and the text
+`Hello, Ada`. It has no inline code, so the project sends the strict profile.
+`requirements.txt` installs FastAPI with Uvicorn. With `fastapi[standard]`
+installed, `fastapi dev app.py` also works. The test
+`tests/fastapi/test_fastapi_project.py` creates the project and serves it with
+FastAPI's `TestClient`.
 
-```sh
-uvicorn app:app
-```
-
-or, with `fastapi[standard]` installed, `fastapi dev app.py`. Open
-<http://127.0.0.1:8000/hello>. The permissive profile is sent because
-`hello.py` uses inline code. The test `tests/fastapi/test_fastapi_examples.py`
-serves this example with FastAPI's `TestClient`.
+`gramlot fastapi gallery` serves the example gallery with this adapter.
 
 <a id="gp-405-015"></a>
 
@@ -93,8 +102,11 @@ app = Application(PAGES, mount_path="/py", title="Pages")
   itself and keeps the result in `gramlot_pages`.
 - The router removes the prefix before the routes of `Pages` see the path. The
   same `mount_path` goes to `open_page` and to the `Path` of the owner cookie.
-- `page_ttl`, `max_pages` and `content_security_policy` have the meaning of
-  the [Uvicorn options](110-configuration.md).
+- With a prefix the router has one more route, `/py` without the final slash,
+  that answers 301 to `/py/` with the query string: pages link each other with
+  relative URLs.
+- `page_ttl`, `max_pages`, `content_security_policy` and `assets` have the
+  meaning of the [Uvicorn options](110-configuration.md).
 
 <a id="gp-405-020"></a>
 
@@ -104,10 +116,10 @@ Block ID: **GP-405-020**.
 
 - **Routes.** `/assets/gramlot.js` accepts `GET` and `HEAD`.
   `/gramlot/main`, `/gramlot/source` and `/gramlot/close` accept `POST`. `/`
-  and `/{page_path:path}` accept `GET` and `HEAD` and serve the pages and the
-  companions.
+  and `/{page_path:path}` accept `GET` and `HEAD` and serve the pages, the
+  files of `assets` and the companions.
 - **`HEAD` on a page.** The adapter answers 405 with `Allow: GET`. `HEAD` on a
-  companion answers 200 without a body.
+  companion or a file of `assets` answers 200 without a body.
 - **Other methods.** FastAPI answers them with 405, the JSON body
   `{"detail": "Method Not Allowed"}` and `Allow: GET, HEAD`. A `GET` on
   `/gramlot/main` matches the page route instead and answers 404
@@ -133,26 +145,38 @@ Block ID: **GP-405-025**.
 
 `from gramlot_py_server.fastapi import Application, Pages, mount_pages`
 
+Module functions, outside `__all__`:
+
+- `serve(pages, *, host="127.0.0.1", port=8000, **options)`: runs
+  `Application(pages, **options)` with Uvicorn, which must be installed.
+- `commands(verbs)`: adds the verbs `new` and `gallery` of `gramlot fastapi`, an
+  entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
+
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages` and calls
   `mount(app)`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, **fastapi_options)`: a `FastAPI` application.
+  content_security_policy=None, assets=None, **fastapi_options)`: a `FastAPI` application.
   `gramlot_pages` holds its `Pages`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None)`:
+  content_security_policy=None, assets=None)`:
   - `mount(app)`: includes the router and registers the shutdown handler.
   - `shutdown()`: forgets every open page.
   - `host`: the core `FileHost` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
-  - `asset`, `page`, `companion`, `main`, `source`, `close`: the endpoints.
+  - `assets`: the map of URLs to files, `{}` when not given.
+  - `asset`, `page`, `static`, `companion`, `main`, `source`, `close`,
+    `redirect`: the endpoints.
 
 | Method and path | Answer |
 | --- | --- |
 | `GET /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
 | `HEAD /<page path>` | 405, `Allow: GET` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
-| `GET`, `HEAD /<file>.css`, `/<file>_aux.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
+| `GET`, `HEAD /py` (the bare prefix) | 301, `Location: /py/` with the query string |
+| `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
+| `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
+| `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
 | `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
 | other methods | 405 from FastAPI, with `Allow`; a `GET` on `/gramlot/*` answers 404 `Page not found` |

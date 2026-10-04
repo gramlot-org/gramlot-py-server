@@ -32,9 +32,10 @@ a test that needs another framework fails there.
   `docs/015-…` common, `docs/105-…` to `docs/120-…` Uvicorn, `docs/205-…`
   Django, `docs/305-…` Flask, `docs/405-…` FastAPI, `docs/505-…` Kajenn.
   Internal notes: `docs/internal/` and `docs_llm/internal/`.
-- The README quick start is `examples/pages/hello.py` and the files of
-  `examples/<framework>/`; `tests/test_readme.py` fails when the README blocks
-  and the files differ.
+- The README quick start is the templates of `gramlot <framework> new` in
+  `src/gramlot_py_server/templates/`; `tests/test_readme.py` fails when the
+  README blocks and the templates differ. `examples/` holds the pages of the
+  Uvicorn tutorial (GP-105).
 
 ## Commits and branches
 

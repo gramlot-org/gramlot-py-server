@@ -37,10 +37,14 @@ framework, which arrives with the extra of the same name.
   from an archived adapter carries the line "Derived from <ID> (<repository>)";
   the archived namespaces (GS, GD, GFL, GF, GA) are frozen. Run
   `python scripts/check_docs.py` after changing documentation.
-- The README quick start shows `examples/pages/hello.py` and the files of
-  `examples/<framework>/`; `tests/test_readme.py` fails when they differ, and
-  `tests/<framework>/test_<framework>_examples.py` serves each example. Change
-  the README and the example files together.
+- The README quick start shows the templates of `gramlot <framework> new`
+  (`src/gramlot_py_server/templates/`); `tests/test_readme.py` fails when they
+  differ, and `tests/<framework>/test_<framework>_project.py` creates and serves
+  each project. Change the README and the templates together. `examples/` holds
+  the pages of the Uvicorn tutorial.
+- The command `gramlot <environment> <verb>` (`cli.py`) loads the entry point of
+  the group `gramlot_py_server.commands` named by the environment: the function
+  `commands(verbs)` of each adapter module adds its verbs.
 - Before a commit: `python -m pytest -q` with every extra installed.
 - Use `develop` for new work; `main` holds verified, owner-accepted work.
 - Git: `git switch`, never `git checkout`; never force-push a pushed branch;

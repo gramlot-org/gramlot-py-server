@@ -33,13 +33,21 @@ and it does not talk to a database.
 
 ## Quick start
 
-Python 3.11 or later. Install the package with the extra of your framework:
+Python 3.11 or later. Install the package with the extra of your framework,
+then create a project with `gramlot <framework> new <folder>`:
 
 ```sh
 python -m pip install "gramlot-py-server[uvicorn]"
+gramlot uvicorn new hello
+cd hello
+uvicorn app:application
 ```
 
-Create a folder `pages` and write `pages/hello.py`:
+Open <http://127.0.0.1:8000/>. The page shows a field with `Ada` and the text
+`Hello, Ada`. Typing `Grace` in the field changes the text to `Hello, Grace` at
+every keystroke.
+
+The command writes the same page for every framework, `pages/index.py`:
 
 ```python
 from gramlot import Page as BasePage
@@ -52,40 +60,49 @@ class Page(BasePage):
         pane = root.div(datapath="person")
         pane.html_label("Name", for_="name")
         pane.input(id="name", value="^.name", live=True)
-        pane.p("^.greeting")
-        pane.dataFormula(".greeting", "'Hello, ' + name", name="^.name", _init=True)
+        pane.p("^.greeting", id="greeting")
+        pane.dataFormula(".greeting", func="greet", name="^.name", _init=True)
         pane.dataSetter(".name", "Ada")
 ```
 
-The formula of this page is inline code, so every example below sends the
-permissive Content Security Policy profile. Each one lives in
-[`examples/`](examples/), beside a folder `pages`; the docstring of each file
-gives the command that starts it. The page opens at
-<http://127.0.0.1:8000/hello>, on port 5000 for the Flask development server.
-FastAPI needs a server: install `gramlot-py-server[fastapi,uvicorn]`.
+and its page module `pages/index.js`. The formula names its method with
+`func="greet"`; the method is in the `Logic` export and runs in the browser:
 
-Uvicorn, `examples/uvicorn/app.py`:
+```js
+export class Logic {
+    greet(kwargs) {
+        return `Hello, ${kwargs.name}`;
+    }
+}
+```
+
+The page has no inline code, so every project sends the strict Content Security
+Policy profile. Beside `pages/` the command writes `requirements.txt`, with the
+extra of the framework, and the files of the framework below. The docstring of
+each file gives the command that starts it, which `gramlot` also prints.
+
+Uvicorn, `gramlot uvicorn new`, `app.py`:
 
 ```python
-"""Serve the example pages with Uvicorn: ``uvicorn app:application``."""
+"""Serve the pages with Uvicorn: ``uvicorn app:application``."""
 from pathlib import Path
 
 from gramlot_py_server.uvicorn import create_application
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 application = create_application(
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-Django, `examples/django/settings.py` and `examples/django/urls.py`:
+Django, `gramlot django new`, `settings.py` and `urls.py`:
 
 ```python
-"""Django settings of the example: ``django-admin runserver --settings=settings --pythonpath=.``."""
+"""Django settings: ``django-admin runserver --settings=settings --pythonpath=.``."""
 
-SECRET_KEY = "example-only-change-me"
+SECRET_KEY = "development-only-change-me"
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 ROOT_URLCONF = "urls"
@@ -94,75 +111,74 @@ MIDDLEWARE = ["django.middleware.csrf.CsrfViewMiddleware"]
 ```
 
 ```python
-"""URLconf of the example: the Gramlot pages at the site root."""
+"""URLconf: the Gramlot pages at the site root."""
 from pathlib import Path
-
-from django.urls import include, path
 
 from gramlot_py_server.django import Pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 pages = Pages(
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 
-urlpatterns = [path("", include(pages.urls))]
+urlpatterns = [*pages.urlpatterns]
 ```
 
-Flask, `examples/flask/app.py`:
+Flask, `gramlot flask new`, `app.py`; the page opens on port 5000:
 
 ```python
-"""Serve the example pages inside a Flask app: ``flask --app app run``."""
+"""Serve the pages inside a Flask app: ``flask --app app run``."""
 from pathlib import Path
 
 from flask import Flask
 
 from gramlot_py_server.flask import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = Flask(__name__)
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-FastAPI, `examples/fastapi/app.py`:
+FastAPI, `gramlot fastapi new`, `app.py`; `requirements.txt` installs FastAPI
+with Uvicorn:
 
 ```python
-"""Serve the example pages inside a FastAPI app: ``fastapi dev app.py`` or ``uvicorn app:app``."""
+"""Serve the pages inside a FastAPI app: ``uvicorn app:app``."""
 from pathlib import Path
 
 from fastapi import FastAPI
 
 from gramlot_py_server.fastapi import mount_pages
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 app = FastAPI()
 mount_pages(
     app,
     PAGES,
-    content_security_policy="script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'",
+    content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'",
 )
 ```
 
-Kajenn, `examples/kajenn/config.py` (the page opens at
-<http://127.0.0.1:8000/pages/hello>):
+Kajenn, `gramlot kajenn new`, `config.py`; the page opens at
+<http://127.0.0.1:8000/pages/>:
 
 ```python
-"""Kajenn site of the example: ``kajenn serve config.py --port 8000``, pages under ``/pages``."""
+"""Kajenn site: ``kajenn serve config.py --port 8000``, pages under ``/pages/``."""
 from pathlib import Path
 
 from kajenn.config.templates import DefaultConfiguration
 
 from gramlot_py_server.kajenn import Application
 
-PAGES = Path(__file__).resolve().parents[1] / "pages"
+PAGES = Path(__file__).resolve().parent / "pages"
 
 
 class Site(DefaultConfiguration):
@@ -173,15 +189,16 @@ class Site(DefaultConfiguration):
             app_class=Application,
             pages=PAGES,
             content_security_policy=(
-                "script-src 'nonce-{nonce}' 'unsafe-eval'; object-src 'none'; base-uri 'none'"
+                "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
             ),
         ).request(body="raw")
 ```
 
-The page shows a field with `Ada` and the text `Hello, Ada`. Typing `Grace` in
-the field changes the text to `Hello, Grace` at every keystroke. The tests
-`tests/<framework>/test_<framework>_examples.py` serve these examples in CI, and
-`tests/test_readme.py` checks that this README shows the same files.
+The tests `tests/<framework>/test_<framework>_project.py` create each project
+with `gramlot <framework> new` and serve it, and `tests/test_readme.py` checks
+that this README shows the same files. A project that already exists, such as a
+Django site, needs no `new`: the guide of its framework shows how to add the
+pages to it.
 
 ## Next steps
 

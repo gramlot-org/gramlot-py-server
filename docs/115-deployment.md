@@ -52,8 +52,9 @@ adapter reads no client address and no forwarded header. TLS ends at the proxy.
 
 Block ID: **GP-115-010**.
 
-The application serves the runtime at `/assets/gramlot.js`, the companions
-of the pages folder and the files of its `assets` option
+The application serves the runtime at `/assets/gramlot.js`, the themes of the
+core at `/themes/…`, the companions of the pages folder and the files of its
+`assets` option
 ([Configuration](110-configuration.md)). Everything else, themes,
 images, fonts, is an asset of the application: add it to `assets`, or serve it
 from the proxy or from another ASGI route. Reference

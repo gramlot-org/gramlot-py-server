@@ -130,7 +130,8 @@ application = create_application(
 
 `GET` and `HEAD` of a URL of the map answer the file with its media type and
 `Cache-Control: no-store`; another method answers 405. The map comes before the
-companions and the pages, and after the runtime `/assets/gramlot.js`. The form
+companions and the pages, and after the runtime `/assets/gramlot.js` and the
+core themes `/themes/…`, which every adapter serves without configuration. The form
 is the `assets` part of `build_gallery` of `gramlot-examples`, which serves the
 example gallery. A URL outside the map follows the rules of
 [What is served](010-writing-pages.md).

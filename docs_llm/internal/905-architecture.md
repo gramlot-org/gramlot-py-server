@@ -74,9 +74,17 @@ answers 404. A `Page.css` URL outside the pages folder is an asset of the
 application, which serves it itself. Each adapter checks the companion suffix
 before it treats the path as a page path.
 
+GET and HEAD of `/themes/…` serve every file below `gramlot/resources/themes`
+of the installed core, as the runtime: `theme_file(path)` in each module
+returns an `assets` entry, with the media type of the extension. The table is
+`MimeTypes()`, the built-in one, which ignores the system files, plus the font
+types it lacks (`.woff`, `.woff2`, `.ttf`, `.otf`); `text/*` types carry
+`charset=utf-8`. A path the core does not have goes on, so a `themes/` folder
+of the application below the pages folder is still served as companions.
+
 The option `assets` maps URLs below the prefix to `{"file", "type"}`, the form
 of `build_gallery` of `gramlot-examples`. Each adapter looks the path up in the
-map after the runtime and before the companions. In Kajenn the branch `assets`
+map after the runtime and the core themes, and before the companions. In Kajenn the branch `assets`
 captures the paths below `assets/`; its `index` route passes them back to the
 `index` route of the application, so a map URL such as
 `/assets/branding/logo.svg` reaches the map.

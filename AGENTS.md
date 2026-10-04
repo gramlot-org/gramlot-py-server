@@ -21,7 +21,7 @@ framework, which arrives with the extra of the same name.
   URLs, the mount path passed to `open_page` and carried by the request path
   (404 outside it, 301 from `/py` to `/py/`), the companions rule (`GET` and
   `HEAD` of `.css` and `.js` files whose real path is below the pages folder),
-  the `assets` option, the owner cookie `gramlot_owner`, the 4096-byte request
+  the core themes at `/themes/…`, the `assets` option, the owner cookie `gramlot_owner`, the 4096-byte request
   limit and the `content_security_policy` option with `{nonce}`. A change to one adapter's
   contract is made in all five, with its tests.
 - Never ship a substitute runtime. Fail if an accepted integration is unavailable.

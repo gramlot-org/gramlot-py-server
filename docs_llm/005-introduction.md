@@ -22,7 +22,7 @@ server. It holds one adapter module per framework. Each adapter takes a folder
 of Python `Page` modules and serves it through the core `FileHost`:
 
 - it opens a page when a browser asks for it and answers the bootstrap document;
-- it serves the Gramlot browser runtime packaged with the core;
+- it serves the Gramlot browser runtime and the themes packaged with the core;
 - it serves the page companions, the `.css` and `.js` files below the pages
   folder: stylesheets and the page modules that hold the page `Logic`;
 - it serves the files of an optional assets map;
@@ -133,6 +133,12 @@ Block ID: **GP-005-025**.
 - **Companions.** `GET` and `HEAD` answer a `.css` or `.js` file whose real
   path is below the pages folder. Every other file of the folder, including the
   `.py` pages, is not served.
+- **Core themes.** `GET` and `HEAD` of `/themes/…` answer every file whose
+  real path is below the themes folder of the core package
+  (`gramlot/resources/themes`), with the media type of its extension, as the
+  runtime: `Page.css = ["/themes/gramlot-base/theme.css"]` works without other
+  settings. A path the core does not have goes on to the assets, the
+  companions and the pages.
 - **Assets.** The option `assets` maps URLs below the prefix to files:
   `{"/gallery/dist/gallery.js": {"file": path, "type": "application/javascript"}}`,
   the form that `build_gallery` of `gramlot-examples` returns. `GET` and `HEAD`

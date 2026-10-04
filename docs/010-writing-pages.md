@@ -147,6 +147,7 @@ Paths are shown without the mount prefix.
 | --- | --- |
 | `GET /<page path>` | the bootstrap document of the page |
 | `GET`, `HEAD /assets/gramlot.js` | the Gramlot browser runtime packaged with the core |
+| `GET`, `HEAD /themes/<file>` | a file of the themes packaged with the core, such as `/themes/gramlot-base/theme.css` |
 | `GET`, `HEAD` of a URL of the `assets` option | the file, with its media type |
 | `GET`, `HEAD` of a `.css` or `.js` file below the pages folder | the file |
 | `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | the page protocol |

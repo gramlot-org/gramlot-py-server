@@ -25,6 +25,6 @@ def check_main(tags):
     """The Source of ``main``: the bound field and the formula named in ``Logic``."""
     assert tags["input"]["value"] == "^.name"
     assert tags["input"]["live"] is True
-    assert tags["dataFormula"]["func"] == "greet"
+    assert tags["dataFormula"]["func"] == "greeting"
     assert "formula" not in tags["dataFormula"]
     assert tags["dataSetter"]["value"] == "Ada"

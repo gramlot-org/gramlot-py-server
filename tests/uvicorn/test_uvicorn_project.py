@@ -16,6 +16,6 @@ async def test_new_project_serves_the_page_and_its_logic(new_project, capsys, so
         check_document(document.text, document.headers["content-security-policy"])
         logic = await client.get("/index.js")
         assert logic.headers["content-type"] == "text/javascript; charset=utf-8"
-        assert "greet(kwargs)" in logic.text
+        assert "greeting(kwargs)" in logic.text
         main = await client.post("/gramlot/main", json={"pageId": page_id(document.text)})
         check_main(source_tags(main.text))

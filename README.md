@@ -60,19 +60,17 @@ class Page(BasePage):
         pane = root.div(datapath="person")
         pane.html_label("Name", for_="name")
         pane.input(id="name", value="^.name", live=True)
-        pane.p("^.greeting", id="greeting")
-        pane.dataFormula(".greeting", func="greet", name="^.name", _init=True)
+        pane.p("^.greeting")
+        pane.dataFormula(".greeting", func="greeting", name="^.name", _init=True)
         pane.dataSetter(".name", "Ada")
 ```
 
 and its page module `pages/index.js`. The formula names its method with
-`func="greet"`; the method is in the `Logic` export and runs in the browser:
+`func="greeting"`; the method is in the `Logic` export and runs in the browser:
 
 ```js
 export class Logic {
-    greet(kwargs) {
-        return `Hello, ${kwargs.name}`;
-    }
+    greeting(kwargs) { return 'Hello, ' + kwargs.name; }
 }
 ```
 

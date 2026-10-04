@@ -8,6 +8,6 @@ class Page(BasePage):
         pane = root.div(datapath="person")
         pane.html_label("Name", for_="name")
         pane.input(id="name", value="^.name", live=True)
-        pane.p("^.greeting", id="greeting")
-        pane.dataFormula(".greeting", func="greet", name="^.name", _init=True)
+        pane.p("^.greeting")
+        pane.dataFormula(".greeting", func="greeting", name="^.name", _init=True)
         pane.dataSetter(".name", "Ada")

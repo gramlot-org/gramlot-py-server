@@ -43,5 +43,5 @@ def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_t
     assert result["status"] == 200
     check_document(result["document"], result["policy"])
     assert result["logic_type"] == "text/javascript; charset=utf-8"
-    assert "greet(kwargs)" in result["logic"]
+    assert "greeting(kwargs)" in result["logic"]
     check_main(source_tags(result["main"]))

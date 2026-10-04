@@ -74,7 +74,7 @@ const c03 = async page => {
     await page.waitForFunction(() => document.getElementById('final').textContent === '108');
 };
 const quickStart = async page => {
-    await page.waitForFunction(() => document.querySelector('#greeting')?.textContent === 'Hello, Ada');
+    await page.waitForFunction(() => [...document.querySelectorAll('p')].some(p => p.textContent === 'Hello, Ada'));
 };
 
 let browser;

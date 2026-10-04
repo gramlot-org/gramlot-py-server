@@ -1,7 +1,7 @@
 # Quick start
 
-A field bound to `person.name` and a greeting computed by the method `greet` of
-the page's `Logic`, in the page module `01_quick_start.js`. Typing in the field
+A field bound to `person.name` and a greeting computed by the method `greeting`
+of the page's `Logic`, in the page module `01_quick_start.js`. Typing in the field
 changes the greeting at every keystroke.
 
 `gramlot uvicorn new my-site` writes this page as `pages/index.py` and

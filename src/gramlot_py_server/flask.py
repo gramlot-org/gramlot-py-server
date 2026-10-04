@@ -30,12 +30,18 @@ class Pages:
     """Own a Gramlot ``FileHost`` and its WSGI route translations.
 
     The blueprint is registered at ``mount_path``, which is also passed to
-    ``open_page`` as the mount prefix of browser URLs.
+    ``open_page`` as the mount prefix of browser URLs. The prefix without the
+    final slash (``/py``) answers 301 to ``/py/``: pages link each other with
+    relative URLs.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
     pages folder: the companions of ``FileHost`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
+
+    ``assets`` maps URLs below the mount path to files served by GET and HEAD,
+    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
+    ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
@@ -43,9 +49,11 @@ class Pages:
     """
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
-                 max_pages: int = 1000, content_security_policy: str | None = None) -> None:
+                 max_pages: int = 1000, content_security_policy: str | None = None,
+                 assets: dict | None = None) -> None:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
+        self.assets = dict(assets or {})
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -63,15 +71,25 @@ class Pages:
         blueprint.add_url_rule("/gramlot/main", "main", self.main, methods=["POST"])
         blueprint.add_url_rule("/gramlot/source", "source", self.source, methods=["POST"])
         blueprint.add_url_rule("/gramlot/close", "close", self.close, methods=["POST"])
+        if self.mount_path:
+            blueprint.add_url_rule("", "mount", self.redirect, strict_slashes=False)
         blueprint.add_url_rule("/", "index", self.page, defaults={"page_path": ""})
         blueprint.add_url_rule("/<path:page_path>", "page", self.page)
         return blueprint
+
+    def redirect(self) -> Response:
+        query = request.query_string.decode("latin-1")
+        location = self.mount_path + "/" + (f"?{query}" if query else "")
+        return Response(status=301, headers={"Location": location})
 
     def asset(self) -> Response:
         body = b"" if request.method == "HEAD" else runtime_asset().read_bytes()
         return Response(body, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
 
     def page(self, page_path="") -> Response:
+        asset = self.assets.get("/" + page_path)
+        if asset is not None:
+            return self.static(asset)
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
         if suffix is not None:
             return self.companion(page_path, suffix)
@@ -94,6 +112,11 @@ class Pages:
             samesite="Lax",
         )
         return response
+
+    def static(self, asset) -> Response:
+        """Serve one file of ``assets`` with its media type."""
+        body = b"" if request.method == "HEAD" else Path(asset["file"]).read_bytes()
+        return Response(body, content_type=asset["type"], headers={"Cache-Control": "no-store"})
 
     def companion(self, page_path: str, suffix: str) -> Response:
         """Serve the file of ``page_path`` when its real path is below the pages folder."""

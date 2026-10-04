@@ -116,7 +116,7 @@ async def test_mount_path_is_the_prefix_of_the_request_paths(tmp_path):
         main = await client.post("/py/gramlot/main", json={"pageId": page_id})
         assert main.status_code == 200
         assert (await client.get("/py/assets/gramlot.js")).status_code == 200
-        for path in ("/", "/index", "/assets/gramlot.js", "/py", "/pyindex", "/other/index"):
+        for path in ("/", "/index", "/assets/gramlot.js", "/pyindex", "/other/index"):
             assert (await client.get(path)).status_code == 404
         assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
 
@@ -215,3 +215,39 @@ async def test_page_module_is_served_for_its_logic(tmp_path):
         head = await client.head("/py/foo.js")
         assert head.status_code == 200 and head.content == b""
         assert (await client.get("/py/foo.py")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Index')\n"
+    )
+    (tmp_path / "logo.svg").write_text("<svg/>")
+    (tmp_path / "notices.json").write_text("[]")
+    assets = {
+        "/assets/branding/logo.svg": {"file": tmp_path / "logo.svg", "type": "image/svg+xml"},
+        "/gallery/dist/notices.json": {"file": str(tmp_path / "notices.json"), "type": "application/json"},
+    }
+    app = create_application(pages, mount_path="/py", assets=assets)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for url, media_type, body in (("/py/assets/branding/logo.svg", "image/svg+xml", b"<svg/>"),
+                                      ("/py/gallery/dist/notices.json", "application/json", b"[]")):
+            response = await client.get(url)
+            assert response.status_code == 200
+            assert response.headers["content-type"] == media_type
+            assert response.content == body
+            head = await client.head(url)
+            assert head.status_code == 200 and head.content == b""
+        assert (await client.post("/py/assets/branding/logo.svg")).status_code == 405
+        for url in ("/py/assets/branding/other.svg", "/assets/branding/logo.svg"):
+            assert (await client.get(url)).status_code == 404
+        response = await client.get("/py")
+        assert response.status_code == 301 and response.headers["location"] == "/py/"
+        response = await client.get("/py?a=1")
+        assert response.status_code == 301 and response.headers["location"] == "/py/?a=1"
+        assert (await client.get("/py/")).status_code == 200

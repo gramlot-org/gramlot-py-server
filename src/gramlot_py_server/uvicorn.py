@@ -35,12 +35,17 @@ class Application:
     ``mount_path`` is the prefix of the request paths and is passed to
     ``open_page`` as the mount prefix of browser URLs. With ``mount_path="/py"``
     the application answers ``/py/…`` with the prefix removed and 404 to every
-    other path, as the Django, Flask and FastAPI adapters do.
+    other path, as the Django, Flask and FastAPI adapters do. ``/py`` without the
+    final slash answers 301 to ``/py/``: pages link each other with relative URLs.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
     pages folder: the companions of ``FileHost`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
+
+    ``assets`` maps URLs below the mount path to files served by GET and HEAD,
+    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
+    ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
@@ -55,10 +60,12 @@ class Application:
         page_ttl: float = 1800,
         max_pages: int = 1000,
         content_security_policy: str | None = None,
+        assets: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.mount_path = mount_path
         self.content_security_policy = content_security_policy
+        self.assets = dict(assets or {})
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -79,6 +86,12 @@ class Application:
         path = unquote(scope.get("path", "/"))
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
         if self.mount_path:
+            if path == self.mount_path:
+                location = self.mount_path + "/"
+                if scope.get("query_string"):
+                    location += "?" + scope["query_string"].decode("latin-1")
+                await self._send(send, 301, b"", "text/plain", [(b"location", location.encode())])
+                return
             if not path.startswith(self.mount_path + "/"):
                 await self._send(send, 404, b"Not found", "text/plain; charset=utf-8")
                 return
@@ -90,6 +103,15 @@ class Application:
                 return
             body = b"" if method == "HEAD" else await self._runtime_bytes()
             await self._send(send, 200, body, "text/javascript; charset=utf-8")
+            return
+
+        asset = self.assets.get(path)
+        if asset is not None:
+            if method not in {"GET", "HEAD"}:
+                await self._send(send, 405, b"", "text/plain", [(b"allow", b"GET, HEAD")])
+                return
+            body = b"" if method == "HEAD" else await asyncio.to_thread(Path(asset["file"]).read_bytes)
+            await self._send(send, 200, body, asset["type"])
             return
 
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if path.endswith(suffix)), None)

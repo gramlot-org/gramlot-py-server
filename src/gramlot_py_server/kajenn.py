@@ -43,6 +43,11 @@ class _RuntimeAssets(RoutingClass):
         _request.response.set_header("Cache-Control", "no-cache")
         return b"" if _request.method == "HEAD" else runtime_asset().read_bytes()
 
+    @route(media_type="text/html")
+    async def index(self, *segments, _request, **_query):
+        """Every other path below ``assets/``: the application's assets, companions and pages."""
+        return await self.application.index("assets", *segments, _request=_request, **_query)
+
 
 class _Protocol(RoutingClass):
     def __init__(self, application):
@@ -67,12 +72,18 @@ class Application(RoutedApplication):
     Declare it in the site recipe with ``request(body="raw")``: the protocol
     reads JSON with ``json.loads``, not with TYTX hydration. The application's
     Kajenn ``mount`` is passed to ``open_page`` as the mount prefix of browser
-    URLs.
+    URLs. The mount without the final slash (``/py``) answers 301 to ``/py/``:
+    pages link each other with relative URLs. Kajenn routes ``/py`` and ``/py/``
+    alike; the application tells them apart by the ASGI ``raw_path``.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
     pages folder: the companions of ``FileHost`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
+
+    ``assets`` maps URLs below the mount to files served by GET and HEAD,
+    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
+    ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
@@ -80,11 +91,13 @@ class Application(RoutedApplication):
     """
 
     def __init__(self, pages: str | Path, *, page_ttl: float = 1800, max_pages: int = 1000,
-                 content_security_policy: str | None = None, **kwargs) -> None:
+                 content_security_policy: str | None = None, assets: dict | None = None,
+                 **kwargs) -> None:
         super().__init__(**kwargs)
         if not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
             raise ValueError("mount must be a single lowercase URL segment")
         self.content_security_policy = content_security_policy
+        self.assets = dict(assets or {})
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -102,6 +115,11 @@ class Application(RoutedApplication):
     @route(media_type="text/html")
     async def index(self, *segments, _request, **_query):
         page_path = "/".join(segments)
+        if _request.scope.get("raw_path") == f"/{self.mount}".encode():
+            return self.redirect(_request)
+        asset = self.assets.get("/" + page_path)
+        if asset is not None:
+            return self.static(_request, asset)
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
         if suffix is not None:
             return self.companion(_request, page_path, suffix)
@@ -121,6 +139,20 @@ class Application(RoutedApplication):
             OWNER_COOKIE, owner, path=f"/{self.mount}", httponly=True, samesite="lax"
         )
         return opened.html
+
+    def redirect(self, request):
+        """Answer the mount without the final slash with 301 to the mount with it."""
+        query = request.scope.get("query_string", b"").decode("latin-1")
+        request.response.status_code = 301
+        request.response.set_header("Location", f"/{self.mount}/" + (f"?{query}" if query else ""))
+        return self.result_wrapper(b"", media_type="text/plain")
+
+    def static(self, request, asset):
+        """Serve one file of ``assets`` with its media type."""
+        self.require_method(request, "GET", "HEAD")
+        request.response.set_header("Cache-Control", "no-store")
+        body = b"" if request.method == "HEAD" else Path(asset["file"]).read_bytes()
+        return self.result_wrapper(body, media_type=asset["type"])
 
     def companion(self, request, page_path: str, suffix: str):
         """Serve the file of ``page_path`` when its real path is below the pages folder."""

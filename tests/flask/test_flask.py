@@ -143,3 +143,38 @@ def test_page_module_is_served_for_its_logic(tmp_path):
     head = client.head("/nested/foo.js")
     assert head.status_code == 200 and head.data == b""
     assert client.get("/nested/foo.py").status_code == 404
+
+
+def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (pages / "index.py").write_text(
+        "from gramlot import Page as Base\n"
+        "class Page(Base):\n"
+        "    def main(self, root): root.h1('Index')\n"
+    )
+    (tmp_path / "logo.svg").write_text("<svg/>")
+    (tmp_path / "notices.json").write_text("[]")
+    assets = {
+        "/assets/branding/logo.svg": {"file": tmp_path / "logo.svg", "type": "image/svg+xml"},
+        "/gallery/dist/notices.json": {"file": str(tmp_path / "notices.json"), "type": "application/json"},
+    }
+    app = Flask(__name__)
+    mount_pages(app, pages, mount_path="/nested", assets=assets)
+    client = app.test_client()
+    for url, media_type, body in (("/nested/assets/branding/logo.svg", "image/svg+xml", b"<svg/>"),
+                                  ("/nested/gallery/dist/notices.json", "application/json", b"[]")):
+        response = client.get(url)
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == media_type
+        assert response.data == body
+        head = client.head(url)
+        assert head.status_code == 200 and head.data == b""
+    assert client.post("/nested/assets/branding/logo.svg").status_code == 405
+    for url in ("/nested/assets/branding/other.svg", "/assets/branding/logo.svg"):
+        assert client.get(url).status_code == 404
+    response = client.get("/nested")
+    assert response.status_code == 301 and response.headers["Location"].endswith("/nested/")
+    response = client.get("/nested?a=1")
+    assert response.status_code == 301 and response.headers["Location"].endswith("/nested/?a=1")
+    assert client.get("/nested/").status_code == 200

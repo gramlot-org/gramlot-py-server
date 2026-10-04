@@ -8,8 +8,8 @@ from pathlib import Path
 from secrets import token_urlsafe
 
 from asgiref.sync import async_to_sync
-from django.http import FileResponse, HttpResponse
-from django.urls import path
+from django.http import FileResponse, HttpResponse, HttpResponsePermanentRedirect
+from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from gramlot.server import (
     FileHost,
@@ -31,15 +31,20 @@ COMPANION_MEDIA_TYPES = {
 class Pages:
     """Own a Gramlot ``FileHost`` and expose it at one Django URLconf mount point.
 
-    Include ``urls`` at the same ``mount_path`` supplied here: ``mount_path`` is
-    passed to ``open_page`` as the mount prefix of browser URLs. The cookie
-    associates browser requests with in-process page records; it is not
-    authentication.
+    Add ``urlpatterns`` to the URLconf: it includes ``urls`` at ``mount_path``,
+    which is also passed to ``open_page`` as the mount prefix of browser URLs.
+    The prefix without the final slash (``/py``) answers 301 to ``/py/``: pages
+    link each other with relative URLs. The cookie associates browser requests
+    with in-process page records; it is not authentication.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
     pages folder: the companions of ``FileHost`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
+
+    ``assets`` maps URLs below the mount path to files served by GET and HEAD,
+    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
+    ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
     ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
@@ -47,9 +52,11 @@ class Pages:
     """
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
-                 max_pages: int = 1000, content_security_policy: str | None = None) -> None:
+                 max_pages: int = 1000, content_security_policy: str | None = None,
+                 assets: dict | None = None) -> None:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
+        self.assets = dict(assets or {})
         self.host = FileHost(
             pages,
             runtime_url="/assets/gramlot.js",
@@ -68,6 +75,18 @@ class Pages:
             path("<path:page_path>", self.page),
         ]
 
+    @property
+    def urlpatterns(self):
+        """The URL patterns of the pages at ``mount_path``, with the redirect of the bare prefix."""
+        if not self.mount_path:
+            return [path("", include(self.urls))]
+        prefix = self.mount_path.strip("/")
+        return [path(prefix, self.redirect), path(prefix + "/", include(self.urls))]
+
+    def redirect(self, request):
+        query = request.META.get("QUERY_STRING", "")
+        return HttpResponsePermanentRedirect(self.mount_path + "/" + (f"?{query}" if query else ""))
+
     def asset(self, request):
         if request.method not in ("GET", "HEAD"):
             return HttpResponse(status=405)
@@ -76,6 +95,9 @@ class Pages:
         return response
 
     def page(self, request, page_path=""):
+        asset = self.assets.get("/" + page_path)
+        if asset is not None:
+            return self.static(request, asset)
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
         if suffix is not None:
             return self.companion(request, page_path, suffix)
@@ -94,6 +116,15 @@ class Pages:
             policy = self.content_security_policy.replace("{nonce}", opened.nonce)
             response["Content-Security-Policy"] = policy
         response.set_cookie(OWNER_COOKIE, owner, path=self.mount_path or "/", httponly=True, samesite="Lax")
+        return response
+
+    def static(self, request, asset):
+        """Serve one file of ``assets`` with its media type."""
+        if request.method not in ("GET", "HEAD"):
+            return HttpResponse(status=405)
+        body = b"" if request.method == "HEAD" else Path(asset["file"]).read_bytes()
+        response = HttpResponse(body, content_type=asset["type"])
+        response["Cache-Control"] = "no-store"
         return response
 
     def companion(self, request, page_path, suffix):

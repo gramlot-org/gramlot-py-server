@@ -1,7 +1,7 @@
 gramlot-py-server
 =================
 
-.. image:: _static/gramlot-logo.png
+.. image:: _static/gramlot-logo.svg
    :width: 160
    :alt: Gramlot
 

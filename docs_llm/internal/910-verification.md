@@ -2,7 +2,7 @@
 
 Document ID: **GP-910**.
 
-Derived from GS-020 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../../docs/internal/910-verification.md).
 
@@ -51,7 +51,7 @@ Playwright Chromium:
 node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium webkit
 node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium webkit
 python -m build --wheel -o dist .
-python scripts/verify_install.py django dist/gramlot_py_server-0.2.2-py3-none-any.whl "$PLAYWRIGHT_ENTRY" chromium
+python scripts/verify_install.py django dist/gramlot_py_server-*.whl "$PLAYWRIGHT_ENTRY" chromium
 ```
 
 `python scripts/check_docs.py` validates the paired guides and their

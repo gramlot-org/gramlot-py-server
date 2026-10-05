@@ -2,7 +2,7 @@
 
 Document ID: **GP-010**.
 
-Derived from GS-115 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs_llm/010-writing-pages.md).
 
@@ -73,19 +73,21 @@ Block ID: **GP-010-015**.
 
 ```python
 class Page(BasePage):
-    css = ("/themes/base.css", "theme.css")
+    css = ("/themes/gramlot-base/theme.css", "orders-print.css")
 ```
 
-A root-relative URL (`/themes/base.css`) receives the mount prefix once. A
-relative URL (`theme.css`) and an absolute URL stay as written. A `Page.css`
+A root-relative URL (`/themes/gramlot-base/theme.css`) receives the mount prefix
+once: the adapter serves it from the themes of the core. A relative URL
+(`orders-print.css`) and an absolute URL stay as written. A `Page.css`
 URL that points inside the pages folder is served by the companion rule when it
 ends in `.css`. A URL outside the folder is an asset of the application, which
 serves it itself or through its web server.
 
 `css_requires` and `js_requires` name resources of a Host with a resource
-system. `FileHost` has none: a name in either field raises
-`InvalidResourceName` ("requires need a Host with a resource system") when the
-page is opened.
+system. `FileHost` and the adapters of this package have none: a name in either
+field raises `InvalidResourceName` ("requires need a Host with a resource
+system") when the page is opened. The resource system comes with genro-kajenn,
+part of Genro, the framework that succeeds GenroPy.
 
 <a id="gp-010-020"></a>
 
@@ -132,7 +134,7 @@ for example from a button controller. The adapter answers
 `{"pageId", "method": "details", "params": {"name": "Grace"}}`. The parameters
 arrive as keyword arguments. `main` and Source methods may be synchronous or
 asynchronous. They build into `root` and return `None`. A method that is not
-decorated answers 404 "Unknown Source method". Gramlot 0.2.1 has no declarative
+decorated answers 404 "Unknown Source method". Gramlot has no declarative
 remote Source request.
 
 <a id="gp-010-030"></a>
@@ -146,6 +148,7 @@ Paths are shown without the mount prefix.
 | Request | Answer |
 | --- | --- |
 | `GET /<page path>` | the bootstrap document of the page |
+| `GET /<page path>/index.html`, `GET /index.html` | the bootstrap document of the page `<page path>`, of the page `index` |
 | `GET`, `HEAD /assets/gramlot.js` | the Gramlot browser runtime packaged with the core |
 | `GET`, `HEAD /themes/<file>` | a file of the themes packaged with the core, such as `/themes/gramlot-base/theme.css` |
 | `GET`, `HEAD` of a URL of the `assets` option | the file, with its media type |

@@ -177,6 +177,7 @@ content_security_policy=None, assets=None)`
 | Method and path | Answer |
 | --- | --- |
 | `GET`, `HEAD /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
+| `GET`, `HEAD /<page path>/index.html`, `/index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
 | other methods on a page path | 405, or 403 from `CsrfViewMiddleware` for `POST` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript`, the runtime; 405 for other methods |
 | `GET /py` (the bare prefix) | 301, `Location: /py/` with the query string |

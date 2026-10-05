@@ -2,7 +2,7 @@
 
 Document ID: **GP-110**.
 
-Derived from GS-120 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs/110-configuration.md).
 

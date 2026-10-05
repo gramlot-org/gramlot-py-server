@@ -2,7 +2,7 @@
 
 Document ID: **GP-005**.
 
-Derived from GS-105 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs/005-introduction.md).
 
@@ -139,6 +139,10 @@ Block ID: **GP-005-025**.
 - **Companions.** `GET` and `HEAD` answer a `.css` or `.js` file whose real
   path is below the pages folder. Every other file of the folder, including the
   `.py` pages, is not served.
+- **`index.html`.** As on a static host, `GET /<path>/index.html` opens the
+  page `<path>` and `GET /index.html` opens the page `index`. `/<path>/` opens
+  the page `<path>` too. Another file name, such as `index.htm` or
+  `<path>.html`, is not a page and answers 404.
 - **Core themes.** `GET` and `HEAD` of `/themes/…` answer every file whose
   real path is below the themes folder of the core package
   (`gramlot/resources/themes`), with the media type of its extension, as the
@@ -171,22 +175,12 @@ Block ID: **GP-005-025**.
 
 <a id="gp-005-030"></a>
 
-## 030 · Upgrading from the unpublished adapters
+## 030 · Earlier repositories
 
 Block ID: **GP-005-030**.
 
 The adapters of this package replace five repositories that were never
-published on PyPI. Their names map as follows:
-
-| Old name | New name |
-| --- | --- |
-| `gramlot_uvicorn.NativeHtmlASGI` | `gramlot_py_server.uvicorn.Application` |
-| `gramlot_uvicorn.create_asgi_application` | `gramlot_py_server.uvicorn.create_application` |
-| `gramlot_django.NativeHtmlPages` | `gramlot_py_server.django.Pages` |
-| `gramlot_flask.NativeHtmlPages` | `gramlot_py_server.flask.Pages` |
-| `gramlot_flask.mount_native_html` | `gramlot_py_server.flask.mount_pages` |
-| `gramlot_fastapi.NativeHtmlPages` | `gramlot_py_server.fastapi.Pages` |
-| `gramlot_fastapi.NativeHtmlApplication` | `gramlot_py_server.fastapi.Application` |
-| `gramlot_fastapi.mount_native_html` | `gramlot_py_server.fastapi.mount_pages` |
-| `gramlot_kajenn.KajennNativeHtmlApplication` | `gramlot_py_server.kajenn.Application` |
-| the `prefix=` option | the `mount_path=` option |
+published on PyPI: `gramlot-uvicorn`, `gramlot-django`, `gramlot-flask`,
+`gramlot-fastapi` and `gramlot-kajenn`. They are archived. Their class and
+function names are not aliases in this package: use the names of the table in
+section 010.

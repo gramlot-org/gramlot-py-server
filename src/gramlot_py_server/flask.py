@@ -76,6 +76,9 @@ class Pages:
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
+    ``<path>/index.html`` opens the page ``<path>`` and ``/index.html`` the index,
+    as a static host does.
+
     GET and HEAD serve every file below the themes folder of the core at
     ``/themes/…``, with the media type of its extension; a path the core does
     not have goes on to ``assets``, the companions and the pages.
@@ -134,6 +137,9 @@ class Pages:
         suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
         if suffix is not None:
             return self.companion(page_path, suffix)
+        # As on a static host, <path>/index.html is the page <path> and /index.html the index.
+        if ("/" + page_path).endswith("/index.html"):
+            page_path = page_path.removesuffix("index.html")
         owner = request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
             opened = asyncio.run(self.host.open_page(page_path, owner=owner, prefix=self.mount_path))

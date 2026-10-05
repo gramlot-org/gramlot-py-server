@@ -10,6 +10,7 @@ from django.urls import clear_url_caches, include, path
 from genro_tytx import from_tytx
 
 from gallery_checks import check_index_main, expected, page_id, staged
+from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.django import Pages
 
 if not settings.configured:
@@ -285,3 +286,17 @@ def test_gallery_under_the_mount_path(tmp_path):
     document = client.get("/py/").content.decode()
     main = client.post("/py/gramlot/main", json.dumps({"pageId": page_id(document)}), content_type="application/json")
     check_index_main(main.content.decode())
+
+
+def test_index_html_opens_the_page_of_its_folder(tmp_path):
+    integration = Pages(titled_pages(tmp_path), mount_path="/hello")
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client()
+    for url, title in INDEX_HTML_PATHS:
+        response = client.get("/hello" + url)
+        assert response.status_code == 200, url
+        assert title_of(response.content.decode()) == title, url
+    for url in INDEX_HTML_MISSING:
+        assert client.get("/hello" + url).status_code == 404, url

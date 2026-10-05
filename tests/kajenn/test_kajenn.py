@@ -9,6 +9,7 @@ from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
 
 from gallery_checks import check_index_main, expected, page_id, staged
+from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.kajenn import Application
 
 
@@ -337,3 +338,14 @@ async def test_empty_mount_serves_the_pages_at_the_site_root(tmp_path):
         main = await client.post("/gramlot/main", json={"pageId": page_id_of(document)})
         assert main.status_code == 200
         assert (await client.get("/assets/gramlot.js")).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_index_html_opens_the_page_of_its_folder(tmp_path):
+    async with client_for(site(titled_pages(tmp_path))) as client:
+        for path, title in INDEX_HTML_PATHS:
+            response = await client.get(path)
+            assert response.status_code == 200, path
+            assert title_of(response.text) == title, path
+        for path in INDEX_HTML_MISSING:
+            assert (await client.get(path)).status_code == 404, path

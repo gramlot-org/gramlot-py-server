@@ -1,4 +1,4 @@
-"""Build the concise documentation with the shared configuration."""
+"""Build the paired documentation view with the shared configuration."""
 from pathlib import Path
 import runpy
 

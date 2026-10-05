@@ -1,1 +1,1 @@
-gramlot-py-server[flask]>=0.2.2
+gramlot-py-server[flask]>=0.2.3

@@ -2,7 +2,7 @@
 
 Document ID: **GP-905**.
 
-Derived from GS-005 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../../docs/internal/905-architecture.md).
 
@@ -70,11 +70,17 @@ Block ID: **GP-905-015**.
 GET and HEAD serve a file of the pages folder whose name ends in `.css` or
 `.js`: the `FileHost` companions `foo.css`, `foo.js` and `foo_aux.js`, the
 relative imports of a page module, and `Page.css` files placed in the folder
-(GC-090 §030 of the core, from 0.2.5; until 0.2.1 `.css` and `_aux.js`). The real path of the file must stay below the pages
-folder, as in `FileHost.url`. Every other file, including `.py` and `.md`,
+(GC-090 §030 of the core: `.css` and `.js` from core 0.2.5, `.css` and `_aux.js`
+until 0.2.4). This package serves `.js` files from 0.2.2; 0.2.1 served `.css`
+and `_aux.js`. The real path of the file must stay below the pages folder, as
+in `FileHost.url`. Every other file, including `.py` and `.md`,
 answers 404. A `Page.css` URL outside the pages folder is an asset of the
 application, which serves it itself. Each adapter checks the companion suffix
-before it treats the path as a page path.
+before it treats the path as a page path. Before it opens a page, each adapter
+removes `index.html` from a path that ends in `/index.html`, so
+`/<path>/index.html` opens the page `<path>` and `/index.html` the page
+`index`, as on a static host and as in gramlot-js-server (owner decision of
+2026-10-04).
 
 GET and HEAD of `/themes/…` serve every file below `gramlot/resources/themes`
 of the installed core, as the runtime: `theme_file(path)` in each module

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from genro_tytx import from_tytx
 
 from gallery_checks import check_index_main, expected, page_id, staged
+from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.fastapi import Application
 
 PAGE = """from gramlot import Page as BasePage, source
@@ -214,3 +215,14 @@ def test_gallery_under_the_mount_path(tmp_path):
     document = client.get("/py/").text
     main = client.post("/py/gramlot/main", json={"pageId": page_id(document)})
     check_index_main(main.text)
+
+
+def test_index_html_opens_the_page_of_its_folder(tmp_path):
+    client = TestClient(Application(titled_pages(tmp_path), mount_path="/nested"),
+                        follow_redirects=False)
+    for path, title in INDEX_HTML_PATHS:
+        response = client.get("/nested" + path)
+        assert response.status_code == 200, path
+        assert title_of(response.text) == title, path
+    for path in INDEX_HTML_MISSING:
+        assert client.get("/nested" + path).status_code == 404, path

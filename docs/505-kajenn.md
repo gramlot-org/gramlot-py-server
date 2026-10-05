@@ -71,7 +71,7 @@ class Site(DefaultConfiguration):
 
 Open <http://127.0.0.1:8000/pages/>. The page shows a field with `Ada` and the
 text `Hello, Ada`. It has no inline code, so the project sends the strict
-profile. Without `--port`, Kajenn 0.1.0 binds this configuration to a free port
+profile. Without `--port`, Kajenn binds this configuration to a free port
 and the server log prints it. The test `tests/kajenn/test_kajenn_project.py`
 creates the project and serves it through a Kajenn `AsgiServer`.
 
@@ -171,6 +171,7 @@ Paths below are without the mount.
 | Method and path | Answer |
 | --- | --- |
 | `GET /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
+| `GET /<page path>/index.html`, `GET /index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
 | `GET /pages` (the mount without the final slash) | 301, `Location: /pages/` with the query string |
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |

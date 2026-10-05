@@ -80,6 +80,9 @@ class Application:
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
+    ``<path>/index.html`` opens the page ``<path>`` and ``/index.html`` the index,
+    as a static host does.
+
     GET and HEAD serve every file below the themes folder of the core at
     ``/themes/…``, with the media type of its extension; a path the core does
     not have goes on to ``assets``, the companions and the pages.
@@ -184,6 +187,9 @@ class Application:
         if method != "GET":
             await self._send(send, 405, b"", "text/plain", [(b"allow", b"GET")])
             return
+        # As on a static host, <path>/index.html is the page <path> and /index.html the index.
+        if path.endswith("/index.html"):
+            path = path.removesuffix("index.html")
         owner = self._owner(headers) or token_urlsafe(24)
         try:
             opened = await self.host.open_page(path, owner=owner, prefix=self.mount_path)

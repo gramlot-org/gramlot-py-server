@@ -8,6 +8,7 @@ from genro_tytx import from_tytx
 
 from gramlot_py_server import uvicorn as uvicorn_module
 from gallery_checks import check_index_main, expected, page_id, staged
+from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.uvicorn import Application, create_application
 
 
@@ -317,3 +318,16 @@ async def test_gallery_under_the_mount_path(tmp_path):
         document = (await client.get("/py/")).text
         main = await client.post("/py/gramlot/main", json={"pageId": page_id(document)})
         check_index_main(main.text)
+
+
+@pytest.mark.asyncio
+async def test_index_html_opens_the_page_of_its_folder(tmp_path):
+    app = create_application(titled_pages(tmp_path), mount_path="/py")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for path, title in INDEX_HTML_PATHS:
+            response = await client.get("/py" + path)
+            assert response.status_code == 200, path
+            assert title_of(response.text) == title, path
+        for path in INDEX_HTML_MISSING:
+            assert (await client.get("/py" + path)).status_code == 404, path

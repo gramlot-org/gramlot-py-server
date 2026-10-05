@@ -92,8 +92,11 @@ try {
                         assert.equal((await index.response.request().redirectedFrom()?.response())?.status(), 301,
                             `${label}: 301`);
                     }
-                    assert.ok(await index.page.locator('.gallery-logo').evaluate(image => image.complete && image.naturalWidth > 0),
-                        `${label}: logo`);
+                    // The logo may still be loading when the page has started: wait for it.
+                    await index.page.waitForFunction(() => {
+                        const image = document.querySelector('.gallery-logo');
+                        return image?.complete && image.naturalWidth > 0;
+                    }, null, {timeout: 10000}).catch(error => { throw new Error(`${label}: logo`, {cause: error}); });
                     const keys = await index.page.$$eval('a[id^="open-"]', links => links
                         .map(link => link.getAttribute('href')).filter(href => !href.startsWith('#')));
                     assert.ok(keys.includes('e01') && keys.includes(`${environment}-01`), `${label}: links`);

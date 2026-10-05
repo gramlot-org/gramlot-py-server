@@ -2,7 +2,7 @@
 
 Document ID: **GP-120**.
 
-Derived from GS-130 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs_llm/120-reference.md).
 
@@ -55,6 +55,7 @@ are plain text.
 | Method and path | Answer |
 | --- | --- |
 | `GET /<page path>` | 200 `text/html`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
+| `GET /<page path>/index.html`, `GET /index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
 | any other method on a page path, `HEAD` included | 405, `Allow: GET` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript`, the runtime packaged with the core |
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |

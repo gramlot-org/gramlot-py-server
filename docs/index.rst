@@ -55,5 +55,6 @@ and one extra per framework.
 
    505-kajenn
 
-The concise view lives in the repository's docs_llm directory. The internal
-notes (GP-905, GP-910) live in docs/internal and are not part of this manual.
+The paired view, with the same guides, lives in the repository's docs_llm
+directory. The internal notes (GP-905, GP-910) live in docs/internal and are
+not part of this manual.

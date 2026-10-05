@@ -21,6 +21,7 @@ framework, which arrives with the extra of the same name.
   URLs, the mount path passed to `open_page` and carried by the request path
   (404 outside it, 301 from `/py` to `/py/`), the companions rule (`GET` and
   `HEAD` of `.css` and `.js` files whose real path is below the pages folder),
+  `<path>/index.html` opening the page `<path>` and `/index.html` the index,
   the core themes at `/themes/…`, the `assets` option, the owner cookie `gramlot_owner`, the 4096-byte request
   limit and the `content_security_policy` option with `{nonce}`. A change to one adapter's
   contract is made in all five, with its tests.
@@ -35,8 +36,11 @@ framework, which arrives with the extra of the same name.
   in `docs/internal/` and `docs_llm/internal/`, out of the published build.
   Document IDs are never reused: new guides take new numbers. A guide derived
   from an archived adapter carries the line "Derived from <ID> (<repository>)";
-  the archived namespaces (GS, GD, GFL, GF, GA) are frozen. Run
-  `python scripts/check_docs.py` after changing documentation.
+  the archived namespaces GD, GFL, GF and GA are frozen. A guide derived from
+  gramlot-uvicorn carries "Derived from a guide of the archived gramlot-uvicorn
+  repository." without an ID: the namespace GS belongs to the serverless guides
+  of gramlot-js-server. Run `python scripts/check_docs.py` after changing
+  documentation.
 - The README quick start shows the templates of `gramlot <framework> new`
   (`src/gramlot_py_server/templates/`); `tests/test_readme.py` fails when they
   differ, and `tests/<framework>/test_<framework>_project.py` creates and serves

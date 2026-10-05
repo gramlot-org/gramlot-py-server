@@ -2,7 +2,7 @@
 
 Document ID: **GP-015**.
 
-Derived from GS-140 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs/015-troubleshooting.md).
 
@@ -37,8 +37,8 @@ beside `orders.py` is the logic module of the page and must export
 
 **500 on `GET /<page>`.** The page module raised while it was imported, has no
 class `Page` extending `gramlot.Page`, or declares `css_requires` or
-`js_requires` (`FileHost` has no resource system and raises
-`InvalidResourceName`). The server log holds the traceback.
+`js_requires` (`FileHost` and these adapters have no resource system and
+raise `InvalidResourceName`). The server log holds the traceback.
 
 **404 `Page not found`.** One of these:
 

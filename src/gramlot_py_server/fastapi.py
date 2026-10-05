@@ -77,6 +77,9 @@ class Pages:
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
+    ``<path>/index.html`` opens the page ``<path>`` and ``/index.html`` the index,
+    as a static host does.
+
     GET and HEAD serve every file below the themes folder of the core at
     ``/themes/…``, with the media type of its extension; a path the core does
     not have goes on to ``assets``, the companions and the pages.
@@ -139,6 +142,9 @@ class Pages:
             return await self.companion(request, page_path, suffix)
         if request.method != "GET":
             return Response(status_code=405, headers={"Allow": "GET"})
+        # As on a static host, <path>/index.html is the page <path> and /index.html the index.
+        if ("/" + page_path).endswith("/index.html"):
+            page_path = page_path.removesuffix("index.html")
         owner = request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
             opened = await self.host.open_page(page_path, owner=owner, prefix=self.mount_path)

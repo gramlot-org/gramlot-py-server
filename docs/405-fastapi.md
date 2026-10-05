@@ -172,6 +172,7 @@ Module functions, outside `__all__`:
 | Method and path | Answer |
 | --- | --- |
 | `GET /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
+| `GET /<page path>/index.html`, `GET /index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
 | `HEAD /<page path>` | 405, `Allow: GET` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
 | `GET`, `HEAD /py` (the bare prefix) | 301, `Location: /py/` with the query string |

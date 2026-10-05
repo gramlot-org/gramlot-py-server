@@ -15,6 +15,13 @@ gramlot django --help
 gramlot django new --help
 ```
 
+The npm package `@gramlot/gramlot-js-server` installs a command with the same
+name, `gramlot`, for JavaScript pages
+([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server)). The
+two do not clash: this `gramlot` runs from the Python virtual environment where
+the package is installed, and the npm `gramlot` runs through `npx` or
+`node_modules/.bin`.
+
 <a id="gp-020-005"></a>
 
 ## 005 · new: a project from the quick start
@@ -36,8 +43,8 @@ nothing.
 
 Every project also has:
 
-- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.2`, and
-  `gramlot-py-server[fastapi,uvicorn]>=0.2.2` for FastAPI, which needs a server;
+- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.3`, and
+  `gramlot-py-server[fastapi,uvicorn]>=0.2.3` for FastAPI, which needs a server;
 - `pages/index.py`: the page, whose formula names the method `greeting`;
 - `pages/index.js`: the page module, which exports `class Logic` with
   `greeting`. It runs in the browser.
@@ -95,8 +102,9 @@ prints `http://127.0.0.1:8080/py/`, `/py` answers 301 to `/py/`, and `/`
 answers 404: there is no redirect to the prefix.
 
 The command stages one page per route in a temporary folder and serves it with
-the `assets` of `build_gallery`, as described in GE-010 section 025 of
-`gramlot-examples`:
+the `assets` of `build_gallery`, as described in
+[GE-010 section 025](https://github.com/gramlot-org/gramlot-examples/blob/main/docs/010-gallery.md#ge-010-025)
+of `gramlot-examples`:
 
 - `index.py`: the gallery page, with the catalogues and with `logoUrl` and
   `galleryScript` under the prefix;

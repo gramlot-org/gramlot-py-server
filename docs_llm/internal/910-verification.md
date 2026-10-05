@@ -2,7 +2,7 @@
 
 Document ID: **GP-910**.
 
-Derived from GS-020 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../../docs/internal/910-verification.md).
 
@@ -51,7 +51,7 @@ Playwright Chromium:
 node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium webkit
 node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium webkit
 python -m build --wheel -o dist .
-python scripts/verify_install.py django dist/gramlot_py_server-0.2.2-py3-none-any.whl "$PLAYWRIGHT_ENTRY" chromium
+python scripts/verify_install.py django dist/gramlot_py_server-*.whl "$PLAYWRIGHT_ENTRY" chromium
 ```
 
 `python scripts/check_docs.py` validates the paired guides and their
@@ -88,3 +88,14 @@ the jobs `browser`, `install` (five environments), `repository`,
 `documentation`, `core-main` and `published-core` on 3.12, and failed
 `published-core` on 3.11: the theme `README.md` was `application/octet-stream`
 there. Commit `155aa63` fixed it with `THEME_MEDIA_TYPES`.
+
+Local verification, 2026-10-05, for 0.2.3 with `gramlot` 0.2.6,
+`gramlot-examples` 0.2.5, `kajenn` 0.1.1, Django 6.1.1, Flask 3.1.3, FastAPI
+0.142.2 and Uvicorn 0.54.0:
+
+- the full suite passes, 74 tests, on Python 3.12.9 and 3.11.11; `ruff check`
+  and `mypy src` pass;
+- Playwright 1.63.0 with Chromium and WebKit: `verify_browser.mjs` 20/20 and
+  `verify_gallery_browser.mjs` 20/20;
+- `verify_install.py` for the five environments from the built wheel, with
+  `--port 8123`, in Chromium.

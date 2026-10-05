@@ -31,7 +31,7 @@ async def test_tutorial_application_serves_the_bound_field_and_the_formula(load_
 
 
 @pytest.mark.asyncio
-async def test_tutorial_page_with_companion_and_stylesheet_under_the_strict_profile(source_tags, page_id):
+async def test_tutorial_page_with_page_module_and_stylesheet_under_the_strict_profile(source_tags, page_id):
     app = create_application(PAGES, content_security_policy=STRICT_CSP)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -40,9 +40,9 @@ async def test_tutorial_page_with_companion_and_stylesheet_under_the_strict_prof
         nonce = re.search(r'nonce="([^"]+)"', document.text).group(1)
         assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
         assert '"css":["/greeting.css"]' in document.text
-        assert '{"url":"/greeting_aux.js","group":null}' in document.text
+        assert '{"url":"/greeting.js","group":null}' in document.text
         assert (await client.get("/greeting.css")).headers["content-type"] == "text/css; charset=utf-8"
-        companion = await client.get("/greeting_aux.js")
+        companion = await client.get("/greeting.js")
         assert companion.headers["content-type"] == "text/javascript; charset=utf-8"
         assert "greet(kwargs)" in companion.text
         assert (await client.get("/greeting.py")).status_code == 404

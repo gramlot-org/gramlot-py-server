@@ -1,4 +1,4 @@
-# gramlot-py-server — concise guides
+# gramlot-py-server — paired view
 
 **Python server adapters for Gramlot pages: Uvicorn, Django, Flask, FastAPI and Kajenn.**
 See [The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html) for the core and the other repositories.
@@ -51,3 +51,7 @@ This package serves a folder of Python `Page` modules from the web framework of 
 
 505-kajenn
 ```
+
+The guides of this view are the same as the published manual, built from the
+repository's docs directory. The internal notes (GP-905, GP-910) live in
+docs_llm/internal and are not part of this manual.

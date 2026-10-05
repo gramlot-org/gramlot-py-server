@@ -3,6 +3,7 @@
 [![tests](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/gramlot-org/gramlot-py-server/branch/main/graph/badge.svg)](https://app.codecov.io/gh/gramlot-org/gramlot-py-server)
 [![Documentation](https://readthedocs.org/projects/gramlot-py-server/badge/?version=latest)](https://gramlot-py-server.readthedocs.io/en/latest/)
+[![PyPI](https://img.shields.io/pypi/v/gramlot-py-server)](https://pypi.org/project/gramlot-py-server/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 Gramlot describes web interfaces in Python or JavaScript and keeps them bound to
@@ -30,6 +31,8 @@ the browser runtime, with a mount prefix and a Content Security Policy of your
 choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
+
+The current release is 0.2.3, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 
@@ -200,7 +203,7 @@ pages to it.
 
 ## Next steps
 
-- The guides on Read the Docs, sources in [docs/](docs/) and the concise view
+- The guides on Read the Docs, sources in [docs/](docs/) and the paired view
   in [docs_llm/](docs_llm/):
   - common: [Introduction](https://gramlot-py-server.readthedocs.io/en/latest/005-introduction.html),
     [Writing pages for these hosts](https://gramlot-py-server.readthedocs.io/en/latest/010-writing-pages.html),
@@ -221,10 +224,10 @@ pages to it.
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.2.5 (PyPI `gramlot`) |
+| Gramlot core | 0.2.6 (PyPI `gramlot`) |
 | Gallery | `gramlot-examples` 0.2.5 (extra `gallery`) |
 | Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
-| Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.0 |
+| Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.1 |
 | Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |
 
 ## Tests and contributing
@@ -242,7 +245,7 @@ of `playwright/index.mjs`:
 ```sh
 node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
 node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
-python scripts/verify_install.py flask dist/gramlot_py_server-0.2.2-py3-none-any.whl "$PLAYWRIGHT_ENTRY"
+python scripts/verify_install.py flask dist/gramlot_py_server-*.whl "$PLAYWRIGHT_ENTRY"
 ```
 
 CI runs each adapter with its own extra against the released core and, as an

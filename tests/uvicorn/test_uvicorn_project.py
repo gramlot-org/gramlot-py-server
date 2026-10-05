@@ -7,7 +7,7 @@ from project_checks import check_document, check_files, check_main
 @pytest.mark.asyncio
 async def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags, page_id):
     folder, module = new_project("uvicorn", "app.py")
-    check_files(folder, "app.py", "gramlot-py-server[uvicorn]>=0.2.2", "uvicorn app:application",
+    check_files(folder, "app.py", "gramlot-py-server[uvicorn]>=0.2.3", "uvicorn app:application",
                 capsys.readouterr().out)
     transport = httpx.ASGITransport(app=module.application)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

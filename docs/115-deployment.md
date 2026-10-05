@@ -2,7 +2,7 @@
 
 Document ID: **GP-115**.
 
-Derived from GS-125 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs_llm/115-deployment.md).
 
@@ -54,12 +54,11 @@ Block ID: **GP-115-010**.
 
 The application serves the runtime at `/assets/gramlot.js`, the themes of the
 core at `/themes/…`, the companions of the pages folder and the files of its
-`assets` option
-([Configuration](110-configuration.md)). Everything else, themes,
-images, fonts, is an asset of the application: add it to `assets`, or serve it
-from the proxy or from another ASGI route. Reference
-it from `Page.css` with a root-relative URL (it receives the mount prefix) or
-an absolute URL. The application sends `Cache-Control: no-store` on every
+`assets` option ([Configuration](110-configuration.md)). Images, fonts and
+the application's own stylesheets outside the pages folder are assets of the
+application: add them to `assets`, or serve them from the proxy or from another
+ASGI route. Reference a stylesheet from `Page.css` with a root-relative URL (it
+receives the mount prefix) or an absolute URL. The application sends `Cache-Control: no-store` on every
 response, including the runtime. A cache in front of it has to decide on its
 own.
 

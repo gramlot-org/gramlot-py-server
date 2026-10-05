@@ -2,15 +2,15 @@
 
 Document ID: **GP-105**.
 
-Derived from GS-110 (gramlot-uvicorn).
+Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs/105-tutorial.md).
 
 This tutorial uses the files of `examples/pages` and `examples/uvicorn/app.py`
 of the repository. The test `tests/uvicorn/test_uvicorn_tutorial.py` serves
-them with `gramlot` 0.2.5: it checks the bootstrap documents, the companions,
-the Content Security Policy header and the Source of `main`. It does not run a
-browser.
+them with the installed `gramlot` core: it checks the bootstrap documents, the
+companions, the Content Security Policy header and the Source of `main`. It
+does not run a browser.
 
 <a id="gp-105-005"></a>
 
@@ -40,15 +40,16 @@ examples/
   pages/
     hello.py           a page with an inline formula
     greeting.py        a page with named logic
-    greeting_aux.js    its companion: the named logic
+    greeting.js        its page module: the named logic
     greeting.css       its stylesheet
   uvicorn/
     app.py             the ASGI application
 ```
 
-The page, the companion and the stylesheet share the name `greeting`. The core
-`FileHost` finds the two companions beside the page file and adds them to the
-bootstrap document.
+The page, the page module and the stylesheet share the name `greeting`. The
+core `FileHost` finds the two companions beside the page file and adds them to
+the bootstrap document. `gramlot uvicorn new` writes a project with the same
+form: `pages/index.py` and its page module `pages/index.js`.
 
 <a id="gp-105-015"></a>
 
@@ -80,7 +81,7 @@ class Page(BasePage):
   keystroke back into the Data.
 - `"^.greeting"` as the text of the paragraph follows `person.greeting`.
 - `dataFormula` computes `person.greeting` with the named method `greet` of the
-  companion, with `name` bound to `person.name`. `_init=True` computes it once
+  page module, with `name` bound to `person.name`. `_init=True` computes it once
   at start.
 - `dataSetter` gives `person.name` its initial value.
 
@@ -89,11 +90,11 @@ the inline expression `"'Hello, ' + name"` instead of a named method.
 
 <a id="gp-105-020"></a>
 
-## 020 · The companion
+## 020 · The page module
 
 Block ID: **GP-105-020**.
 
-`examples/pages/greeting_aux.js`:
+`examples/pages/greeting.js`:
 
 ```javascript
 export class Logic {
@@ -105,7 +106,9 @@ export class Logic {
 
 The module exports one class `Logic`. A formula method receives the resolved
 parameters and returns the value. `func="greet"` in the page names it. The
-companion runs in the browser. It is public.
+page module runs in the browser. It is public. The logic may also live in
+`greeting_aux.js` instead, but not in both files; see
+[Companions](010-writing-pages.md).
 
 <a id="gp-105-025"></a>
 
@@ -121,7 +124,7 @@ Block ID: **GP-105-025**.
 ```
 
 The bootstrap writes a `<link>` to `/greeting.css` before it imports the
-companion.
+page module.
 
 <a id="gp-105-030"></a>
 
@@ -166,7 +169,7 @@ opening of `/greeting` makes these requests:
 | `GET /greeting` | the browser: the bootstrap document |
 | `GET /assets/gramlot.js` | the bootstrap script: the runtime |
 | `GET /greeting.css` | `PageBootstrap`: the stylesheet |
-| `GET /greeting_aux.js` | `PageBootstrap`: the companion module |
+| `GET /greeting.js` | `PageBootstrap`: the page module |
 | `POST /gramlot/main` | `PageBootstrap`: the Source of `main` |
 
 The browser also asks for `/favicon.ico`. The adapter serves no icon and

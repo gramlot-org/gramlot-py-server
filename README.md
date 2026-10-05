@@ -3,6 +3,7 @@
 [![tests](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/gramlot-org/gramlot-py-server/branch/main/graph/badge.svg)](https://app.codecov.io/gh/gramlot-org/gramlot-py-server)
 [![Documentation](https://readthedocs.org/projects/gramlot-py-server/badge/?version=latest)](https://gramlot-py-server.readthedocs.io/en/latest/)
+[![PyPI](https://img.shields.io/pypi/v/gramlot-py-server)](https://pypi.org/project/gramlot-py-server/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 Gramlot describes web interfaces in Python or JavaScript and keeps them bound to
@@ -30,6 +31,8 @@ the browser runtime, with a mount prefix and a Content Security Policy of your
 choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
+
+The current release is 0.2.3, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 

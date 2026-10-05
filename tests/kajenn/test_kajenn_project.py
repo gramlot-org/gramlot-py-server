@@ -8,7 +8,7 @@ from project_checks import check_document, check_files, check_main
 @pytest.mark.asyncio
 async def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags, page_id):
     folder, module = new_project("kajenn", "config.py")
-    check_files(folder, "config.py", "gramlot-py-server[kajenn]>=0.2.2", "kajenn serve config.py --port 8000",
+    check_files(folder, "config.py", "gramlot-py-server[kajenn]>=0.2.3", "kajenn serve config.py --port 8000",
                 capsys.readouterr().out)
     transport = httpx.ASGITransport(app=AsgiServer(config=module.Site))
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

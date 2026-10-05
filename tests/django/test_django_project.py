@@ -33,7 +33,7 @@ print(json.dumps({
 
 def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags):
     folder, _ = new_project("django")
-    check_files(folder, "settings.py", "gramlot-py-server[django]>=0.2.2",
+    check_files(folder, "settings.py", "gramlot-py-server[django]>=0.2.3",
                 "django-admin runserver --settings=settings --pythonpath=.", capsys.readouterr().out)
     paths = [str(folder), os.environ.get("PYTHONPATH", "")]
     env = {**os.environ, "DJANGO_SETTINGS_MODULE": "settings", "PYTHONPATH": os.pathsep.join(filter(None, paths))}

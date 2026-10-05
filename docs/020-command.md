@@ -43,8 +43,8 @@ nothing.
 
 Every project also has:
 
-- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.2`, and
-  `gramlot-py-server[fastapi,uvicorn]>=0.2.2` for FastAPI, which needs a server;
+- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.3`, and
+  `gramlot-py-server[fastapi,uvicorn]>=0.2.3` for FastAPI, which needs a server;
 - `pages/index.py`: the page, whose formula names the method `greeting`;
 - `pages/index.js`: the page module, which exports `class Logic` with
   `greeting`. It runs in the browser.

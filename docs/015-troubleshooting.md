@@ -71,8 +71,8 @@ Block ID: **GP-015-010**.
 Reload the page. For the worker case keep one worker, or make the proxy keep a
 browser on the same one.
 
-**404 `Unknown Source method`.** The method is not decorated with `@source`,
-is named `main`, or an override without the decorator hides it.
+**404 `Unknown Source method`.** The request names `main` or a method that
+the page does not expose as a Source method. Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
 
 **500 on `/gramlot/source`.** The Source method raised. The server log holds
 the traceback.

@@ -30,6 +30,8 @@ of the mount root, `/` or `/py/`, opens the page `index`.
 - The `_aux` suffix is reserved: `orders_aux.js` is never a page, and no page is
   called `*_aux`.
 - The pages folder is trusted application source, not uploaded content.
+- `main` may be synchronous or asynchronous. It builds into `root` and
+  returns `None`.
 
 <a id="gp-010-010"></a>
 
@@ -112,30 +114,10 @@ Named logic runs under both Content Security Policy profiles. Inline code (a
 
 Block ID: **GP-010-025**.
 
-A method decorated with `@source` builds a Source branch on request:
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
 
-```python
-from gramlot import Page as BasePage, source
-
-
-class Page(BasePage):
-    def main(self, root):
-        root.div(id="details")
-
-    @source
-    def details(self, root, name="Ada"):
-        root.p(name)
-```
-
-The browser asks for it with
-`page.remoteSource(targetNode, "details", {name: "Grace"})` from named logic,
-for example from a button controller. The adapter answers
-`POST /gramlot/source` with
-`{"pageId", "method": "details", "params": {"name": "Grace"}}`. The parameters
-arrive as keyword arguments. `main` and Source methods may be synchronous or
-asynchronous. They build into `root` and return `None`. A method that is not
-decorated answers 404 "Unknown Source method". Gramlot has no declarative
-remote Source request.
+The adapters still answer `POST /gramlot/source`; see
+section 030, What is served.
 
 <a id="gp-010-030"></a>
 

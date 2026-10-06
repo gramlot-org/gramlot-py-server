@@ -26,7 +26,7 @@ of Python `Page` modules and serves it through the core `FileHost`:
 - it serves the page companions, the `.css` and `.js` files below the pages
   folder: stylesheets and the page modules that hold the page `Logic`;
 - it serves the files of an optional assets map;
-- it answers the main and remote Source requests of the running page;
+- it answers the main and Source requests of the running page;
 - it forgets the page when the browser closes it.
 
 The adapters do not render HTML from the Source and do not run page logic. The
@@ -91,9 +91,10 @@ five adapters answer the same paths:
 3. **Main.** The runtime posts `{"pageId": …}` to `/gramlot/main`. The adapter
    runs `Page.main(root)` on the server and answers the Source tree as TYTX. The
    runtime renders the DOM from it and installs the data binding.
-4. **Source.** A page method marked with `@source` answers
-   `POST /gramlot/source` with `{"pageId", "method", "params"}`. The runtime
-   mounts the returned branch where the page asked for it.
+4. **Source.** The adapter answers `POST /gramlot/source` with
+   `{"pageId", "method", "params"}`. The runtime mounts the returned branch.
+   Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API:
+   they arrive together with the `remote` grammar attribute and `@endpoint`.
 5. **Close.** When the browser disposes the page, or leaves it without keeping
    it in the back/forward cache, the runtime posts `{"pageId": …}` to
    `/gramlot/close`. The adapter forgets the page. A page that is never closed

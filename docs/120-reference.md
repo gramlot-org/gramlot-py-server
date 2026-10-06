@@ -67,6 +67,8 @@ are plain text.
 | `POST /gramlot/close` | body `{"pageId": "…"}`; 200 `{"ok": true}` |
 | other methods on `/gramlot/*` | 405, `Allow: POST` |
 
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+
 Common answers of the three protocol endpoints: 415
 `Expected application/json`; 413 `Request too large` above 4096 bytes; 400
 `Invalid JSON request` or `Source params must be a dictionary`; 404

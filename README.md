@@ -25,12 +25,14 @@ server. One package holds one adapter per framework; each comes with its extra:
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`: a Kajenn routed application |
 
 Every adapter serves one folder of `Page` modules through the core `FileHost`:
-it sends the bootstrap document, answers the main and remote Source requests,
+it sends the bootstrap document, answers the main and Source requests,
 serves the page companions (`.css` and `.js`), an optional map of assets and
 the browser runtime, with a mount prefix and a Content Security Policy of your
 choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
+
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
 
 The current release is 0.2.3, on PyPI as `gramlot-py-server`.
 

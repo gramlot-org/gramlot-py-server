@@ -95,7 +95,7 @@ gramlot django gallery
 | `--catalog CATALOG PAGES` | none | adds the families of a `catalog.json` and its pages folder; repeatable |
 
 The gallery lists the common families of `gramlot-examples` (`e01`–`e13`,
-`b01`–`b11`, `c01`–`c09`) and the family of the environment, whose example
+`b01`–`b11`, `c01`–`c08`) and the family of the environment, whose example
 `<environment>-01` is the page of `gramlot <environment> new`. Without
 `--mount` the gallery is the site root, `/`. With `--mount /py` the command
 prints `http://127.0.0.1:8080/py/`, `/py` answers 301 to `/py/`, and `/`

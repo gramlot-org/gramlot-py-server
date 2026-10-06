@@ -34,7 +34,7 @@ and it does not talk to a database.
 
 Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
 
-The current release is 0.2.3, on PyPI as `gramlot-py-server`.
+The current release is 0.2.4, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 
@@ -226,8 +226,8 @@ pages to it.
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.2.6 (PyPI `gramlot`) |
-| Gallery | `gramlot-examples` 0.2.5 (extra `gallery`) |
+| Gramlot core | 0.2.7 (PyPI `gramlot`) |
+| Gallery | `gramlot-examples` 0.2.7 (extra `gallery`) |
 | Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.1 |
 | Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |

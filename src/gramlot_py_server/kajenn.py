@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Kajenn integration for the Gramlot ``Host`` protocol."""
+"""Kajenn integration for the Gramlot server protocol."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from secrets import token_urlsafe
 
 from genro_routes import RoutingClass, route
 from gramlot.server import (
-    FileHost,
-    HostCapacity,
+    GramlotFileServer,
+    ServerCapacity,
     PageExpired,
     PageNotFound,
     SourceNotFound,
@@ -104,7 +104,7 @@ class _Protocol(RoutingClass):
 
 
 class Application(RoutedApplication):
-    """A Kajenn routed application backed by ``gramlot.server.FileHost``.
+    """A Kajenn routed application backed by ``gramlot.server.GramlotFileServer``.
 
     Declare it in the site recipe with ``request(body="raw")``: the protocol
     reads JSON with ``json.loads``, not with TYTX hydration. The application's
@@ -115,7 +115,7 @@ class Application(RoutedApplication):
     An empty ``mount`` puts the application at the site root, without prefix.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    pages folder: the companions of ``GramlotFileServer`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
@@ -143,7 +143,7 @@ class Application(RoutedApplication):
             raise ValueError("mount must be a single lowercase URL segment or empty")
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
-        self.host = FileHost(
+        self.gramlot_server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
             main_url="/gramlot/main",
@@ -174,10 +174,10 @@ class Application(RoutedApplication):
             page_path = page_path.removesuffix("index.html")
         owner = _request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page(page_path, owner=owner, prefix=self.prefix)
+            opened = await self.gramlot_server.open_page(page_path, owner=owner, prefix=self.prefix)
         except PageNotFound as error:
             raise HTTPNotFound("Page not found") from error
-        except HostCapacity as error:
+        except ServerCapacity as error:
             raise HTTPException(503, "Page capacity reached") from error
         _request.response.set_header("Cache-Control", "no-store")
         if self.content_security_policy is not None:
@@ -187,6 +187,10 @@ class Application(RoutedApplication):
             OWNER_COOKIE, owner, path=self.prefix or "/", httponly=True, samesite="lax"
         )
         return opened.html
+
+    def on_shutdown(self) -> None:
+        """Forget every registered page when the Kajenn server stops."""
+        self.gramlot_server.close_all()
 
     @property
     def prefix(self) -> str:
@@ -210,7 +214,7 @@ class Application(RoutedApplication):
     def companion(self, request, page_path: str, suffix: str):
         """Serve the file of ``page_path`` when its real path is below the pages folder."""
         self.require_method(request, "GET", "HEAD")
-        root = self.host.pages_dir.resolve()
+        root = self.gramlot_server.pages_dir.resolve()
         real = root.joinpath(*page_path.split("/")).resolve()
         if not (real.is_relative_to(root) and real.is_file()):
             raise HTTPNotFound("Not found")
@@ -238,6 +242,8 @@ class Application(RoutedApplication):
                 raise ValueError
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
             raise HTTPBadRequest("Invalid JSON request") from error
+        if operation == "source" and not isinstance(payload.get("method"), str):
+            raise HTTPBadRequest("Source method must be a string")
         if operation == "source" and not isinstance(payload.get("params", {}), dict):
             raise HTTPBadRequest("Source params must be a dictionary")
         owner = request.cookies.get(OWNER_COOKIE)
@@ -245,13 +251,13 @@ class Application(RoutedApplication):
         try:
             result: str
             if operation == "main":
-                result = await self.host.main(payload["pageId"], owner=owner)
+                result = await self.gramlot_server.main(payload["pageId"], owner=owner)
             elif operation == "source":
-                result = await self.host.source(
+                result = await self.gramlot_server.source(
                     payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
                 )
             else:
-                self.host.close_page(payload["pageId"], owner=owner)
+                self.gramlot_server.close_page(payload["pageId"], owner=owner)
                 result = json.dumps({"ok": True})
         except PageExpired as error:
             raise HTTPNotFound("Unknown page") from error

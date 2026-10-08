@@ -70,8 +70,8 @@ Block ID: **GP-115-015**.
 
 These notes hold for every adapter of the package.
 
-- The pages folder is trusted application source. A page module is executed
-  again at every opening. Never point `pages` at a folder that receives
+- The pages folder is trusted application source. A page module runs once per process, or
+  again at every opening with `GRAMLOT_DEV` set. Never point `pages` at a folder that receives
   uploads.
 - Of the pages folder only `.css` and `.js` files below it are served, with
   `GET` and `HEAD`. Python pages, READMEs and other files are never served. A
@@ -94,11 +94,12 @@ These notes hold for every adapter of the package.
 
 Block ID: **GP-115-020**.
 
-- `gramlot-py-server[uvicorn]` installed with `gramlot>=0.2.5`;
+- `gramlot-py-server[uvicorn]` installed with `gramlot>=0.2.12`;
   `pip show gramlot` reports one version.
 - `mount_path` equal to the prefix the proxy routes, and the proxy passes the
   path unchanged (`proxy_pass` without a URI).
 - `content_security_policy` set, strict where possible.
+- `GRAMLOT_DEV` unset: minified runtime, page files run once per process.
 - `page_ttl` and `max_pages` sized for the expected number of open pages.
 - One worker process, or a proxy that keeps a browser on the same worker: the
   page registry is process-local, so a request routed to another worker

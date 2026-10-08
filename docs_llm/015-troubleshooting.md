@@ -37,7 +37,7 @@ beside `orders.py` is the logic module of the page and must export
 
 **500 on `GET /<page>`.** The page module raised while it was imported, has no
 class `Page` extending `gramlot.Page`, or declares `css_requires` or
-`js_requires` (`FileHost` and these adapters have no resource system and
+`js_requires` (`GramlotFileServer` and these adapters have no resource system and
 raise `InvalidResourceName`). The server log holds the traceback.
 
 **404 `Page not found`.** One of these:
@@ -111,7 +111,7 @@ command `gramlot` reports the same case as
 without `gramlot-examples` as `The gallery needs gramlot-examples: …`; the
 other messages of the command are in [The gramlot command](020-command.md).
 
-**Two cores.** The package declares `gramlot>=0.2.5`. `pip show gramlot`
+**Two cores.** The package declares `gramlot>=0.2.12`. `pip show gramlot`
 reports the version and the location of the core that Python imports. When a
 copy from PyPI and a copy installed in editable mode from a checkout are both
 present, the report names the one that wins. Uninstall the other, or keep one

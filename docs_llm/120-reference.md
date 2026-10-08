@@ -28,13 +28,13 @@ Module functions, outside `__all__`:
   `lifespan` scopes. Any other scope type raises `ValueError`
   ("Application supports HTTP only"). On `lifespan.shutdown` it forgets every
   open page.
-  - `host`: the core `FileHost` built on `pages` with the URLs
+  - `server`: the core `GramlotFileServer` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
 
-The core exceptions `PageNotFound`, `HostCapacity`, `PageExpired` and
+The core exceptions `PageNotFound`, `ServerCapacity`, `PageExpired` and
 `SourceNotFound` are mapped to HTTP answers below. Any other exception raised
 while a page is opened or a Source method runs, including an exception of the
 page's own code and `InvalidResourceName`, propagates to the ASGI server, which
@@ -63,7 +63,7 @@ are plain text.
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css` or `text/javascript` when the real path is below the pages folder; 404 `Not found` otherwise |
 | other methods on those paths | 405, `Allow: GET, HEAD` |
 | `POST /gramlot/main` | body `{"pageId": "…"}`; 200 `application/json`, the Source of `main` as TYTX |
-| `POST /gramlot/source` | body `{"pageId": "…", "method": "…", "params": {…}}`; 200, the Source branch as TYTX; 404 `Unknown Source method` |
+| `POST /gramlot/source` | body `{"pageId": "…", "method": "…", "params": {…}}`; 200, the Source branch as TYTX; 400 when `method` is not a string or `params` not an object; 404 `Unknown Source method` |
 | `POST /gramlot/close` | body `{"pageId": "…"}`; 200 `{"ok": true}` |
 | other methods on `/gramlot/*` | 405, `Allow: POST` |
 

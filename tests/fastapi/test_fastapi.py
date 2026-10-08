@@ -53,7 +53,7 @@ def test_protocol_owner_limits_asset_and_close(tmp_path):
         assert client.post("/gramlot/main", json={"pageId": page_id}).status_code == 200
         assert client.post("/gramlot/close", json={"pageId": page_id}).json() == {"ok": True}
         assert client.post("/gramlot/main", json={"pageId": page_id}).status_code == 404
-    assert app.gramlot_pages.host._pages == {}
+    assert app.gramlot_pages.server._pages == {}
 
 
 def test_capacity_is_service_unavailable(tmp_path):

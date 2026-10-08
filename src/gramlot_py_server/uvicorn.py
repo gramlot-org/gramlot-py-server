@@ -14,8 +14,8 @@ from typing import Any
 from urllib.parse import unquote
 
 from gramlot.server import (
-    FileHost,
-    HostCapacity,
+    GramlotFileServer,
+    ServerCapacity,
     PageExpired,
     PageNotFound,
     SourceNotFound,
@@ -67,7 +67,7 @@ def theme_file(path: str) -> dict | None:
 
 
 class Application:
-    """Serve a trusted page directory through Gramlot's ``FileHost``.
+    """Serve a trusted page directory through Gramlot's ``GramlotFileServer``.
 
     ``mount_path`` is the prefix of the request paths and is passed to
     ``open_page`` as the mount prefix of browser URLs. With ``mount_path="/py"``
@@ -76,7 +76,7 @@ class Application:
     final slash answers 301 to ``/py/``: pages link each other with relative URLs.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    pages folder: the companions of ``GramlotFileServer`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
@@ -110,7 +110,7 @@ class Application:
         self.mount_path = mount_path
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
-        self.host = FileHost(
+        self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
             main_url="/gramlot/main",
@@ -192,11 +192,11 @@ class Application:
             path = path.removesuffix("index.html")
         owner = self._owner(headers) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page(path, owner=owner, prefix=self.mount_path)
+            opened = await self.server.open_page(path, owner=owner, prefix=self.mount_path)
         except PageNotFound:
             await self._send(send, 404, b"Page not found", "text/plain; charset=utf-8")
             return
-        except HostCapacity:
+        except ServerCapacity:
             await self._send(send, 503, b"Page capacity reached", "text/plain; charset=utf-8")
             return
         cookie = f"{OWNER_COOKIE}={owner}; Path={self.mount_path or '/'}; HttpOnly; SameSite=Lax"
@@ -223,6 +223,9 @@ class Application:
             return
 
         owner = self._owner(headers)
+        if operation == "source" and not isinstance(payload.get("method"), str):
+            await self._send(send, 400, b"Source method must be a string", "text/plain; charset=utf-8")
+            return
         if operation == "source" and not isinstance(payload.get("params", {}), dict):
             await self._send(
                 send, 400, b"Source params must be a dictionary", "text/plain; charset=utf-8"
@@ -230,13 +233,13 @@ class Application:
             return
         try:
             if operation == "main":
-                result = await self.host.main(payload["pageId"], owner=owner)
+                result = await self.server.main(payload["pageId"], owner=owner)
             elif operation == "source":
-                result = await self.host.source(
+                result = await self.server.source(
                     payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
                 )
             else:
-                self.host.close_page(payload["pageId"], owner=owner)
+                self.server.close_page(payload["pageId"], owner=owner)
                 result = json.dumps({"ok": True})
         except PageExpired:
             await self._send(send, 404, b"Unknown page", "text/plain; charset=utf-8")
@@ -248,7 +251,7 @@ class Application:
 
     def _companion(self, path: str) -> Path | None:
         """Return the file of ``path`` when its real path is below the pages folder."""
-        root = self.host.pages_dir.resolve()
+        root = self.server.pages_dir.resolve()
         real = root.joinpath(*path.strip("/").split("/")).resolve()
         return real if real.is_relative_to(root) and real.is_file() else None
 
@@ -261,7 +264,7 @@ class Application:
             if event["type"] == "lifespan.startup":
                 await send({"type": "lifespan.startup.complete"})
             elif event["type"] == "lifespan.shutdown":
-                self.host._pages.clear()
+                self.server.close_all()
                 await send({"type": "lifespan.shutdown.complete"})
                 return
 

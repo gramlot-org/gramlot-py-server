@@ -157,11 +157,12 @@ Module functions, outside `__all__`:
 content_security_policy=None, assets=None, **kwargs)`: the other keyword arguments go to
 Kajenn's `RoutedApplication`. The site recipe passes them.
 
-- `host`: the core `FileHost` built on `pages` with the URLs
+- `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
   `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
 - `index`: the route of assets, pages and companions.
+- `on_shutdown()`: the Kajenn lifecycle hook; it forgets every open page.
 - `redirect(request)`, `static(request, asset)`, `companion(request,
   page_path, suffix)`, `operation(request, body_raw, operation)`,
   `require_method(request, *methods)`: the helpers of the routes.

@@ -38,11 +38,11 @@ contract is made in all five modules, with their tests.
 
 <a id="gp-905-010"></a>
 
-## 010 · FileHost and the mount prefix
+## 010 · GramlotFileServer and the mount prefix
 
 Block ID: **GP-905-010**.
 
-Every adapter builds the core `FileHost` on the pages folder with the
+Every adapter builds the core `GramlotFileServer` on the pages folder with the
 root-relative URLs `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source` and
 `/gramlot/close`, and passes `page_ttl` and `max_pages` to it. The URLs carry no
 prefix. The adapter passes the mount prefix to `open_page` as `prefix`; the core
@@ -68,12 +68,12 @@ must be one lowercase segment, and passes `/<mount>`.
 Block ID: **GP-905-015**.
 
 GET and HEAD serve a file of the pages folder whose name ends in `.css` or
-`.js`: the `FileHost` companions `foo.css`, `foo.js` and `foo_aux.js`, the
+`.js`: the `GramlotFileServer` companions `foo.css`, `foo.js` and `foo_aux.js`, the
 relative imports of a page module, and `Page.css` files placed in the folder
 (GC-090 §030 of the core: `.css` and `.js` from core 0.2.5, `.css` and `_aux.js`
 until 0.2.4). This package serves `.js` files from 0.2.2; 0.2.1 served `.css`
 and `_aux.js`. The real path of the file must stay below the pages folder, as
-in `FileHost.url`. Every other file, including `.py` and `.md`,
+in `GramlotFileServer.url`. Every other file, including `.py` and `.md`,
 answers 404. A `Page.css` URL outside the pages folder is an asset of the
 application, which serves it itself. Each adapter checks the companion suffix
 before it treats the path as a page path. Before it opens a page, each adapter

@@ -9,8 +9,8 @@ Derived from a guide of the archived gramlot-uvicorn repository.
 The binding itself, pointers, formulas, controllers, buttons and events, is the
 core guide
 [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html).
-This guide covers what depends on the host. It is valid for every adapter of
-this package: all five serve the pages folder through the core `FileHost`.
+This guide covers what depends on the server. It is valid for every adapter of
+this package: all five serve the pages folder through the core `GramlotFileServer`.
 
 <a id="gp-010-005"></a>
 
@@ -18,15 +18,16 @@ this package: all five serve the pages folder through the core `FileHost`.
 
 Block ID: **GP-010-005**.
 
-For the URL path `orders` the `FileHost` takes the file page `orders.py` first,
+For the URL path `orders` the `GramlotFileServer` takes the file page `orders.py` first,
 then the folder page `orders/orders.py`. When both exist the file wins. For
 `shop/orders` it takes `shop/orders.py`, then `shop/orders/orders.py`. The URL
 of the mount root, `/` or `/py/`, opens the page `index`.
 
 - Path segments contain letters, digits, `_` and `-`. Any other character, and
   a path whose real location leaves the folder, answers 404.
-- The module must define a class `Page` that extends `gramlot.Page`. The module
-  is executed again at every opening of the page.
+- The module must define a class `Page` that extends `gramlot.Page`; the base
+  `gramlot.Page` itself is refused. The module runs once per process, or again
+  at every opening with `GRAMLOT_DEV` set ([Configuration](110-configuration.md)).
 - The `_aux` suffix is reserved: `orders_aux.js` is never a page, and no page is
   called `*_aux`.
 - The pages folder is trusted application source, not uploaded content.
@@ -52,7 +53,7 @@ The URLs carry the mount prefix, for example `/py/orders.css`. Every companion
 is optional. The logic of `orders.py` is the `Logic` export of `orders.js`,
 else of `orders_aux.js`; with both files the opening of the page raises
 `ValueError`. `orders.js` may also export a `Page`, the JavaScript version of
-the same page, which the Python host leaves unused. The module imports the
+the same page, which the Python server leaves unused. The module imports the
 runtime as `@gramlot/gramlot/page`: the import map of the bootstrap resolves
 it. The bootstrap loads the `Page.css` URLs first, then `orders.css`, then
 imports the logic module. A folder page keeps its companions in its folder,
@@ -85,10 +86,10 @@ URL that points inside the pages folder is served by the companion rule when it
 ends in `.css`. A URL outside the folder is an asset of the application, which
 serves it itself or through its web server.
 
-`css_requires` and `js_requires` name resources of a Host with a resource
-system. `FileHost` and the adapters of this package have none: a name in either
-field raises `InvalidResourceName` ("requires need a Host with a resource
-system") when the page is opened. The resource system comes with genro-kajenn,
+`css_requires` and `js_requires` name resources of a `GramlotServer` with a
+resource system. `GramlotFileServer` and the adapters of this package have
+none: a name in either field raises `InvalidResourceName` ("requires need a
+GramlotServer with a resource system") when the page is opened. The resource system comes with genro-kajenn,
 part of Genro, the framework that succeeds GenroPy.
 
 <a id="gp-010-020"></a>

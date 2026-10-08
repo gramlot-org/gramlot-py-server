@@ -45,7 +45,7 @@ class Page(Base):
 const fooModule = `import {Page as BasePage} from '@gramlot/gramlot/page';
 
 export class Page extends BasePage {
-    main(root) { root.h1('The JavaScript version, unused by the Python host'); }
+    main(root) { root.h1('The JavaScript version, unused by the Python server'); }
 }
 
 export class Logic {

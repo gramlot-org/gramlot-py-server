@@ -123,11 +123,12 @@ Block ID: **GP-205-020**.
 the companions.
 
 - **CSRF.** The Gramlot runtime posts JSON without a Django CSRF token, so the
-  views of `main`, `source` and `close` are wrapped in `csrf_exempt`. The page
-  and companion views are not exempt: with `CsrfViewMiddleware` a `POST` on
-  them answers 403 before the view runs; without it the view answers 405.
+  views of `main`, `source` and `close` are wrapped in `csrf_exempt`. The
+  runtime, page and companion views are exempt too: they accept no `POST`, and
+  the view answers 405 where `CsrfViewMiddleware` would answer 403, as GC-230
+  of the core requires.
 - **Synchronous views.** The views are plain Django functions. They call the
-  asynchronous core `FileHost` through `asgiref.sync.async_to_sync`.
+  asynchronous core `GramlotFileServer` through `asgiref.sync.async_to_sync`.
 - **`HEAD` on a page.** The page view accepts `GET` and `HEAD`. A `HEAD` opens
   a page and sets the cookie; Django sends no body.
 - **Responses.** Pages, companions and protocol answers carry
@@ -166,7 +167,7 @@ content_security_policy=None, assets=None)`
 - `urlpatterns`: the URL patterns for the URLconf, `urls` included at
   `mount_path` and the 301 of the bare prefix.
 - `urls`: the list of URL patterns to pass to `include()`.
-- `host`: the core `FileHost` built on `pages` with the URLs
+- `server`: the core `GramlotFileServer` built on `pages` with the URLs
   `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
 - `mount_path`: the normalized prefix (`""` or `/py`).
 - `content_security_policy`: the configured policy or `None`.
@@ -178,7 +179,7 @@ content_security_policy=None, assets=None)`
 | --- | --- |
 | `GET`, `HEAD /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
 | `GET`, `HEAD /<page path>/index.html`, `/index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
-| other methods on a page path | 405, or 403 from `CsrfViewMiddleware` for `POST` |
+| other methods on a page path | 405 |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript`, the runtime; 405 for other methods |
 | `GET /py` (the bare prefix) | 301, `Location: /py/` with the query string |
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |

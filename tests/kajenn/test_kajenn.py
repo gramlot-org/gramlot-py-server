@@ -349,3 +349,14 @@ async def test_index_html_opens_the_page_of_its_folder(tmp_path):
             assert title_of(response.text) == title, path
         for path in INDEX_HTML_MISSING:
             assert (await client.get(path)).status_code == 404, path
+
+
+@pytest.mark.asyncio
+async def test_shutdown_forgets_every_page(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+    server = site(tmp_path)
+    async with client_for(server) as client:
+        page_id = page_id_of(await client.get("/"))
+        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 200
+        server.applications["pages"].on_shutdown()
+        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404

@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""FastAPI integration for the Gramlot ``Host`` protocol."""
+"""FastAPI integration for the Gramlot server protocol."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from secrets import token_urlsafe
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from gramlot.server import (
-    FileHost,
-    HostCapacity,
+    GramlotFileServer,
+    ServerCapacity,
     PageExpired,
     PageNotFound,
     SourceNotFound,
@@ -26,6 +26,7 @@ from gramlot_py_server.scaffold import add_new
 
 MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
+OPERATION_PATHS = {"/gramlot/main", "/gramlot/source", "/gramlot/close"}
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -65,7 +66,7 @@ def theme_file(path: str) -> dict | None:
 
 
 class Pages:
-    """Own a Gramlot ``FileHost`` and its FastAPI route translations.
+    """Own a Gramlot ``GramlotFileServer`` and its FastAPI route translations.
 
     The routes are included at ``mount_path``, which is also passed to
     ``open_page`` as the mount prefix of browser URLs. The prefix without the
@@ -73,7 +74,7 @@ class Pages:
     relative URLs.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    pages folder: the companions of ``GramlotFileServer`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
@@ -99,7 +100,7 @@ class Pages:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
-        self.host = FileHost(
+        self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
             main_url="/gramlot/main",
@@ -123,7 +124,7 @@ class Pages:
         app.router.add_event_handler("shutdown", self.shutdown)
 
     async def shutdown(self) -> None:
-        self.host._pages.clear()
+        self.server.close_all()
 
     async def redirect(self, request: Request) -> Response:
         query = request.url.query
@@ -134,6 +135,9 @@ class Pages:
         return Response(body, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
     async def page(self, request: Request, page_path: str = "") -> Response:
+        if "/" + page_path in OPERATION_PATHS:
+            # The operation routes accept POST only; without this the GET falls through to the pages.
+            return Response(status_code=405, headers={"Allow": "POST"})
         asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
         if asset is not None:
             return await self.static(request, asset)
@@ -147,10 +151,10 @@ class Pages:
             page_path = page_path.removesuffix("index.html")
         owner = request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = await self.host.open_page(page_path, owner=owner, prefix=self.mount_path)
+            opened = await self.server.open_page(page_path, owner=owner, prefix=self.mount_path)
         except PageNotFound:
             return Response("Page not found", status_code=404)
-        except HostCapacity:
+        except ServerCapacity:
             return Response("Page capacity reached", status_code=503)
         headers = {"Cache-Control": "no-store"}
         if self.content_security_policy is not None:
@@ -172,7 +176,7 @@ class Pages:
 
     async def companion(self, request: Request, page_path: str, suffix: str) -> Response:
         """Serve the file of ``page_path`` when its real path is below the pages folder."""
-        root = self.host.pages_dir.resolve()
+        root = self.server.pages_dir.resolve()
         real = root.joinpath(*page_path.strip("/").split("/")).resolve()
         if not (real.is_relative_to(root) and real.is_file()):
             return Response("Not found", status_code=404)
@@ -202,17 +206,19 @@ class Pages:
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
             return Response("Invalid JSON request", status_code=400)
         owner = request.cookies.get(OWNER_COOKIE)
+        if operation == "source" and not isinstance(payload.get("method"), str):
+            return Response("Source method must be a string", status_code=400)
         if operation == "source" and not isinstance(payload.get("params", {}), dict):
             return Response("Source params must be a dictionary", status_code=400)
         try:
             if operation == "main":
-                result = await self.host.main(payload["pageId"], owner=owner)
+                result = await self.server.main(payload["pageId"], owner=owner)
             elif operation == "source":
-                result = await self.host.source(
+                result = await self.server.source(
                     payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
                 )
             else:
-                self.host.close_page(payload["pageId"], owner=owner)
+                self.server.close_page(payload["pageId"], owner=owner)
                 result = json.dumps({"ok": True})
         except PageExpired:
             return Response("Unknown page", status_code=404)

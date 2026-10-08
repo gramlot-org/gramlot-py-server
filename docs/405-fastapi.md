@@ -122,8 +122,8 @@ Block ID: **GP-405-020**.
   companion or a file of `assets` answers 200 without a body.
 - **Other methods.** FastAPI answers them with 405, the JSON body
   `{"detail": "Method Not Allowed"}` and `Allow: GET, HEAD`. A `GET` on
-  `/gramlot/main` matches the page route instead and answers 404
-  `Page not found`.
+  `/gramlot/main`, `/gramlot/source` or `/gramlot/close` matches the page
+  route, which answers 405 with `Allow: POST`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
@@ -161,7 +161,7 @@ Module functions, outside `__all__`:
   content_security_policy=None, assets=None)`:
   - `mount(app)`: includes the router and registers the shutdown handler.
   - `shutdown()`: forgets every open page.
-  - `host`: the core `FileHost` built on `pages` with the URLs
+  - `server`: the core `GramlotFileServer` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
@@ -180,6 +180,6 @@ Module functions, outside `__all__`:
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
 | `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
-| other methods | 405 from FastAPI, with `Allow`; a `GET` on `/gramlot/*` answers 404 `Page not found` |
+| other methods | 405 from FastAPI, with `Allow`; a `GET` on `/gramlot/*` answers 405 with `Allow: POST` |
 
 Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.

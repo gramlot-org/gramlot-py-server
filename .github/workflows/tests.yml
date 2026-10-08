@@ -1,6 +1,7 @@
 name: tests
 
-# One job per framework adapter, each installed with its own extra only.
+# One job per framework adapter, each installed with the extras its guide installs:
+# its own extra, and for FastAPI also uvicorn, which runs it (GP-405).
 
 on:
   push:
@@ -24,13 +25,16 @@ jobs:
       matrix:
         framework: [uvicorn, django, flask, fastapi, kajenn]
         python-version: ["3.11", "3.12"]
+        include:
+          - framework: fastapi
+            extras: fastapi,uvicorn
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install the released core and the adapter with its extra
-        run: python -m pip install "gramlot>=0.2.12" -e ".[${{ matrix.framework }},test]" coverage
+      - name: Install the released core and the adapter with its extras
+        run: python -m pip install "gramlot>=0.2.12" -e ".[${{ matrix.extras || matrix.framework }},test]" coverage
       - name: Show the core version
         run: python -m pip show gramlot
       - name: Test with coverage

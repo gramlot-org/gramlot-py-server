@@ -52,13 +52,14 @@ def served(framework, pages, mount_path, policy, timeout=30):
     port = free_port()
     process = subprocess.Popen(
         [sys.executable, "-c", SERVE, framework, str(pages), str(port), mount_path, policy or ""],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
     )
     try:
         deadline = time.monotonic() + timeout
         while True:
             if process.poll() is not None:
-                raise RuntimeError(f"The {framework} server exited with {process.returncode}")
+                raise RuntimeError(f"The {framework} server exited with {process.returncode}:\n"
+                                   f"{process.stderr.read()}")
             try:
                 with socket.create_connection(("127.0.0.1", port), timeout=0.2):
                     break
@@ -70,10 +71,10 @@ def served(framework, pages, mount_path, policy, timeout=30):
     finally:
         process.terminate()
         try:
-            process.wait(timeout=10)
+            process.communicate(timeout=10)
         except subprocess.TimeoutExpired:
             process.kill()
-            process.wait()
+            process.communicate()
 
 
 def check_adapter(framework, tmp_path, mount_path, policy):

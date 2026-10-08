@@ -24,7 +24,7 @@ server. One package holds one adapter per framework; each comes with its extra:
 | `fastapi` | `gramlot_py_server.fastapi` | `Pages`, `mount_pages(app, pages, **options)`, `Application` |
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`: a Kajenn routed application |
 
-Every adapter serves one folder of `Page` modules through the core `FileHost`:
+Every adapter serves one folder of `Page` modules through the core `GramlotFileServer`:
 it sends the bootstrap document, answers the main and Source requests,
 serves the page companions (`.css` and `.js`), an optional map of assets and
 the browser runtime, with a mount prefix and a Content Security Policy of your

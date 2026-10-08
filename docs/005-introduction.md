@@ -15,11 +15,11 @@ Block ID: **GP-005-005**.
 Gramlot describes a web interface in Python or JavaScript and keeps it bound to
 the application state in the browser. The core guide
 [The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html)
-explains Page, Source, Data, logic and Host, and lists the repositories.
+explains Page, Source, Data, logic and `GramlotServer`, and lists the repositories.
 
 `gramlot-py-server` serves Gramlot pages written in Python from a Python web
 server. It holds one adapter module per framework. Each adapter takes a folder
-of Python `Page` modules and serves it through the core `FileHost`:
+of Python `Page` modules and serves it through the core `GramlotFileServer`:
 
 - it opens a page when a browser asks for it and answers the bootstrap document;
 - it serves the Gramlot browser runtime and the themes packaged with the core;
@@ -40,7 +40,7 @@ does not talk to a database.
 
 Block ID: **GP-005-010**.
 
-Python 3.11 or later. The package declares `gramlot>=0.2.5`. Each adapter comes
+Python 3.11 or later. The package declares `gramlot>=0.2.12`. Each adapter comes
 with the extra of the same name, which installs its framework:
 
 | Extra | Module | Names | Guide |
@@ -77,7 +77,7 @@ For a page `hello.py` in the pages folder, served without a mount prefix. All
 five adapters answer the same paths:
 
 1. **Page URL.** The browser requests `GET /hello`. The adapter asks the core
-   `FileHost` for the page: `hello.py`, or `hello/hello.py`. The core registers
+   `GramlotFileServer` for the page: `hello.py`, or `hello/hello.py`. The core registers
    a new page ID for this browser. The adapter answers the bootstrap document: a
    small HTML page with the title, an empty root `div` and one module script
    that carries a nonce. The response sets the cookie `gramlot_owner`.
@@ -162,7 +162,7 @@ Block ID: **GP-005-025**.
 - **Request limit.** Protocol requests must be `POST` with
   `Content-Type: application/json`. A body above 4096 bytes answers 413.
 - **Lifetime and capacity.** `page_ttl` (seconds, default `1800`) and
-  `max_pages` (default `1000`) are passed to `FileHost`. A page that is not
+  `max_pages` (default `1000`) are passed to `GramlotFileServer`. A page that is not
   closed expires after `page_ttl`. The opening after `max_pages` open pages
   answers 503. A value that is not finite and positive raises `ValueError` when
   the adapter is created.

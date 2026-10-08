@@ -47,7 +47,7 @@ examples/
 ```
 
 The page, the page module and the stylesheet share the name `greeting`. The
-core `FileHost` finds the two companions beside the page file and adds them to
+core `GramlotFileServer` finds the two companions beside the page file and adds them to
 the bootstrap document. `gramlot uvicorn new` writes a project with the same
 form: `pages/index.py` and its page module `pages/index.js`.
 

@@ -1,5 +1,5 @@
 # Copyright 2026 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Translate the Gramlot Host protocol into Django views and URLs."""
+"""Translate the Gramlot server protocol into Django views and URLs."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from django.http import FileResponse, HttpResponse, HttpResponsePermanentRedirec
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from gramlot.server import (
-    FileHost,
-    HostCapacity,
+    GramlotFileServer,
+    ServerCapacity,
     PageExpired,
     PageNotFound,
     SourceNotFound,
@@ -66,7 +66,7 @@ def theme_file(path: str) -> dict | None:
 
 
 class Pages:
-    """Own a Gramlot ``FileHost`` and expose it at one Django URLconf mount point.
+    """Own a Gramlot ``GramlotFileServer`` and expose it at one Django URLconf mount point.
 
     Add ``urlpatterns`` to the URLconf: it includes ``urls`` at ``mount_path``,
     which is also passed to ``open_page`` as the mount prefix of browser URLs.
@@ -75,7 +75,7 @@ class Pages:
     with in-process page records; it is not authentication.
 
     GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
-    pages folder: the companions of ``FileHost`` (stylesheet, page module or
+    pages folder: the companions of ``GramlotFileServer`` (stylesheet, page module or
     ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
     Every other file of the folder is not served.
 
@@ -101,7 +101,7 @@ class Pages:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
-        self.host = FileHost(
+        self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
             main_url="/gramlot/main",
@@ -111,12 +111,13 @@ class Pages:
             max_pages=max_pages,
         )
         self.urls = [
-            path("assets/gramlot.js", self.asset),
+            # Exempt from CSRF so that a POST answers 405 here, not 403 from the middleware.
+            path("assets/gramlot.js", csrf_exempt(self.asset)),
             path("gramlot/main", csrf_exempt(self.main)),
             path("gramlot/source", csrf_exempt(self.source)),
             path("gramlot/close", csrf_exempt(self.close)),
-            path("", self.page),
-            path("<path:page_path>", self.page),
+            path("", csrf_exempt(self.page)),
+            path("<path:page_path>", csrf_exempt(self.page)),
         ]
 
     @property
@@ -152,10 +153,10 @@ class Pages:
             page_path = page_path.removesuffix("index.html")
         owner = request.COOKIES.get(OWNER_COOKIE) or token_urlsafe(24)
         try:
-            opened = async_to_sync(self.host.open_page)(page_path, owner=owner, prefix=self.mount_path)
+            opened = async_to_sync(self.server.open_page)(page_path, owner=owner, prefix=self.mount_path)
         except PageNotFound:
             return HttpResponse("Page not found", status=404)
-        except HostCapacity:
+        except ServerCapacity:
             return HttpResponse("Page capacity reached", status=503)
         response = HttpResponse(opened.html, content_type="text/html; charset=utf-8")
         response["Cache-Control"] = "no-store"
@@ -178,7 +179,7 @@ class Pages:
         """Serve the file of ``page_path`` when its real path is below the pages folder."""
         if request.method not in ("GET", "HEAD"):
             return HttpResponse(status=405)
-        root = self.host.pages_dir.resolve()
+        root = self.server.pages_dir.resolve()
         real = root.joinpath(*page_path.strip("/").split("/")).resolve()
         if not (real.is_relative_to(root) and real.is_file()):
             return HttpResponse("Not found", status=404)
@@ -209,19 +210,21 @@ class Pages:
             return HttpResponse("Invalid JSON request", status=400)
         if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
             return HttpResponse("Invalid JSON request", status=400)
+        if operation == "source" and not isinstance(payload.get("method"), str):
+            return HttpResponse("Source method must be a string", status=400)
         if operation == "source" and not isinstance(payload.get("params", {}), dict):
             return HttpResponse("Source params must be a dictionary", status=400)
         owner = request.COOKIES.get(OWNER_COOKIE)
         try:
             if operation == "main":
-                result = async_to_sync(self.host.main)(payload["pageId"], owner=owner)
+                result = async_to_sync(self.server.main)(payload["pageId"], owner=owner)
             elif operation == "source":
-                result = async_to_sync(self.host.source)(
+                result = async_to_sync(self.server.source)(
                     payload["pageId"], payload.get("method"), payload.get("params", {}),
                     owner=owner,
                 )
             else:
-                self.host.close_page(payload["pageId"], owner=owner)
+                self.server.close_page(payload["pageId"], owner=owner)
                 result = json.dumps({"ok": True})
         except PageExpired:
             return HttpResponse("Unknown page", status=404)

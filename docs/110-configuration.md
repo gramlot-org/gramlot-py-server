@@ -19,15 +19,20 @@ Kajenn adapter takes all of them except `mount_path`, whose role its Kajenn
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `pages` | `str` or `Path` | required | the pages folder served by the core `FileHost` |
+| `pages` | `str` or `Path` | required | the pages folder served by the core `GramlotFileServer` |
 | `mount_path` | `str` | `""` | the mount prefix of the browser URLs; see section 010 |
 | `page_ttl` | `int` or `float`, seconds | `1800` | a page that is not closed expires after this time; must be finite and positive |
 | `max_pages` | `int` | `1000` | the number of open pages the process accepts; the next opening answers 503 |
 | `content_security_policy` | `str` or `None` | `None` | the `Content-Security-Policy` header of HTML pages; see section 015 |
 | `assets` | `dict` or `None` | `None` | URLs below the prefix served from files; see section 030 |
 
-`page_ttl` and `max_pages` are passed to `FileHost`. A value outside the rule
+`page_ttl` and `max_pages` are passed to `GramlotFileServer`. A value outside the rule
 raises `ValueError` when the application is created.
+
+The environment variable `GRAMLOT_DEV` of the core applies to every adapter.
+Unset, the runtime URL serves the minified `gramlot.min.js` and each page file
+runs once per process. `YES` runs the page file again at each opening. `DEBUG`
+also serves the readable `gramlot.js`. Any other value raises `ValueError`.
 
 <a id="gp-110-010"></a>
 

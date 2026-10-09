@@ -40,7 +40,7 @@ answers `not_authenticated`. The Kajenn adapter passes the envelope to `call`
 as the others do; mapping endpoints to genro-routes entries with the
 `AuthPlugin` is a later step.
 
-The current release is 0.2.5, on PyPI as `gramlot-py-server`.
+The current release is 0.2.6, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 

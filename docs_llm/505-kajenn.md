@@ -90,8 +90,8 @@ The application is declared in the site recipe, as in the example:
   letter, then letters, digits, `_` or `-`), or `""` for the site root, without
   prefix. Any other value raises `ValueError` ("mount must be a single lowercase
   URL segment or empty") when the application is created.
-- `.request(body="raw")`. The protocol reads its JSON with `json.loads`, not
-  with Kajenn's TYTX hydration. Without it every protocol request raises
+- `.request(body="raw")`. The request envelope reaches `GramlotServer.call` as
+  the TYTX text the browser sent, not through Kajenn's TYTX hydration. Without it every protocol request raises
   `RuntimeError` ("Application requires request(body='raw')") and answers 500.
 - `page_ttl`, `max_pages`, `content_security_policy` and `assets`, with the
   meaning of the [Uvicorn options](110-configuration.md). There is no
@@ -115,8 +115,8 @@ Block ID: **GP-505-020**.
 
 - **Routes.** The branch `assets` serves `gramlot.js` with `GET` and `HEAD`;
   its `index` route passes every other path below `assets/` to the `index`
-  route of the application. The branch `gramlot` holds `main`, `source` and
-  `close`, which accept `POST`. The `index` route serves the files of `assets`,
+  route of the application. The branch `gramlot` holds `rpc` and `close`, which
+  accept `POST`. The `index` route serves the files of `assets`,
   the pages and the companions from the remaining path segments.
 - **Methods.** A page accepts `GET` only; `HEAD` answers 405. A method that a
   route does not accept answers 405 `Method not allowed`, without an `Allow`
@@ -125,15 +125,19 @@ Block ID: **GP-505-020**.
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
   Errors are Kajenn HTTP exceptions: the answer is `application/json` with the
-  body `{"error": "…"}`, for example `{"error": "Unknown page"}`.
-- **Request body.** The application reads the raw body and answers 413 when it
-  is longer than 4096 bytes. The media type of `Content-Type` is compared with
+  body `{"error": "…"}`, for example `{"error": "Invalid envelope"}`. The
+  outcomes of a call are not errors: they arrive in the 200 response envelope.
+- **Request body.** The application reads the raw body and passes it to
+  `GramlotServer.call` as text. The adapter fixes no size, and Kajenn 0.1
+  reads the whole body before the route runs; a size limit declared on the
+  application is kajenn-org/kajenn#32. The media type of `Content-Type` is compared with
   `application/json`; parameters such as `charset` are ignored.
 - **Cookies.** The page response carries `gramlot_owner`. In the example the
   Kajenn site also sets its own `session_id` cookie; the adapter does not read
   it.
-- **Errors.** An exception of the page's own code reaches Kajenn, which
-  answers 500.
+- **Errors.** An exception of the page's own code while a page opens reaches
+  Kajenn, which answers 500. In a call through `/gramlot/rpc` it is the outcome
+  `application_error` of a 200 response.
 - **Workers.** The page registry lives in the process. Run one worker, or keep
   a browser on the same worker.
 
@@ -158,7 +162,7 @@ content_security_policy=None, assets=None, **kwargs)`: the other keyword argumen
 Kajenn's `RoutedApplication`. The site recipe passes them.
 
 - `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
-  `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
+  `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
 - `index`: the route of assets, pages and companions.
@@ -178,7 +182,12 @@ Paths below are without the mount.
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
-| `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
 | other methods | 405 `Method not allowed` |
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+
+The Kajenn adapter passes the envelope to `GramlotServer.call` as the other
+adapters do and announces no capability. Mapping the endpoints to genro-routes
+entries with the `AuthPlugin`, which evaluates `auth` against the avatar tags,
+is a later step.

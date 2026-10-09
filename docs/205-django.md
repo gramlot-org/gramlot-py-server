@@ -117,13 +117,13 @@ owns one page registry. Create it once, at URLconf import, not per request.
 
 Block ID: **GP-205-020**.
 
-`pages.urls` holds six patterns, in this order: `assets/gramlot.js`,
-`gramlot/main`, `gramlot/source`, `gramlot/close`, `""` and
+`pages.urls` holds five patterns, in this order: `assets/gramlot.js`,
+`gramlot/rpc`, `gramlot/close`, `""` and
 `<path:page_path>`. The last two serve the pages, the files of `assets` and
 the companions.
 
 - **CSRF.** The Gramlot runtime posts JSON without a Django CSRF token, so the
-  views of `main`, `source` and `close` are wrapped in `csrf_exempt`. The
+  views of `rpc` and `close` are wrapped in `csrf_exempt`. The
   runtime, page and companion views are exempt too: they accept no `POST`, and
   the view answers 405 where `CsrfViewMiddleware` would answer 403, as GC-230
   of the core requires.
@@ -136,11 +136,14 @@ the companions.
   `Content-Type: text/javascript` and `Cache-Control: no-cache`. Error
   messages are plain text in a response with Django's default content type
   `text/html; charset=utf-8`. 405 answers carry no `Allow` header.
-- **Request body.** The protocol views read `request.body` and answer 413 when
-  it is longer than 4096 bytes. `request.content_type` is compared with
+- **Request body.** The protocol views read `request.body` and pass it to
+  `GramlotServer.call` as text. The adapter fixes no size; Django's
+  `DATA_UPLOAD_MAX_MEMORY_SIZE` applies, and a larger body answers 400.
+  `request.content_type` is compared with
   `application/json`; parameters such as `charset` are not part of it.
-- **Errors.** An exception of the page's own code reaches Django, which
-  answers 500.
+- **Errors.** An exception of the page's own code while a page opens reaches
+  Django, which answers 500. In a call through `/gramlot/rpc` it is the outcome
+  `application_error` of a 200 response.
 - **Workers.** The page registry lives in the process. Run one worker, or keep
   a browser on the same worker.
 
@@ -168,11 +171,11 @@ content_security_policy=None, assets=None)`
   `mount_path` and the 301 of the bare prefix.
 - `urls`: the list of URL patterns to pass to `include()`.
 - `server`: the core `GramlotFileServer` built on `pages` with the URLs
-  `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
+  `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
 - `mount_path`: the normalized prefix (`""` or `/py`).
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
-- `asset`, `page`, `static`, `companion`, `main`, `source`, `close`: the views
+- `asset`, `page`, `static`, `companion`, `rpc`, `close`: the views
   behind `urls`; `redirect`: the view of the bare prefix.
 
 | Method and path | Answer |
@@ -185,6 +188,6 @@ content_security_policy=None, assets=None)`
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map; 405 for other methods |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise; other methods as on a page path |
-| `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md); 405 for other methods |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md); 405 for other methods |
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.

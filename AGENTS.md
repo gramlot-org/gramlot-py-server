@@ -14,7 +14,7 @@ framework, which arrives with the extra of the same name.
 - The repository owns HTTP routing, payload parsing, response mapping and
   request identity for each framework. It does not own Gramlot Source, Data
   Bags, `GramlotServer` or the browser runtime.
-- Depend on the released core only: `gramlot>=0.2.12` from PyPI. The `core-main`
+- Depend on the released core only: `gramlot>=0.2.14` from PyPI. The `core-main`
   CI job, which installs the core from `main`, is the only exception. Never
   copy the core into this repository.
 - Every adapter keeps the same contract: the core `GramlotFileServer` with root-relative
@@ -22,8 +22,9 @@ framework, which arrives with the extra of the same name.
   (404 outside it, 301 from `/py` to `/py/`), the companions rule (`GET` and
   `HEAD` of `.css` and `.js` files whose real path is below the pages folder),
   `<path>/index.html` opening the page `<path>` and `/index.html` the index,
-  the core themes at `/themes/…`, the `assets` option, the owner cookie `gramlot_owner`, the 4096-byte request
-  limit and the `content_security_policy` option with `{nonce}`. A change to one adapter's
+  the core themes at `/themes/…`, the `assets` option, the owner cookie `gramlot_owner`,
+  `POST /gramlot/rpc` passing the body text to `GramlotServer.call`, `POST /gramlot/close`
+  and the `content_security_policy` option with `{nonce}`. A change to one adapter's
   contract is made in all five, with its tests. The server protocol GC-230 of
   the core prevails: `tests/<framework>/test_<framework>_conformance.py` runs
   the core `check_protocol` on each adapter started with its `serve`.

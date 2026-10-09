@@ -9,6 +9,7 @@ from genro_tytx import from_tytx
 from gramlot_py_server import uvicorn as uvicorn_module
 from gallery_checks import check_index_main, expected, page_id, staged
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
+from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
 from gramlot_py_server.uvicorn import Application, create_application
 
 
@@ -54,31 +55,38 @@ async def test_protocol_owner_limits_asset_and_close(tmp_path):
         assert runtime == "/assets/gramlot.js"
         page_id = argument["config"]["pageId"]
         assert argument["config"]["closeUrl"] == "/gramlot/close"
+        assert argument["config"]["rpcUrl"] == "/gramlot/rpc"
+        assert argument["config"]["capabilities"] == []
         assert (await client.get("/assets/gramlot.js")).status_code == 200
-        main = await client.post("/gramlot/main", json={"pageId": page_id})
-        assert from_tytx(main.text).nodes[0].value == "Hello"
-        remote = await client.post(
-            "/gramlot/source",
-            json={"pageId": page_id, "method": "details", "params": {"name": "Grace"}},
-        )
-        assert from_tytx(remote.text).nodes[0].value == "Grace"
-        assert (await client.post("/gramlot/source", json={"pageId": page_id, "method": "missing"})).status_code == 404
+
+        async def rpc(sender, *args, **kwargs):
+            return await sender.post("/gramlot/rpc", content=envelope(page_id, *args, **kwargs),
+                                     headers=RPC_HEADERS)
+
+        main = await rpc(client)
+        assert main.status_code == 200
+        assert main.headers["content-type"] == "application/json"
+        assert from_tytx(rpc_source(main.text)).nodes[0].value == "Hello"
+        remote = await rpc(client, "details", {"name": "Grace"})
+        assert from_tytx(rpc_source(remote.text)).nodes[0].value == "Grace"
+        assert rpc_outcome((await rpc(client, "missing")).text) == "not_found"
         for method in ("fail_lookup", "fail_runtime"):
-            response = await client.post(
-                "/gramlot/source", json={"pageId": page_id, "method": method}
-            )
-            assert response.status_code == 500
-        assert (await client.post("/gramlot/main", content="{}",
+            response = await rpc(client, method)
+            assert response.status_code == 200
+            assert rpc_outcome(response.text) == "application_error"
+        assert (await client.post("/gramlot/rpc", content="{}",
                                   headers={"content-type": "text/plain"})).status_code == 415
-        assert (await client.post("/gramlot/main", content=b"x" * 4097,
-                                  headers={"content-type": "application/json"})).status_code == 413
+        assert (await client.post("/gramlot/rpc", content=b"\xff",
+                                  headers=RPC_HEADERS)).status_code == 400
+        assert (await client.post("/gramlot/rpc", content="{}", headers=RPC_HEADERS)).status_code == 400
+        assert (await client.post("/gramlot/close", content="{}", headers=RPC_HEADERS)).status_code == 400
         outsider = httpx.AsyncClient(transport=transport, base_url=base_url)
-        assert (await outsider.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+        assert rpc_outcome((await rpc(outsider)).text) == "page_expired"
         assert (await outsider.post("/gramlot/close", json={"pageId": page_id})).status_code == 200
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 200
+        assert (await rpc(client)).status_code == 200
         await outsider.aclose()
         assert (await client.post("/gramlot/close", json={"pageId": page_id})).json() == {"ok": True}
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+        assert rpc_outcome((await rpc(client)).text) == "page_expired"
 
 
 MOUNTED_PAGE = """from gramlot import Page as BasePage
@@ -99,8 +107,7 @@ async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
     _, runtime, argument = bootstrap(document)
     assert runtime == "/py/assets/gramlot.js"
     config = argument["config"]
-    assert config["mainUrl"] == "/py/gramlot/main"
-    assert config["sourceUrl"] == "/py/gramlot/source"
+    assert config["rpcUrl"] == "/py/gramlot/rpc"
     assert config["closeUrl"] == "/py/gramlot/close"
     assert argument["resources"]["css"] == [
         "/py/theme.css", "local.css", "https://cdn.example/remote.css"
@@ -117,12 +124,13 @@ async def test_mount_path_is_the_prefix_of_the_request_paths(tmp_path):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         _, _, argument = bootstrap((await client.get("/py/index")).text)
         page_id = argument["config"]["pageId"]
-        main = await client.post("/py/gramlot/main", json={"pageId": page_id})
+        main = await client.post("/py/gramlot/rpc", content=envelope(page_id), headers=RPC_HEADERS)
         assert main.status_code == 200
         assert (await client.get("/py/assets/gramlot.js")).status_code == 200
         for path in ("/", "/index", "/assets/gramlot.js", "/pyindex", "/other/index"):
             assert (await client.get(path)).status_code == 404
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+        assert (await client.post("/gramlot/rpc", content=envelope(page_id),
+                                  headers=RPC_HEADERS)).status_code == 404
 
 
 @pytest.mark.asyncio
@@ -316,8 +324,9 @@ async def test_gallery_under_the_mount_path(tmp_path):
             assert response.status_code == 200, url
             assert response.headers["content-type"].startswith(kind), url
         document = (await client.get("/py/")).text
-        main = await client.post("/py/gramlot/main", json={"pageId": page_id(document)})
-        check_index_main(main.text)
+        main = await client.post("/py/gramlot/rpc", content=envelope(page_id(document)),
+                                 headers=RPC_HEADERS)
+        check_index_main(rpc_source(main.text))
 
 
 @pytest.mark.asyncio

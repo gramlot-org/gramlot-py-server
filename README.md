@@ -25,14 +25,20 @@ server. One package holds one adapter per framework; each comes with its extra:
 | `kajenn` | `gramlot_py_server.kajenn` | `Application`: a Kajenn routed application |
 
 Every adapter serves one folder of `Page` modules through the core `GramlotFileServer`:
-it sends the bootstrap document, answers the main and Source requests,
+it sends the bootstrap document, passes the envelopes of `POST /gramlot/rpc`
+to `GramlotServer.call` (the page `main`, fragments and `@endpoint` methods),
 serves the page companions (`.css` and `.js`), an optional map of assets and
 the browser runtime, with a mount prefix and a Content Security Policy of your
 choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+
+No adapter announces the `auth` capability: an endpoint with an `auth` rule
+answers `not_authenticated`. The Kajenn adapter passes the envelope to `call`
+as the others do; mapping endpoints to genro-routes entries with the
+`AuthPlugin` is a later step.
 
 The current release is 0.2.5, on PyPI as `gramlot-py-server`.
 
@@ -226,8 +232,8 @@ pages to it.
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.2.7 (PyPI `gramlot`) |
-| Gallery | `gramlot-examples` 0.2.7 (extra `gallery`) |
+| Gramlot core | 0.2.14 (PyPI `gramlot`) |
+| Gallery | `gramlot-examples` 0.2.9 (extra `gallery`) |
 | Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.1 |
 | Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |

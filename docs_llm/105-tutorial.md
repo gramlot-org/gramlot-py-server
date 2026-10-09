@@ -170,7 +170,7 @@ opening of `/greeting` makes these requests:
 | `GET /assets/gramlot.js` | the bootstrap script: the runtime |
 | `GET /greeting.css` | `PageBootstrap`: the stylesheet |
 | `GET /greeting.js` | `PageBootstrap`: the page module |
-| `POST /gramlot/main` | `PageBootstrap`: the Source of `main` |
+| `POST /gramlot/rpc` | `PageBootstrap`: the envelope that asks the Source of `main` |
 
 The browser also asks for `/favicon.ico`. The adapter serves no icon and
 answers 404 `Page not found`.

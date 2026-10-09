@@ -14,19 +14,17 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from gramlot.server import (
     GramlotFileServer,
-    ServerCapacity,
-    PageExpired,
+    InvalidRequest,
     PageNotFound,
-    SourceNotFound,
+    ServerCapacity,
     runtime_asset,
 )
 
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
-MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
-OPERATION_PATHS = {"/gramlot/main", "/gramlot/source", "/gramlot/close"}
+OPERATION_PATHS = {"/gramlot/rpc", "/gramlot/close"}
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -103,8 +101,7 @@ class Pages:
         self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
-            main_url="/gramlot/main",
-            source_url="/gramlot/source",
+            rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
@@ -113,8 +110,7 @@ class Pages:
     def mount(self, app: FastAPI) -> None:
         router = APIRouter(prefix=self.mount_path)
         router.add_api_route("/assets/gramlot.js", self.asset, methods=["GET", "HEAD"])
-        router.add_api_route("/gramlot/main", self.main, methods=["POST"])
-        router.add_api_route("/gramlot/source", self.source, methods=["POST"])
+        router.add_api_route("/gramlot/rpc", self.rpc, methods=["POST"])
         router.add_api_route("/gramlot/close", self.close, methods=["POST"])
         if self.mount_path:
             router.add_api_route("", self.redirect, methods=["GET", "HEAD"])
@@ -184,11 +180,8 @@ class Pages:
         return Response(body, headers={"Content-Type": COMPANION_MEDIA_TYPES[suffix],
                                        "Cache-Control": "no-store"})
 
-    async def main(self, request: Request) -> Response:
-        return await self._operation(request, "main")
-
-    async def source(self, request: Request) -> Response:
-        return await self._operation(request, "source")
+    async def rpc(self, request: Request) -> Response:
+        return await self._operation(request, "rpc")
 
     async def close(self, request: Request) -> Response:
         return await self._operation(request, "close")
@@ -197,50 +190,25 @@ class Pages:
         if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
             return Response("Expected application/json", status_code=415)
         try:
-            raw = await self._body(request)
-            payload = json.loads(raw)
-            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-                raise ValueError
-        except RequestTooLarge:
-            return Response("Request too large", status_code=413)
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
-            return Response("Invalid JSON request", status_code=400)
+            text = (await request.body()).decode()
+        except UnicodeDecodeError:
+            return Response("Request body is not UTF-8", status_code=400)
         owner = request.cookies.get(OWNER_COOKIE)
-        if operation == "source" and not isinstance(payload.get("method"), str):
-            return Response("Source method must be a string", status_code=400)
-        if operation == "source" and not isinstance(payload.get("params", {}), dict):
-            return Response("Source params must be a dictionary", status_code=400)
-        try:
-            if operation == "main":
-                result = await self.server.main(payload["pageId"], owner=owner)
-            elif operation == "source":
-                result = await self.server.source(
-                    payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
-                )
-            else:
-                self.server.close_page(payload["pageId"], owner=owner)
-                result = json.dumps({"ok": True})
-        except PageExpired:
-            return Response("Unknown page", status_code=404)
-        except SourceNotFound:
-            return Response("Unknown Source method", status_code=404)
+        if operation == "rpc":
+            try:
+                result = await self.server.call(text, owner=owner)
+            except InvalidRequest:
+                return Response("Invalid envelope", status_code=400)
+        else:
+            try:
+                payload = json.loads(text)
+                if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
+                    raise ValueError("Missing pageId")
+            except ValueError:
+                return Response("Invalid JSON request", status_code=400)
+            self.server.close_page(payload["pageId"], owner=owner)
+            result = json.dumps({"ok": True})
         return Response(result, media_type="application/json", headers={"Cache-Control": "no-store"})
-
-    @staticmethod
-    async def _body(request: Request) -> str:
-        length = request.headers.get("content-length")
-        if length and length.isdigit() and int(length) > MAX_REQUEST_BYTES:
-            raise RequestTooLarge
-        body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > MAX_REQUEST_BYTES:
-                raise RequestTooLarge
-        return body.decode()
-
-
-class RequestTooLarge(ValueError):
-    pass
 
 
 class Application(FastAPI):

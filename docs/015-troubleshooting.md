@@ -103,8 +103,7 @@ Block ID: **GP-015-015**.
   object with a string `pageId`.
 - 413 from a web server in front: the adapters fix no body size, a proxy may.
 - A method that a path does not accept is refused. The status differs by
-  framework: see the endpoint table of each guide. Django with
-  `CsrfViewMiddleware` answers 403 to a `POST` on a page or companion URL.
+  framework: see the endpoint table of each guide.
 - 500 on every protocol request with Kajenn: the application is declared
   without `request(body="raw")`; see [Kajenn](505-kajenn.md).
 

@@ -8,6 +8,7 @@ import pytest
 from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
+from kajenn_server_app import ServerApplication
 
 from conformance_checks import conformance_pages
 from gallery_checks import check_index_main, expected, page_id, staged
@@ -370,13 +371,19 @@ async def test_shutdown_forgets_every_page(tmp_path):
 
 
 def auth_site(pages):
-    """A site with Kajenn's Basic credentials: ``ada`` tagged ``admin``, ``bob`` tagged ``staff``."""
+    """A site with Kajenn's Basic credentials: ``ada`` tagged ``admin``, ``bob`` tagged ``staff``.
+
+    Kajenn verifies the ``Authorization`` header through the route
+    ``/_server/auth/authenticate`` of its ``ServerApplication``.
+    """
     class Site(DefaultConfiguration):
         def applications_section(self, cfg):
             credentials = cfg.authentication().credentials()
             credentials.basic_user(username="ada", password="ada-secret", tags="admin,staff")
             credentials.basic_user(username="bob", password="bob-secret", tags="staff")
-            cfg.applications().application(
+            applications = cfg.applications()
+            applications.application(code="_server", app_class=ServerApplication)
+            applications.application(
                 code="pages", mount="page", app_class=Application, pages=pages
             ).request(body="raw")
 

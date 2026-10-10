@@ -201,6 +201,9 @@ for the owner cookie, or no identity when the request is anonymous. The
 that do not satisfy the rule answer `not_authorized`. The avatar comes from the
 Kajenn site: for example a `basic_user` with `tags` under
 `authentication().credentials()` of the site recipe, sent as HTTP Basic
-credentials. A rule with a syntax error is the outcome `application_error`.
+credentials. Kajenn verifies the `Authorization` header through the route
+`/_server/auth/authenticate`, so the site also declares Kajenn's
+`ServerApplication` (`kajenn_server_app`, code `_server`); without it a request
+with credentials answers 401. A rule with a syntax error is the outcome `application_error`.
 Registering the endpoints as genro-routes `RouterNode`s, with the OpenAPI, env
 and logging plugins, belongs to genro-kajenn, not to this adapter.

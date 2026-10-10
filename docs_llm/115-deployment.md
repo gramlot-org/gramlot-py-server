@@ -37,7 +37,7 @@ location /py/ {
 supported: every request answers 404.
 
 The browser then requests `/py/hello`, `/py/assets/gramlot.js`, `/py/hello.js`
-and `/py/gramlot/main`. The application receives them with `/py` and removes
+and `/py/gramlot/rpc`. The application receives them with `/py` and removes
 it. `/py` without the final slash answers 301 to `/py/`; with the `location
 /py/` above, nginx itself answers 301 to `/py/` before the request reaches the
 application. The owner cookie is scoped to `Path=/py`.
@@ -94,7 +94,7 @@ These notes hold for every adapter of the package.
 
 Block ID: **GP-115-020**.
 
-- `gramlot-py-server[uvicorn]` installed with `gramlot>=0.2.12`;
+- `gramlot-py-server[uvicorn]` installed with `gramlot>=0.2.14`;
   `pip show gramlot` reports one version.
 - `mount_path` equal to the prefix the proxy routes, and the proxy passes the
   path unchanged (`proxy_pass` without a URI).
@@ -102,7 +102,7 @@ Block ID: **GP-115-020**.
 - `GRAMLOT_DEV` unset: minified runtime, page files run once per process.
 - `page_ttl` and `max_pages` sized for the expected number of open pages.
 - One worker process, or a proxy that keeps a browser on the same worker: the
-  page registry is process-local, so a request routed to another worker
-  answers 404 "Unknown page".
+  page registry is process-local, so a call routed to another worker
+  answers the outcome `page_expired`.
 - Authentication and TLS at the proxy.
 - The pages folder read-only for the server process.

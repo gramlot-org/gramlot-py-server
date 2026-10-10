@@ -15,10 +15,9 @@ from urllib.parse import unquote
 
 from gramlot.server import (
     GramlotFileServer,
-    ServerCapacity,
-    PageExpired,
+    InvalidRequest,
     PageNotFound,
-    SourceNotFound,
+    ServerCapacity,
     runtime_asset,
 )
 
@@ -26,7 +25,6 @@ from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 JSON_MEDIA_TYPE = "application/json"
-MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
@@ -113,8 +111,7 @@ class Application:
         self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
-            main_url="/gramlot/main",
-            source_url="/gramlot/source",
+            rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
@@ -171,17 +168,11 @@ class Application:
             await self._send(send, 200, body, COMPANION_MEDIA_TYPES[suffix])
             return
 
-        operations = {
-            "/gramlot/main": "main",
-            "/gramlot/source": "source",
-            "/gramlot/close": "close",
-        }
-        operation = operations.get(path)
-        if operation is not None:
+        if path in ("/gramlot/rpc", "/gramlot/close"):
             if method != "POST":
                 await self._send(send, 405, b"", "text/plain", [(b"allow", b"POST")])
                 return
-            await self._operation(operation, headers, receive, send)
+            await self._operation(path, headers, receive, send)
             return
 
         if method != "GET":
@@ -206,48 +197,34 @@ class Application:
             response_headers.append((b"content-security-policy", policy.encode()))
         await self._send(send, 200, opened.html.encode(), "text/html; charset=utf-8", response_headers)
 
-    async def _operation(self, operation, headers, receive, send) -> None:
+    async def _operation(self, path, headers, receive, send) -> None:
         media_type = headers.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
         if media_type != JSON_MEDIA_TYPE.encode():
             await self._send(send, 415, b"Expected application/json", "text/plain; charset=utf-8")
             return
         try:
-            payload = json.loads((await self._body(receive)).decode())
-            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-                raise ValueError
-        except RequestTooLarge:
-            await self._send(send, 413, b"Request too large", "text/plain; charset=utf-8")
+            text = (await self._body(receive)).decode()
+        except UnicodeDecodeError:
+            await self._send(send, 400, b"Request body is not UTF-8", "text/plain; charset=utf-8")
             return
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
-            await self._send(send, 400, b"Invalid JSON request", "text/plain; charset=utf-8")
-            return
-
         owner = self._owner(headers)
-        if operation == "source" and not isinstance(payload.get("method"), str):
-            await self._send(send, 400, b"Source method must be a string", "text/plain; charset=utf-8")
-            return
-        if operation == "source" and not isinstance(payload.get("params", {}), dict):
-            await self._send(
-                send, 400, b"Source params must be a dictionary", "text/plain; charset=utf-8"
-            )
+        if path == "/gramlot/rpc":
+            try:
+                result = await self.server.call(text, owner=owner)
+            except InvalidRequest:
+                await self._send(send, 400, b"Invalid envelope", "text/plain; charset=utf-8")
+                return
+            await self._send(send, 200, result.encode(), JSON_MEDIA_TYPE)
             return
         try:
-            if operation == "main":
-                result = await self.server.main(payload["pageId"], owner=owner)
-            elif operation == "source":
-                result = await self.server.source(
-                    payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
-                )
-            else:
-                self.server.close_page(payload["pageId"], owner=owner)
-                result = json.dumps({"ok": True})
-        except PageExpired:
-            await self._send(send, 404, b"Unknown page", "text/plain; charset=utf-8")
+            payload = json.loads(text)
+            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
+                raise ValueError("Missing pageId")
+        except ValueError:
+            await self._send(send, 400, b"Invalid JSON request", "text/plain; charset=utf-8")
             return
-        except SourceNotFound:
-            await self._send(send, 404, b"Unknown Source method", "text/plain; charset=utf-8")
-            return
-        await self._send(send, 200, result.encode(), JSON_MEDIA_TYPE)
+        self.server.close_page(payload["pageId"], owner=owner)
+        await self._send(send, 200, json.dumps({"ok": True}).encode(), JSON_MEDIA_TYPE)
 
     def _companion(self, path: str) -> Path | None:
         """Return the file of ``path`` when its real path is below the pages folder."""
@@ -276,8 +253,6 @@ class Application:
             if event["type"] == "http.disconnect":
                 raise ValueError("Disconnected")
             body.extend(event.get("body", b""))
-            if len(body) > MAX_REQUEST_BYTES:
-                raise RequestTooLarge
             if not event.get("more_body", False):
                 return bytes(body)
 
@@ -302,10 +277,6 @@ class Application:
         response_headers.extend(headers or [])
         await send({"type": "http.response.start", "status": status, "headers": response_headers})
         await send({"type": "http.response.body", "body": body})
-
-
-class RequestTooLarge(ValueError):
-    """Internal signal for a request body over the public 4 KiB limit."""
 
 
 def create_application(pages: str | Path, **options: Any) -> Application:

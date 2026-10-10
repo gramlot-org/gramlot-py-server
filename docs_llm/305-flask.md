@@ -108,16 +108,16 @@ it, for an application that registers blueprints itself.
 
 Block ID: **GP-305-020**.
 
-- **Routes.** `/assets/gramlot.js` accepts `GET` and `HEAD`. `/gramlot/main`,
-  `/gramlot/source` and `/gramlot/close` accept `POST`. `/` and
+- **Routes.** `/assets/gramlot.js` accepts `GET` and `HEAD`. `/gramlot/rpc`
+  and `/gramlot/close` accept `POST`. `/` and
   `/<path:page_path>` serve the pages, the files of `assets` and the
   companions with Flask's default
   methods: `GET`, `HEAD` and `OPTIONS`.
 - **`HEAD` on a page.** A `HEAD` opens a page and sets the cookie; Flask sends
   no body.
 - **Other methods.** Flask answers them with its own 405 page and an `Allow`
-  header. A `GET` on `/gramlot/main`, `/gramlot/source` or `/gramlot/close`
-  matches the page route, which answers 405 with `Allow: POST`.
+  header. A `GET` on `/gramlot/rpc` or `/gramlot/close` matches the page
+  route, which answers 405 with `Allow: POST`.
 - **Asynchronous core.** The views are synchronous. Each call to the core
   `GramlotFileServer` runs in its own event loop through `asyncio.run`.
 - **Responses.** Pages, companions and protocol answers carry
@@ -125,12 +125,13 @@ Block ID: **GP-305-020**.
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
   Error messages are plain text in a response with Flask's default content
   type `text/html; charset=utf-8`.
-- **Request body.** A `Content-Length` above 4096 answers 413 before the body
-  is read. A body longer than 4096 bytes answers 413 after it is read.
-  `request.mimetype` is compared with `application/json`; parameters such as
-  `charset` are not part of it.
-- **Errors.** An exception of the page's own code reaches Flask, which answers
-  500.
+- **Request body.** The protocol views pass the body to `GramlotServer.call`
+  as text. The adapter fixes no size; Flask's `MAX_CONTENT_LENGTH`, when the
+  application sets it, answers 413 above it. `request.mimetype` is compared
+  with `application/json`; parameters such as `charset` are not part of it.
+- **Errors.** An exception of the page's own code while a page opens reaches
+  Flask, which answers 500. In a call through `/gramlot/rpc` it is the outcome
+  `application_error` of a 200 response.
 - **Workers.** The page registry lives in the process. Run one worker process,
   or keep a browser on the same one.
 
@@ -155,12 +156,12 @@ Module functions, outside `__all__`:
   content_security_policy=None, assets=None)`:
   - `blueprint()`: a new `Blueprint` with the routes below.
   - `server`: the core `GramlotFileServer` built on `pages` with the URLs
-    `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
+    `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
-  - `asset`, `page`, `static`, `companion`, `main`, `source`, `close`,
-    `redirect`: the views.
+  - `asset`, `page`, `static`, `companion`, `rpc`, `close`, `redirect`: the
+    views.
 
 | Method and path | Answer |
 | --- | --- |
@@ -171,7 +172,7 @@ Module functions, outside `__all__`:
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
-| `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
 | other methods | 405 from Flask, with `Allow`; a `GET` on `/gramlot/*` answers 405 with `Allow: POST` |
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.

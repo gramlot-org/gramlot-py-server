@@ -12,12 +12,19 @@ from contextlib import contextmanager
 from gramlot.server import check_protocol
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
-PAGE = """from gramlot import Page as BasePage, source
+# The fragment and the endpoints that check_protocol calls, as in the core fixture page.
+PAGE = """from gramlot import Page as BasePage, endpoint, source
 class Page(BasePage):
     title = '{title}'
     def main(self, root): root.h1('{title}')
     @source
-    def details(self, root, name='Ada'): root.p(name)
+    def check_fragment(self, root, text='check'): root.span(text)
+    @endpoint
+    def check_endpoint(self, value): return value
+    @endpoint(auth='admin')
+    def check_endpoint_auth(self): return 'allowed'
+    @endpoint
+    def check_endpoint_raise(self): raise ValueError('check')
 """
 SERVE = """import sys
 from importlib import import_module

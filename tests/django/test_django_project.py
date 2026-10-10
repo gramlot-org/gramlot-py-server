@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from project_checks import check_document, check_files, check_main
+from rpc_checks import rpc_source
 
 CHECK = """
 import json, re
@@ -18,7 +19,8 @@ from django.test import Client
 client = Client()
 document = client.get("/")
 page_id = re.search(r'"pageId":"([0-9a-f]+)"', document.content.decode()).group(1)
-main = client.post("/gramlot/main", json.dumps({"pageId": page_id}), content_type="application/json")
+envelope = json.dumps({"id": "1", "pageId": page_id, "contentType": "source", "name": "main", "params": {}})
+main = client.post("/gramlot/rpc", envelope, content_type="application/json")
 logic = client.get("/index.js")
 print(json.dumps({
     "status": document.status_code,
@@ -44,4 +46,4 @@ def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_t
     check_document(result["document"], result["policy"])
     assert result["logic_type"] == "text/javascript; charset=utf-8"
     assert "greeting(kwargs)" in result["logic"]
-    check_main(source_tags(result["main"]))
+    check_main(source_tags(rpc_source(result["main"])))

@@ -26,7 +26,8 @@ of Python `Page` modules and serves it through the core `GramlotFileServer`:
 - it serves the page companions, the `.css` and `.js` files below the pages
   folder: stylesheets and the page modules that hold the page `Logic`;
 - it serves the files of an optional assets map;
-- it answers the main and Source requests of the running page;
+- it answers the calls of the running page at `/gramlot/rpc`: `main`, the
+  fragments and the endpoints;
 - it forgets the page when the browser closes it.
 
 The adapters do not render HTML from the Source and do not run page logic. The
@@ -40,7 +41,7 @@ does not talk to a database.
 
 Block ID: **GP-005-010**.
 
-Python 3.11 or later. The package declares `gramlot>=0.2.12`. Each adapter comes
+Python 3.11 or later. The package declares `gramlot>=0.2.14`. Each adapter comes
 with the extra of the same name, which installs its framework:
 
 | Extra | Module | Names | Guide |
@@ -82,19 +83,26 @@ five adapters answer the same paths:
    small HTML page with the title, an empty root `div` and one module script
    that carries a nonce. The response sets the cookie `gramlot_owner`.
 2. **Bootstrap.** The module script imports the runtime from
-   `/assets/gramlot.js`. It runs `PageBootstrap` with the page ID, the URLs of
-   the main, source and close endpoints, and the resources of the page: the
+   `/assets/gramlot.js`. It runs `PageBootstrap` with the page ID, the URLs
+   `rpcUrl` and `closeUrl`, the `capabilities` of the server (none in these
+   adapters) and the resources of the page: the
    `Page.css` URLs, the companion stylesheet `hello.css` and the module that
    holds the page logic: `hello.js` beside the page file, else `hello_aux.js`.
    An import map before the script maps `@gramlot/gramlot/page` to the runtime
    URL, so the page module imports the runtime already loaded.
-3. **Main.** The runtime posts `{"pageId": …}` to `/gramlot/main`. The adapter
-   runs `Page.main(root)` on the server and answers the Source tree as TYTX. The
-   runtime renders the DOM from it and installs the data binding.
-4. **Source.** The adapter answers `POST /gramlot/source` with
-   `{"pageId", "method", "params"}`. The runtime mounts the returned branch.
+3. **Main.** The runtime posts the envelope
+   `{"id", "pageId", "contentType": "source", "name": "main", "params": {}}`,
+   as TYTX JSON, to `/gramlot/rpc`. The adapter passes the body text to
+   `GramlotServer.call`, which runs `Page.main(root)` on the server, and
+   answers the response envelope `{"id", "contentType", "value"}`: `value` is
+   the Source tree as TYTX. The runtime renders the DOM from it and installs
+   the data binding.
+4. **Calls.** Every later call goes to `/gramlot/rpc` too: `contentType`
+   `source` names a fragment, `data` an endpoint (`@endpoint`, called by
+   `dataRpc`). A refused or failed call is an outcome in the response,
+   `{"id", "contentType", "error": {"code", "name", "message"}}`, with HTTP 200.
    Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API:
-   they arrive together with the `remote` grammar attribute and `@endpoint`.
+   they arrive together with the `remote` grammar attribute.
 5. **Close.** When the browser disposes the page, or leaves it without keeping
    it in the back/forward cache, the runtime posts `{"pageId": …}` to
    `/gramlot/close`. The adapter forgets the page. A page that is never closed
@@ -108,8 +116,8 @@ Block ID: **GP-005-020**.
 
 The mount prefix is the path before the URLs of the adapter, for example
 `/py`. Every adapter passes it to `open_page` as `prefix`. The core adds it once
-to the root-relative URLs of the bootstrap document: runtime, main, source,
-close, companions and root-relative `Page.css` URLs. The owner cookie is set
+to the root-relative URLs of the bootstrap document: runtime, rpc, close,
+companions and root-relative `Page.css` URLs. The owner cookie is set
 with `Path=/py`, or `Path=/` without a prefix.
 
 How the prefix is given depends on the framework:
@@ -156,11 +164,13 @@ Block ID: **GP-005-025**.
   answer the file with its media type; the map comes before the companions and
   the pages.
 - **Owner cookie.** The first `GET` of a page sets `gramlot_owner` (`HttpOnly`,
-  `SameSite=Lax`) with a random token when the browser sends none. `main`,
-  `source` and `close` succeed only with the cookie of the owner of the page.
-  The cookie identifies a browser. It is not authentication.
-- **Request limit.** Protocol requests must be `POST` with
-  `Content-Type: application/json`. A body above 4096 bytes answers 413.
+  `SameSite=Lax`) with a random token when the browser sends none. A call of
+  another cookie answers the outcome `page_expired`, and `close` forgets only a
+  page of the same cookie. The cookie identifies a browser. It is not
+  authentication.
+- **Protocol requests.** `/gramlot/rpc` and `/gramlot/close` accept `POST` with
+  `Content-Type: application/json`. The adapters fix no body size; a web server
+  in front may set one.
 - **Lifetime and capacity.** `page_ttl` (seconds, default `1800`) and
   `max_pages` (default `1000`) are passed to `GramlotFileServer`. A page that is not
   closed expires after `page_ttl`. The opening after `max_pages` open pages

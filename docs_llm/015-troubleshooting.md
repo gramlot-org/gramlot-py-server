@@ -58,7 +58,8 @@ none. Serve it from the application or the proxy, or ignore it.
 
 Block ID: **GP-015-010**.
 
-**404 `Unknown page` on `/gramlot/main` or `/gramlot/source`.** One of these:
+**The outcome `page_expired` from `/gramlot/rpc`.** The response is 200 with
+`"error": {"code": "page_expired", …}`. One of these:
 
 - the page ID is expired (`page_ttl`, default 30 minutes);
 - the server restarted;
@@ -71,11 +72,16 @@ Block ID: **GP-015-010**.
 Reload the page. For the worker case keep one worker, or make the proxy keep a
 browser on the same one.
 
-**404 `Unknown Source method`.** The request names `main` or a method that
-the page does not expose as a Source method. Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+**The outcome `not_found`.** The envelope names a fragment or an endpoint that
+the page does not declare for its `contentType`: `data` with the name `main`
+included. Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
 
-**500 on `/gramlot/source`.** The Source method raised. The server log holds
-the traceback.
+**The outcome `application_error`.** The method of the page raised: `name` and
+`message` are those of the exception. With `GRAMLOT_DEV=DEBUG` the error also
+carries `details`, the traceback.
+
+**The outcome `not_authenticated`.** The endpoint has an `auth` rule. No adapter
+of this package knows an identity, so every rule is closed.
 
 **503 `Page capacity reached`.** `max_pages` pages are open and not expired.
 Raise `max_pages`, lower `page_ttl`, or make sure pages are closed.
@@ -88,9 +94,14 @@ Block ID: **GP-015-015**.
 
 - 415 `Expected application/json`: a protocol request without
   `Content-Type: application/json`. Parameters such as `charset` are accepted.
-- 413 `Request too large`: a body above 4096 bytes.
-- 400 `Invalid JSON request`: the body is not a JSON object with a string
-  `pageId`. 400 `Source params must be a dictionary`: `params` is not an object.
+- 400 `Request body is not UTF-8`: the body bytes are not UTF-8 text.
+- 400 `Invalid envelope`: `call` refused the body of `/gramlot/rpc`. The body is
+  not TYTX JSON text of an object; `id`, `pageId`, `contentType` or `name` is
+  not a string; `contentType` is neither `source` nor `data`; or `params` is
+  not an object.
+- 400 `Invalid JSON request`: the body of `/gramlot/close` is not a JSON
+  object with a string `pageId`.
+- 413 from a web server in front: the adapters fix no body size, a proxy may.
 - A method that a path does not accept is refused. The status differs by
   framework: see the endpoint table of each guide. Django with
   `CsrfViewMiddleware` answers 403 to a `POST` on a page or companion URL.
@@ -111,7 +122,7 @@ command `gramlot` reports the same case as
 without `gramlot-examples` as `The gallery needs gramlot-examples: …`; the
 other messages of the command are in [The gramlot command](020-command.md).
 
-**Two cores.** The package declares `gramlot>=0.2.12`. `pip show gramlot`
+**Two cores.** The package declares `gramlot>=0.2.14`. `pip show gramlot`
 reports the version and the location of the core that Python imports. When a
 copy from PyPI and a copy installed in editable mode from a checkout are both
 present, the report names the one that wins. Uninstall the other, or keep one

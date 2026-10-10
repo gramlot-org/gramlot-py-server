@@ -13,10 +13,9 @@ from secrets import token_urlsafe
 from genro_routes import RoutingClass, route
 from gramlot.server import (
     GramlotFileServer,
-    ServerCapacity,
-    PageExpired,
+    InvalidRequest,
     PageNotFound,
-    SourceNotFound,
+    ServerCapacity,
     runtime_asset,
 )
 from kajenn import (
@@ -30,7 +29,6 @@ from kajenn import (
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
-MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
@@ -91,12 +89,8 @@ class _Protocol(RoutingClass):
         self.application = application
 
     @route(media_type="application/json")
-    async def main(self, _request, body_raw=None, **_query):
-        return await self.application.operation(_request, body_raw, "main")
-
-    @route(media_type="application/json")
-    async def source(self, _request, body_raw=None, **_query):
-        return await self.application.operation(_request, body_raw, "source")
+    async def rpc(self, _request, body_raw=None, **_query):
+        return await self.application.operation(_request, body_raw, "rpc")
 
     @route(media_type="application/json")
     async def close(self, _request, body_raw=None, **_query):
@@ -106,8 +100,9 @@ class _Protocol(RoutingClass):
 class Application(RoutedApplication):
     """A Kajenn routed application backed by ``gramlot.server.GramlotFileServer``.
 
-    Declare it in the site recipe with ``request(body="raw")``: the protocol
-    reads JSON with ``json.loads``, not with TYTX hydration. The application's
+    Declare it in the site recipe with ``request(body="raw")``: the request
+    envelope reaches ``GramlotServer.call`` as the TYTX text the browser sent,
+    without Kajenn's TYTX hydration. The application's
     Kajenn ``mount`` is passed to ``open_page`` as the mount prefix of browser
     URLs. The mount without the final slash (``/py``) answers 301 to ``/py/``:
     pages link each other with relative URLs. Kajenn routes ``/py`` and ``/py/``
@@ -146,8 +141,7 @@ class Application(RoutedApplication):
         self.gramlot_server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
-            main_url="/gramlot/main",
-            source_url="/gramlot/source",
+            rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
@@ -233,37 +227,26 @@ class Application(RoutedApplication):
         content_type = str(request.content_type or "").split(";", 1)[0].strip().lower()
         if content_type != "application/json":
             raise HTTPUnsupportedMediaType("Expected application/json")
-        raw = body_raw or b""
-        if len(raw) > MAX_REQUEST_BYTES:
-            raise HTTPException(413, "Request too large")
         try:
-            payload = json.loads(raw)
-            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-                raise ValueError
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
-            raise HTTPBadRequest("Invalid JSON request") from error
-        if operation == "source" and not isinstance(payload.get("method"), str):
-            raise HTTPBadRequest("Source method must be a string")
-        if operation == "source" and not isinstance(payload.get("params", {}), dict):
-            raise HTTPBadRequest("Source params must be a dictionary")
+            text = (body_raw or b"").decode()
+        except UnicodeDecodeError as error:
+            raise HTTPBadRequest("Request body is not UTF-8") from error
         owner = request.cookies.get(OWNER_COOKIE)
         request.response.set_header("Cache-Control", "no-store")
+        if operation == "rpc":
+            try:
+                result: str = await self.gramlot_server.call(text, owner=owner)
+            except InvalidRequest as error:
+                raise HTTPBadRequest("Invalid envelope") from error
+            return result
         try:
-            result: str
-            if operation == "main":
-                result = await self.gramlot_server.main(payload["pageId"], owner=owner)
-            elif operation == "source":
-                result = await self.gramlot_server.source(
-                    payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
-                )
-            else:
-                self.gramlot_server.close_page(payload["pageId"], owner=owner)
-                result = json.dumps({"ok": True})
-        except PageExpired as error:
-            raise HTTPNotFound("Unknown page") from error
-        except SourceNotFound as error:
-            raise HTTPNotFound("Unknown Source method") from error
-        return result
+            payload = json.loads(text)
+            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
+                raise ValueError("Missing pageId")
+        except ValueError as error:
+            raise HTTPBadRequest("Invalid JSON request") from error
+        self.gramlot_server.close_page(payload["pageId"], owner=owner)
+        return json.dumps({"ok": True})
 
 
 def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, mount_path: str = "",

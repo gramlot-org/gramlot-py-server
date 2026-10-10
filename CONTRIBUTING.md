@@ -4,7 +4,7 @@
 
 ```sh
 python -m venv .venv
-.venv/bin/pip install "gramlot>=0.2.12" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery,test]"
+.venv/bin/pip install "gramlot>=0.2.14" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery,test]"
 .venv/bin/pip install ruff mypy      # lint and type checks, configured in pyproject.toml
 .venv/bin/pip install -e ".[docs]"   # documentation only
 git config core.hooksPath hooks

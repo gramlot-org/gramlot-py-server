@@ -1,3 +1,4 @@
+import datetime
 import json
 import re
 from importlib.resources import files
@@ -11,6 +12,7 @@ from kajenn.config.templates import DefaultConfiguration
 from gallery_checks import check_index_main, expected, page_id, staged
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.kajenn import Application
+from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
 
 
 def test_public_api_excludes_the_generic_asgi_factory():
@@ -78,38 +80,39 @@ async def test_protocol_owner_limits_asset_and_close(tmp_path):
         asset = await client.get("/assets/gramlot.js")
         assert asset.status_code == 200
         assert asset.headers["content-type"].startswith("text/javascript")
-        main = await client.post("/gramlot/main", json={"pageId": page_id})
+        assert '"rpcUrl":"/page/gramlot/rpc"' in document.text
+
+        async def rpc(sender, *args, **kwargs):
+            return await sender.post("/gramlot/rpc", content=envelope(page_id, *args, **kwargs),
+                                     headers=RPC_HEADERS)
+
+        main = await rpc(client)
+        assert main.status_code == 200
         assert main.headers["content-type"].startswith("application/json")
-        assert from_tytx(main.text).nodes[0].value == "Hello"
-        remote = await client.post(
-            "/gramlot/source",
-            json={"pageId": page_id, "method": "details", "params": {"name": "Grace"}},
-        )
-        assert from_tytx(remote.text).nodes[0].value == "Grace"
-        typed = await client.post(
-            "/gramlot/source",
-            json={"pageId": page_id, "method": "kind", "params": {"value": "10::L"}},
-        )
-        assert from_tytx(typed.text).nodes[0].value == "str"
-        assert (await client.post("/gramlot/source", json={"pageId": page_id, "method": "missing"})).status_code == 404
+        assert main.headers["cache-control"] == "no-store"
+        assert from_tytx(rpc_source(main.text)).nodes[0].value == "Hello"
+        remote = await rpc(client, "details", {"name": "Grace"})
+        assert from_tytx(rpc_source(remote.text)).nodes[0].value == "Grace"
+        # The raw body reaches call as TYTX text: the date arrives typed, decoded once by the core.
+        typed = await rpc(client, "kind", {"value": datetime.date(2020, 1, 1)})
+        assert from_tytx(rpc_source(typed.text)).nodes[0].value == "date"
+        assert rpc_outcome((await rpc(client, "missing")).text) == "not_found"
         for method in ("fail_lookup", "fail_runtime"):
-            response = await client.post(
-                "/gramlot/source", json={"pageId": page_id, "method": method}
-            )
-            assert response.status_code == 500
-        assert (await client.post("/gramlot/main", content="{}",
+            response = await rpc(client, method)
+            assert response.status_code == 200
+            assert rpc_outcome(response.text) == "application_error"
+        assert (await client.post("/gramlot/rpc", content="{}",
                                   headers={"content-type": "text/plain"})).status_code == 415
-        assert (await client.post("/gramlot/main", content="broken",
-                                  headers={"content-type": "application/json"})).status_code == 400
-        assert (await client.post("/gramlot/main", content=b"x" * 4097,
-                                  headers={"content-type": "application/json"})).status_code == 413
+        assert (await client.post("/gramlot/rpc", content="broken", headers=RPC_HEADERS)).status_code == 400
+        assert (await client.post("/gramlot/rpc", content=b"\xff", headers=RPC_HEADERS)).status_code == 400
+        assert (await client.post("/gramlot/close", content="{}", headers=RPC_HEADERS)).status_code == 400
         outsider = client_for(server)
-        assert (await outsider.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+        assert rpc_outcome((await rpc(outsider)).text) == "page_expired"
         assert (await outsider.post("/gramlot/close", json={"pageId": page_id})).status_code == 200
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 200
+        assert (await rpc(client)).status_code == 200
         await outsider.aclose()
         assert (await client.post("/gramlot/close", json={"pageId": page_id})).json() == {"ok": True}
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+        assert rpc_outcome((await rpc(client)).text) == "page_expired"
 
 
 @pytest.mark.asyncio
@@ -121,8 +124,8 @@ async def test_multi_segment_page_paths(tmp_path):
         nested = await client.get("/admin/users/detail")
         assert nested.status_code == 200
         assert "<title>Nested</title>" in nested.text
-        main = await client.post("/gramlot/main", json={"pageId": page_id_of(nested)})
-        assert from_tytx(main.text).nodes[0].value == "Nested"
+        main = await client.post("/gramlot/rpc", content=envelope(page_id_of(nested)), headers=RPC_HEADERS)
+        assert from_tytx(rpc_source(main.text)).nodes[0].value == "Nested"
         assert (await client.get("/admin/users/missing")).status_code == 404
         assert (await client.get("/admin/_private")).status_code == 404
 
@@ -132,7 +135,7 @@ async def test_http_method_filter(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     async with client_for(site(tmp_path)) as client:
         assert (await client.post("/", json={})).status_code == 405
-        assert (await client.get("/gramlot/main")).status_code == 405
+        assert (await client.get("/gramlot/rpc")).status_code == 405
         assert (await client.put("/assets/gramlot.js")).status_code == 405
         head = await client.head("/assets/gramlot.js")
         assert head.status_code == 200
@@ -144,7 +147,8 @@ async def test_requires_raw_body(tmp_path):
     (tmp_path / "index.py").write_text(PAGE)
     async with client_for(site(tmp_path, raw=False)) as client:
         page_id = page_id_of(await client.get("/"))
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 500
+        main = await client.post("/gramlot/rpc", content=envelope(page_id), headers=RPC_HEADERS)
+        assert main.status_code == 500
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
@@ -315,8 +319,8 @@ async def test_gallery_under_the_mount_path(tmp_path):
             assert response.status_code == 200, url
             assert response.headers["content-type"].startswith(kind), url
         document = (await client.get("/py/")).text
-        main = await client.post("/py/gramlot/main", json={"pageId": page_id(document)})
-        check_index_main(main.text)
+        main = await client.post("/py/gramlot/rpc", content=envelope(page_id(document)), headers=RPC_HEADERS)
+        check_index_main(rpc_source(main.text))
 
 
 @pytest.mark.asyncio
@@ -333,9 +337,9 @@ async def test_empty_mount_serves_the_pages_at_the_site_root(tmp_path):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         document = await client.get("/")
         assert document.status_code == 200
-        assert '"mainUrl":"/gramlot/main"' in document.text
+        assert '"rpcUrl":"/gramlot/rpc"' in document.text
         assert "Path=/;" in document.headers["set-cookie"]
-        main = await client.post("/gramlot/main", json={"pageId": page_id_of(document)})
+        main = await client.post("/gramlot/rpc", content=envelope(page_id_of(document)), headers=RPC_HEADERS)
         assert main.status_code == 200
         assert (await client.get("/assets/gramlot.js")).status_code == 200
 
@@ -357,6 +361,8 @@ async def test_shutdown_forgets_every_page(tmp_path):
     server = site(tmp_path)
     async with client_for(server) as client:
         page_id = page_id_of(await client.get("/"))
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 200
+        main = await client.post("/gramlot/rpc", content=envelope(page_id), headers=RPC_HEADERS)
+        assert main.status_code == 200
         server.applications["pages"].on_shutdown()
-        assert (await client.post("/gramlot/main", json={"pageId": page_id})).status_code == 404
+        expired = await client.post("/gramlot/rpc", content=envelope(page_id), headers=RPC_HEADERS)
+        assert rpc_outcome(expired.text) == "page_expired"

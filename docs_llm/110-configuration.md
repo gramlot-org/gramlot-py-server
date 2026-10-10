@@ -94,8 +94,9 @@ Block ID: **GP-110-020**.
 The first `GET` of a page sets the cookie `gramlot_owner` (`HttpOnly`,
 `SameSite=Lax`, `Path` as in section 010) with a random token when the browser
 sends none. Every page opened by that browser is registered with this token as
-its owner. `main`, `source` and `close` succeed only when the request carries
-the cookie of the owner. Otherwise the page is "Unknown" and the answer is 404.
+its owner. A call to `/gramlot/rpc` succeeds only when the request carries the
+cookie of the owner; otherwise the answer is the outcome `page_expired`.
+`close` forgets only a page of the same cookie.
 A page ID is not a login: the cookie identifies a browser, not a user. The
 application adds its own authentication in front of the adapter.
 
@@ -105,11 +106,13 @@ application adds its own authentication in front of the adapter.
 
 Block ID: **GP-110-025**.
 
-- Protocol requests (`main`, `source`, `close`) must be `POST` with
+- Protocol requests (`/gramlot/rpc`, `/gramlot/close`) must be `POST` with
   `Content-Type: application/json`. Another media type answers 415.
-- A request body above 4096 bytes answers 413.
-- A body that is not a JSON object with a string `pageId` answers 400.
-  `params` of a Source request must be a JSON object.
+- The adapter fixes no request body size. A web server in front may set one
+  and answer 413.
+- A body that is not UTF-8 answers 400. A body of `/gramlot/rpc` that
+  `GramlotServer.call` refuses as an envelope answers 400; a body of
+  `/gramlot/close` that is not a JSON object with a string `pageId` answers 400.
 - Every response of this adapter carries `Cache-Control: no-store`, the runtime
   included.
 - The page registry lives in the process: pages opened by one worker are

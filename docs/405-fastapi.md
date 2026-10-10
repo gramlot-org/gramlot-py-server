@@ -115,25 +115,26 @@ app = Application(PAGES, mount_path="/py", title="Pages")
 Block ID: **GP-405-020**.
 
 - **Routes.** `/assets/gramlot.js` accepts `GET` and `HEAD`.
-  `/gramlot/main`, `/gramlot/source` and `/gramlot/close` accept `POST`. `/`
+  `/gramlot/rpc` and `/gramlot/close` accept `POST`. `/`
   and `/{page_path:path}` accept `GET` and `HEAD` and serve the pages, the
   files of `assets` and the companions.
 - **`HEAD` on a page.** The adapter answers 405 with `Allow: GET`. `HEAD` on a
   companion or a file of `assets` answers 200 without a body.
 - **Other methods.** FastAPI answers them with 405, the JSON body
   `{"detail": "Method Not Allowed"}` and `Allow: GET, HEAD`. A `GET` on
-  `/gramlot/main`, `/gramlot/source` or `/gramlot/close` matches the page
-  route, which answers 405 with `Allow: POST`.
+  `/gramlot/rpc` or `/gramlot/close` matches the page route, which answers 405
+  with `Allow: POST`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
   Error messages are plain text bodies without a `Content-Type` header.
-- **Request body.** A `Content-Length` above 4096 answers 413 before the body
-  is read. The body is read in chunks and answers 413 as soon as it passes
-  4096 bytes. The media type of `Content-Type` is compared with
+- **Request body.** The protocol endpoints read the whole body and pass it to
+  `GramlotServer.call` as text. The adapter fixes no size; a web server in
+  front may set one. The media type of `Content-Type` is compared with
   `application/json`; parameters such as `charset` are ignored.
-- **Errors.** An exception of the page's own code reaches FastAPI, which
-  answers 500.
+- **Errors.** An exception of the page's own code while a page opens reaches
+  FastAPI, which answers 500. In a call through `/gramlot/rpc` it is the outcome
+  `application_error` of a 200 response.
 - **Workers.** The page registry lives in the process. Run one worker, or keep
   a browser on the same worker.
 
@@ -162,12 +163,12 @@ Module functions, outside `__all__`:
   - `mount(app)`: includes the router and registers the shutdown handler.
   - `shutdown()`: forgets every open page.
   - `server`: the core `GramlotFileServer` built on `pages` with the URLs
-    `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source`, `/gramlot/close`.
+    `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
-  - `asset`, `page`, `static`, `companion`, `main`, `source`, `close`,
-    `redirect`: the endpoints.
+  - `asset`, `page`, `static`, `companion`, `rpc`, `close`, `redirect`: the
+    route functions.
 
 | Method and path | Answer |
 | --- | --- |
@@ -179,7 +180,7 @@ Module functions, outside `__all__`:
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
-| `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
 | other methods | 405 from FastAPI, with `Allow`; a `GET` on `/gramlot/*` answers 405 with `Allow: POST` |
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.

@@ -35,10 +35,12 @@ and it does not talk to a database.
 
 Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
 
-No adapter announces the `auth` capability: an endpoint with an `auth` rule
-answers `not_authenticated`. The Kajenn adapter passes the envelope to `call`
-as the others do; mapping endpoints to genro-routes entries with the
-`AuthPlugin` is a later step.
+The Kajenn adapter announces the `auth` capability: it evaluates an `auth`
+rule with `genro_toolbox.tags_match` against the tags of the request's Kajenn
+avatar, as the genro-routes `AuthPlugin` does for route entries. Registering the
+endpoints as genro-routes `RouterNode`s with the other plugins belongs to
+genro-kajenn. The other adapters announce no capability: an endpoint with an
+`auth` rule answers `not_authenticated`.
 
 The current release is 0.2.6, on PyPI as `gramlot-py-server`.
 

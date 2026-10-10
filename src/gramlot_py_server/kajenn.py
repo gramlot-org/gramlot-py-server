@@ -11,6 +11,7 @@ from pathlib import Path
 from secrets import token_urlsafe
 
 from genro_routes import RoutingClass, route
+from genro_toolbox import tags_match
 from gramlot.server import (
     GramlotFileServer,
     InvalidRequest,
@@ -68,6 +69,56 @@ def theme_file(path: str) -> dict | None:
     return {"file": real, "type": media_type}
 
 
+class _KajennFileServer(GramlotFileServer):
+    """The core ``GramlotFileServer`` with the capability ``auth``.
+
+    ``evaluate_auth`` evaluates a rule with ``genro_toolbox.tags_match`` against
+    the tags of the Kajenn avatar of the owner, as the genro-routes ``AuthPlugin``
+    does for route entries. ``owner_tags`` maps each owner (the ``gramlot_owner``
+    cookie of one browser) to the set of tags of the avatar of its latest RPC
+    request, or to ``None`` when that request was anonymous. ``Application``
+    records it with ``record_avatar`` before every ``call``, so a login or a
+    logout is seen at the next call. The map holds at most ``max_pages``
+    owners, the oldest dropped first; ``close_page`` removes the owner of the
+    page and ``close_all`` empties it.
+    """
+
+    def __init__(self, pages: str | Path, **options) -> None:
+        super().__init__(pages, **options)
+        self.owner_tags: dict[str | None, set[str] | None] = {}
+
+    @property
+    def capabilities(self) -> list[str]:
+        """The capabilities announced in the bootstrap: ``auth``."""
+        return ["auth"]
+
+    def record_avatar(self, owner: str | None, avatar) -> None:
+        """Record the tags of ``avatar`` (a Kajenn ``Avatar`` or ``None``) for ``owner``."""
+        self.owner_tags.pop(owner, None)
+        self.owner_tags[owner] = None if avatar is None else set(avatar.tags)
+        while len(self.owner_tags) > self.max_pages:
+            del self.owner_tags[next(iter(self.owner_tags))]
+
+    def evaluate_auth(self, rule, *, owner):
+        """``None`` when the avatar tags of ``owner`` satisfy ``rule``, else
+        ``"not_authenticated"`` (no avatar) or ``"not_authorized"``."""
+        if rule is None:
+            return None
+        tags = self.owner_tags.get(owner)
+        if tags is None:
+            return "not_authenticated"
+        return None if tags_match(rule, tags) else "not_authorized"
+
+    def close_page(self, page_id, *, owner=None):
+        super().close_page(page_id, owner=owner)
+        self.owner_tags.pop(owner, None)
+
+    def close_all(self):
+        """Forget every registered page and every recorded avatar."""
+        super().close_all()
+        self.owner_tags = {}
+
+
 class _RuntimeAssets(RoutingClass):
     def __init__(self, application):
         self.application = application
@@ -99,6 +150,10 @@ class _Protocol(RoutingClass):
 
 class Application(RoutedApplication):
     """A Kajenn routed application backed by ``gramlot.server.GramlotFileServer``.
+
+    The application builds ``_KajennFileServer``, a ``GramlotFileServer`` with the
+    capability ``auth``: an ``auth`` rule is evaluated with ``tags_match`` against
+    the tags of the Kajenn avatar of the request (``request.avatar()``).
 
     Declare it in the site recipe with ``request(body="raw")``: the request
     envelope reaches ``GramlotServer.call`` as the TYTX text the browser sent,
@@ -138,7 +193,7 @@ class Application(RoutedApplication):
             raise ValueError("mount must be a single lowercase URL segment or empty")
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
-        self.gramlot_server = GramlotFileServer(
+        self.gramlot_server = _KajennFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
             rpc_url="/gramlot/rpc",
@@ -234,6 +289,7 @@ class Application(RoutedApplication):
         owner = request.cookies.get(OWNER_COOKIE)
         request.response.set_header("Cache-Control", "no-store")
         if operation == "rpc":
+            self.gramlot_server.record_avatar(owner, request.avatar())
             try:
                 result: str = await self.gramlot_server.call(text, owner=owner)
             except InvalidRequest as error:

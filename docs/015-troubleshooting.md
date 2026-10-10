@@ -80,8 +80,10 @@ included. Source methods (`@source`, `remoteSource`) are not yet part of the pag
 `message` are those of the exception. With `GRAMLOT_DEV=DEBUG` the error also
 carries `details`, the traceback.
 
-**The outcome `not_authenticated`.** The endpoint has an `auth` rule. No adapter
-of this package knows an identity, so every rule is closed.
+**The outcome `not_authenticated`.** The endpoint has an `auth` rule. The
+Uvicorn, Django, Flask and FastAPI adapters know no identity, so every rule is
+closed. The Kajenn adapter answers it when the request carries no Kajenn avatar
+([Kajenn](505-kajenn.md)).
 
 **503 `Page capacity reached`.** `max_pages` pages are open and not expired.
 Raise `max_pages`, lower `page_ttl`, or make sure pages are closed.

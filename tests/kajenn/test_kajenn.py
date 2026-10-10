@@ -8,7 +8,9 @@ import pytest
 from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
+from kajenn_server_app import ServerApplication
 
+from conformance_checks import conformance_pages
 from gallery_checks import check_index_main, expected, page_id, staged
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.kajenn import Application
@@ -366,3 +368,50 @@ async def test_shutdown_forgets_every_page(tmp_path):
         server.applications["pages"].on_shutdown()
         expired = await client.post("/gramlot/rpc", content=envelope(page_id), headers=RPC_HEADERS)
         assert rpc_outcome(expired.text) == "page_expired"
+
+
+def auth_site(pages):
+    """A site with Kajenn's Basic credentials: ``ada`` tagged ``admin``, ``bob`` tagged ``staff``.
+
+    Kajenn verifies the ``Authorization`` header through the route
+    ``/_server/auth/authenticate`` of its ``ServerApplication``.
+    """
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            credentials = cfg.authentication().credentials()
+            credentials.basic_user(username="ada", password="ada-secret", tags="admin,staff")
+            credentials.basic_user(username="bob", password="bob-secret", tags="staff")
+            applications = cfg.applications()
+            applications.application(code="_server", app_class=ServerApplication)
+            applications.application(
+                code="pages", mount="page", app_class=Application, pages=pages
+            ).request(body="raw")
+
+    return AsgiServer(config=Site)
+
+
+@pytest.mark.asyncio
+async def test_auth_capability_evaluates_the_avatar_tags(tmp_path):
+    conformance_pages(tmp_path)
+    async with client_for(auth_site(tmp_path)) as client:
+        document = await client.get("/")
+        assert '"capabilities":["auth"]' in document.text
+        page_id = page_id_of(document)
+
+        async def check_endpoint_auth(auth=None):
+            response = await client.post(
+                "/gramlot/rpc", content=envelope(page_id, "check_endpoint_auth", content_type="data"),
+                headers=RPC_HEADERS, auth=auth)
+            assert response.status_code == 200
+            return json.loads(response.text)
+
+        assert (await check_endpoint_auth())["error"]["code"] == "not_authenticated"
+        assert (await check_endpoint_auth(("bob", "bob-secret")))["error"]["code"] == "not_authorized"
+        assert (await check_endpoint_auth(("ada", "ada-secret")))["value"] == "allowed"
+        # The avatar is recorded at every call: an anonymous call after a login is a logout.
+        assert (await check_endpoint_auth())["error"]["code"] == "not_authenticated"
+        # An endpoint without a rule runs for anyone.
+        anonymous = await client.post(
+            "/gramlot/rpc", content=envelope(page_id, "check_endpoint", {"value": 3}, content_type="data"),
+            headers=RPC_HEADERS)
+        assert json.loads(anonymous.text)["value"] == 3

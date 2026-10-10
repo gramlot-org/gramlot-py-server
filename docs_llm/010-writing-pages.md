@@ -121,8 +121,10 @@ Endpoints (`@endpoint`, called from the Source by `dataRpc`) are described in
 [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html)
 of the core, section 100. The adapters answer every call, a fragment
 (`contentType` `source`) or an endpoint (`contentType` `data`), at
-`POST /gramlot/rpc`; see section 030, What is served. No adapter announces the
-`auth` capability: an endpoint with an `auth` rule answers `not_authenticated`.
+`POST /gramlot/rpc`; see section 030, What is served. Only the Kajenn adapter announces
+the `auth` capability and evaluates an `auth` rule against the tags of the Kajenn
+avatar ([Kajenn](505-kajenn.md)). In the other adapters an endpoint with an `auth`
+rule answers `not_authenticated`.
 
 <a id="gp-010-030"></a>
 

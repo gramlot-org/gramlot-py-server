@@ -21,7 +21,7 @@ Block ID: **GP-505-005**.
 python -m pip install "gramlot-py-server[kajenn]"
 ```
 
-The extra `kajenn` installs `kajenn>=0.1.0`, which provides the command
+The extra `kajenn` installs `kajenn>=0.4.1`, which provides the command
 `kajenn`.
 
 <a id="gp-505-010"></a>
@@ -161,8 +161,11 @@ Module functions, outside `__all__`:
 content_security_policy=None, assets=None, **kwargs)`: the other keyword arguments go to
 Kajenn's `RoutedApplication`. The site recipe passes them.
 
-- `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
-  `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
+- `gramlot_server`: a subclass of the core `GramlotFileServer` built on `pages`
+  with the URLs `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`. Its
+  `capabilities` is `["auth"]`; `record_avatar(owner, avatar)` records the avatar
+  tags of an owner in `owner_tags`, at most `max_pages` owners, emptied by
+  `close_all`; `evaluate_auth(rule, owner=…)` evaluates a rule against them.
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
 - `index`: the route of assets, pages and companions.
@@ -188,6 +191,19 @@ Paths below are without the mount.
 Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
 
 The Kajenn adapter passes the envelope to `GramlotServer.call` as the other
-adapters do and announces no capability. Mapping the endpoints to genro-routes
-entries with the `AuthPlugin`, which evaluates `auth` against the avatar tags,
-is a later step.
+adapters do and announces the capability `auth`: the bootstrap `config` carries
+`"capabilities": ["auth"]`. Before each call through `/gramlot/rpc` the
+application records the tags of the request's Kajenn avatar (`request.avatar()`)
+for the owner cookie, or no identity when the request is anonymous. The
+`evaluate_auth` of `gramlot_server` evaluates an `auth` rule with
+`genro_toolbox.tags_match` against those tags, the evaluation the genro-routes
+`AuthPlugin` applies to route entries: no avatar answers `not_authenticated`, tags
+that do not satisfy the rule answer `not_authorized`. The avatar comes from the
+Kajenn site: for example a `basic_user` with `tags` under
+`authentication().credentials()` of the site recipe, sent as HTTP Basic
+credentials. Kajenn verifies the `Authorization` header through the route
+`/_server/auth/authenticate`, so the site also declares Kajenn's
+`ServerApplication` (`kajenn_server_app`, code `_server`); without it a request
+with credentials answers 401. A rule with a syntax error is the outcome `application_error`.
+Registering the endpoints as genro-routes `RouterNode`s, with the OpenAPI, env
+and logging plugins, belongs to genro-kajenn, not to this adapter.

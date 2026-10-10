@@ -85,7 +85,7 @@ five adapters answer the same paths:
 2. **Bootstrap.** The module script imports the runtime from
    `/assets/gramlot.js`. It runs `PageBootstrap` with the page ID, the URLs
    `rpcUrl` and `closeUrl`, the `capabilities` of the server (none in these
-   adapters) and the resources of the page: the
+   adapters except Kajenn, which announces `auth`) and the resources of the page: the
    `Page.css` URLs, the companion stylesheet `hello.css` and the module that
    holds the page logic: `hello.js` beside the page file, else `hello_aux.js`.
    An import map before the script maps `@gramlot/gramlot/page` to the runtime

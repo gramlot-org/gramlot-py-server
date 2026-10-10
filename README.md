@@ -35,12 +35,14 @@ and it does not talk to a database.
 
 Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
 
-No adapter announces the `auth` capability: an endpoint with an `auth` rule
-answers `not_authenticated`. The Kajenn adapter passes the envelope to `call`
-as the others do; mapping endpoints to genro-routes entries with the
-`AuthPlugin` is a later step.
+The Kajenn adapter announces the `auth` capability: it evaluates an `auth`
+rule with `genro_toolbox.tags_match` against the tags of the request's Kajenn
+avatar, as the genro-routes `AuthPlugin` does for route entries. Registering the
+endpoints as genro-routes `RouterNode`s with the other plugins belongs to
+genro-kajenn. The other adapters announce no capability: an endpoint with an
+`auth` rule answers `not_authenticated`.
 
-The current release is 0.2.6, on PyPI as `gramlot-py-server`.
+The current release is 0.2.7, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 
@@ -233,7 +235,7 @@ pages to it.
 | | Verified |
 | --- | --- |
 | Gramlot core | 0.2.14 (PyPI `gramlot`) |
-| Gallery | `gramlot-examples` 0.2.9 (extra `gallery`) |
+| Gallery | `gramlot-examples` 0.2.10 (extra `gallery`) |
 | Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.1 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.142.2, Kajenn 0.1.1 |
 | Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |

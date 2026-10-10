@@ -77,7 +77,7 @@ outcome `page_expired` of `/gramlot/rpc`; `close` answers `{"ok": true}` to it
 and forgets nothing. The `contentType` `source` with the name `main` is the
 whole page, another name a fragment; `data` names an `@endpoint` method. No
 `auth` capability is announced: an endpoint with an `auth` rule answers
-`not_authenticated`.
+`not_authenticated`. The Kajenn adapter announces it ([Kajenn](505-kajenn.md)).
 
 <a id="gp-120-015"></a>
 
@@ -92,5 +92,5 @@ runtime URL, and one `<script type="module" nonce="…">`. The script imports `P
 the runtime URL and runs it with
 `{"config": {"pageId", "rpcUrl", "closeUrl", "rootId", "capabilities"},
 "resources": {"css": [url…], "js": [{"url", "group"}…]}}`. The URLs carry the
-mount prefix; `capabilities` is `[]` in every adapter of this package. The logic module, `<page>.js` or `<page>_aux.js`, has
+mount prefix; `capabilities` is `[]` in every adapter of this package except Kajenn, where it is `["auth"]`. The logic module, `<page>.js` or `<page>_aux.js`, has
 `"group": null`.

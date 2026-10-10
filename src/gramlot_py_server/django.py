@@ -15,17 +15,15 @@ from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from gramlot.server import (
     GramlotFileServer,
-    ServerCapacity,
-    PageExpired,
+    InvalidRequest,
     PageNotFound,
-    SourceNotFound,
+    ServerCapacity,
     runtime_asset,
 )
 
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
-MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
@@ -104,8 +102,7 @@ class Pages:
         self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
-            main_url="/gramlot/main",
-            source_url="/gramlot/source",
+            rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
@@ -113,8 +110,7 @@ class Pages:
         self.urls = [
             # Exempt from CSRF so that a POST answers 405 here, not 403 from the middleware.
             path("assets/gramlot.js", csrf_exempt(self.asset)),
-            path("gramlot/main", csrf_exempt(self.main)),
-            path("gramlot/source", csrf_exempt(self.source)),
+            path("gramlot/rpc", csrf_exempt(self.rpc)),
             path("gramlot/close", csrf_exempt(self.close)),
             path("", csrf_exempt(self.page)),
             path("<path:page_path>", csrf_exempt(self.page)),
@@ -188,11 +184,8 @@ class Pages:
         response["Cache-Control"] = "no-store"
         return response
 
-    def main(self, request):
-        return self._operation(request, "main")
-
-    def source(self, request):
-        return self._operation(request, "source")
+    def rpc(self, request):
+        return self._operation(request, "rpc")
 
     def close(self, request):
         return self._operation(request, "close")
@@ -202,34 +195,25 @@ class Pages:
             return HttpResponse(status=405)
         if request.content_type != "application/json":
             return HttpResponse("Expected application/json", status=415)
-        if len(request.body) > MAX_REQUEST_BYTES:
-            return HttpResponse("Request too large", status=413)
         try:
-            payload = json.loads(request.body)
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return HttpResponse("Invalid JSON request", status=400)
-        if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-            return HttpResponse("Invalid JSON request", status=400)
-        if operation == "source" and not isinstance(payload.get("method"), str):
-            return HttpResponse("Source method must be a string", status=400)
-        if operation == "source" and not isinstance(payload.get("params", {}), dict):
-            return HttpResponse("Source params must be a dictionary", status=400)
+            text = request.body.decode()
+        except UnicodeDecodeError:
+            return HttpResponse("Request body is not UTF-8", status=400)
         owner = request.COOKIES.get(OWNER_COOKIE)
-        try:
-            if operation == "main":
-                result = async_to_sync(self.server.main)(payload["pageId"], owner=owner)
-            elif operation == "source":
-                result = async_to_sync(self.server.source)(
-                    payload["pageId"], payload.get("method"), payload.get("params", {}),
-                    owner=owner,
-                )
-            else:
-                self.server.close_page(payload["pageId"], owner=owner)
-                result = json.dumps({"ok": True})
-        except PageExpired:
-            return HttpResponse("Unknown page", status=404)
-        except SourceNotFound:
-            return HttpResponse("Unknown Source method", status=404)
+        if operation == "rpc":
+            try:
+                result = async_to_sync(self.server.call)(text, owner=owner)
+            except InvalidRequest:
+                return HttpResponse("Invalid envelope", status=400)
+        else:
+            try:
+                payload = json.loads(text)
+                if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
+                    raise ValueError("Missing pageId")
+            except ValueError:
+                return HttpResponse("Invalid JSON request", status=400)
+            self.server.close_page(payload["pageId"], owner=owner)
+            result = json.dumps({"ok": True})
         response = HttpResponse(result, content_type="application/json")
         response["Cache-Control"] = "no-store"
         return response

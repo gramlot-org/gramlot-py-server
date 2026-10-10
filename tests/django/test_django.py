@@ -12,6 +12,7 @@ from genro_tytx import from_tytx
 from gallery_checks import check_index_main, expected, page_id, staged
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.django import Pages
+from rpc_checks import envelope, rpc_outcome, rpc_source
 
 if not settings.configured:
     settings.configure(
@@ -44,31 +45,29 @@ def test_page_source_lifecycle_and_owner(tmp_path):
     response = client.get("/hello/")
     assert response.status_code == 200
     assert b"/hello/assets/gramlot.js" in response.content
-    assert b"/hello/gramlot/main" in response.content
+    assert b'"rpcUrl":"/hello/gramlot/rpc"' in response.content
     assert response.cookies["gramlot_owner"]["httponly"]
     page_id = re.search(rb'"pageId":"([0-9a-f]+)"', response.content).group(1).decode()
     asset = client.get("/hello/assets/gramlot.js")
     assert asset.status_code == 200
     assert b"Gramlot" in b"".join(asset.streaming_content)
 
-    main = client.post("/hello/gramlot/main", json.dumps({"pageId": page_id}),
-                       content_type="application/json")
+    def rpc(sender, *args, **kwargs):
+        return sender.post("/hello/gramlot/rpc", envelope(page_id, *args, **kwargs),
+                           content_type="application/json")
+
+    main = rpc(client)
     assert main.status_code == 200
-    assert from_tytx(main.content.decode()).nodes[0].value == "Hello Django"
-    source = client.post(
-        "/hello/gramlot/source",
-        json.dumps({"pageId": page_id, "method": "detail", "params": {"name": "Ada"}}),
-        content_type="application/json",
-    )
+    assert main["Content-Type"] == "application/json"
+    assert from_tytx(rpc_source(main.content)).nodes[0].value == "Hello Django"
+    source = rpc(client, "detail", {"name": "Ada"})
     assert source.status_code == 200
-    assert from_tytx(source.content.decode()).nodes[0].value == "Ada"
+    assert from_tytx(rpc_source(source.content)).nodes[0].value == "Ada"
     stranger = Client(enforce_csrf_checks=True)
-    assert stranger.post("/hello/gramlot/main", json.dumps({"pageId": page_id}),
-                         content_type="application/json").status_code == 404
+    assert rpc_outcome(rpc(stranger).content) == "page_expired"
     assert client.post("/hello/gramlot/close", json.dumps({"pageId": page_id}),
                        content_type="application/json").status_code == 200
-    assert client.post("/hello/gramlot/main", json.dumps({"pageId": page_id}),
-                       content_type="application/json").status_code == 404
+    assert rpc_outcome(rpc(client).content) == "page_expired"
 
 
 def test_rejects_invalid_requests(tmp_path):
@@ -89,19 +88,17 @@ def test_rejects_invalid_requests(tmp_path):
     assert opened.status_code == 200
     page_id = re.search(rb'"pageId":"([0-9a-f]+)"', opened.content).group(1).decode()
     assert client.get("/hello/").status_code == 503
-    endpoint = "/hello/gramlot/source"
+    endpoint = "/hello/gramlot/rpc"
     assert client.get(endpoint).status_code == 405
     assert client.post(endpoint, "{}", content_type="text/plain").status_code == 415
     assert client.post(endpoint, "{", content_type="application/json").status_code == 400
-    assert client.post(endpoint, " " * 4097, content_type="application/json").status_code == 413
-    assert client.post(
-        endpoint, json.dumps({"pageId": page_id, "method": "x", "params": []}),
-        content_type="application/json",
-    ).status_code == 400
-    assert client.post(
-        endpoint, json.dumps({"pageId": page_id, "method": "unknown"}),
-        content_type="application/json",
-    ).status_code == 404
+    assert client.post(endpoint, b"\xff", content_type="application/json").status_code == 400
+    sent = json.loads(envelope(page_id))
+    assert client.post(endpoint, json.dumps(sent | {"params": []}),
+                       content_type="application/json").status_code == 400
+    assert client.post("/hello/gramlot/close", "{}", content_type="application/json").status_code == 400
+    unknown = client.post(endpoint, envelope(page_id, "unknown"), content_type="application/json")
+    assert rpc_outcome(unknown.content) == "not_found"
 
 
 def test_application_errors_are_not_reported_as_missing_pages(tmp_path):
@@ -119,11 +116,9 @@ def test_application_errors_are_not_reported_as_missing_pages(tmp_path):
     client = Client(raise_request_exception=False)
     opened = client.get("/hello/")
     page_id = re.search(rb'"pageId":"([0-9a-f]+)"', opened.content).group(1).decode()
-    response = client.post(
-        "/hello/gramlot/main", json.dumps({"pageId": page_id}),
-        content_type="application/json",
-    )
-    assert response.status_code == 500
+    response = client.post("/hello/gramlot/rpc", envelope(page_id), content_type="application/json")
+    assert response.status_code == 200
+    assert rpc_outcome(response.content) == "application_error"
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
@@ -284,8 +279,8 @@ def test_gallery_under_the_mount_path(tmp_path):
         assert response.status_code == 200, url
         assert response["Content-Type"].startswith(kind), url
     document = client.get("/py/").content.decode()
-    main = client.post("/py/gramlot/main", json.dumps({"pageId": page_id(document)}), content_type="application/json")
-    check_index_main(main.content.decode())
+    main = client.post("/py/gramlot/rpc", envelope(page_id(document)), content_type="application/json")
+    check_index_main(rpc_source(main.content))
 
 
 def test_index_html_opens_the_page_of_its_folder(tmp_path):

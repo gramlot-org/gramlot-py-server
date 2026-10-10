@@ -8,6 +8,7 @@ from genro_tytx import from_tytx
 from gallery_checks import check_index_main, expected, page_id, staged
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.flask import mount_pages
+from rpc_checks import envelope, rpc_outcome, rpc_source
 
 PAGE = """from gramlot import Page as BasePage, source
 class Page(BasePage):
@@ -30,26 +31,34 @@ def test_protocol_owner_limits_asset_and_close(tmp_path):
     document = client.get("/")
     page_id = re.search(r'"pageId":"([^"]+)"', document.text).group(1)
     assert '"closeUrl":"/gramlot/close"' in document.text
+    assert '"rpcUrl":"/gramlot/rpc"' in document.text
     assert client.get("/assets/gramlot.js").status_code == 200
-    main = client.post("/gramlot/main", json={"pageId": page_id})
-    assert from_tytx(main.text).nodes[0].value == "Hello"
-    remote = client.post(
-        "/gramlot/source",
-        json={"pageId": page_id, "method": "details", "params": {"name": "Grace"}},
-    )
-    assert from_tytx(remote.text).nodes[0].value == "Grace"
-    assert client.post("/gramlot/source", json={"pageId": page_id, "method": "missing"}).status_code == 404
+
+    def rpc(sender, *args, **kwargs):
+        return sender.post("/gramlot/rpc", data=envelope(page_id, *args, **kwargs),
+                           content_type="application/json")
+
+    main = rpc(client)
+    assert main.status_code == 200
+    assert main.mimetype == "application/json"
+    assert from_tytx(rpc_source(main.text)).nodes[0].value == "Hello"
+    remote = rpc(client, "details", {"name": "Grace"})
+    assert from_tytx(rpc_source(remote.text)).nodes[0].value == "Grace"
+    assert rpc_outcome(rpc(client, "missing").text) == "not_found"
     for method in ("fail_lookup", "fail_runtime"):
-        assert client.post("/gramlot/source", json={"pageId": page_id, "method": method}).status_code == 500
-    assert client.post("/gramlot/main", data="{}", content_type="text/plain").status_code == 415
-    assert client.post("/gramlot/main", data=b"x" * 4097,
-                       content_type="application/json").status_code == 413
+        response = rpc(client, method)
+        assert response.status_code == 200
+        assert rpc_outcome(response.text) == "application_error"
+    assert client.post("/gramlot/rpc", data="{}", content_type="text/plain").status_code == 415
+    assert client.post("/gramlot/rpc", data=b"\xff", content_type="application/json").status_code == 400
+    assert client.post("/gramlot/rpc", data="{}", content_type="application/json").status_code == 400
+    assert client.post("/gramlot/close", data="{}", content_type="application/json").status_code == 400
     outsider = app.test_client()
-    assert outsider.post("/gramlot/main", json={"pageId": page_id}).status_code == 404
+    assert rpc_outcome(rpc(outsider).text) == "page_expired"
     assert outsider.post("/gramlot/close", json={"pageId": page_id}).status_code == 200
-    assert client.post("/gramlot/main", json={"pageId": page_id}).status_code == 200
+    assert rpc(client).status_code == 200
     assert client.post("/gramlot/close", json={"pageId": page_id}).json == {"ok": True}
-    assert client.post("/gramlot/main", json={"pageId": page_id}).status_code == 404
+    assert rpc_outcome(rpc(client).text) == "page_expired"
 
 
 def test_capacity_is_service_unavailable(tmp_path):
@@ -71,7 +80,8 @@ def test_prefixed_close_url_matches_route(tmp_path):
     assert '"closeUrl":"/nested/gramlot/close"' in document.text
     page_id = re.search(r'"pageId":"([^"]+)"', document.text).group(1)
     assert client.post("/nested/gramlot/close", json={"pageId": page_id}).status_code == 200
-    assert client.post("/nested/gramlot/main", json={"pageId": page_id}).status_code == 404
+    closed = client.post("/nested/gramlot/rpc", data=envelope(page_id), content_type="application/json")
+    assert rpc_outcome(closed.text) == "page_expired"
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
@@ -221,8 +231,8 @@ def test_gallery_under_the_mount_path(tmp_path):
         assert response.status_code == 200, url
         assert response.headers["Content-Type"].startswith(kind), url
     document = client.get("/py/").text
-    main = client.post("/py/gramlot/main", json={"pageId": page_id(document)})
-    check_index_main(main.text)
+    main = client.post("/py/gramlot/rpc", data=envelope(page_id(document)), content_type="application/json")
+    check_index_main(rpc_source(main.text))
 
 
 def test_index_html_opens_the_page_of_its_folder(tmp_path):

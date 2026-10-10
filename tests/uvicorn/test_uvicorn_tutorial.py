@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from gramlot_py_server.uvicorn import create_application
+from rpc_checks import RPC_HEADERS, envelope, rpc_source
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 PAGES = EXAMPLES / "pages"
@@ -21,9 +22,9 @@ async def test_tutorial_application_serves_the_bound_field_and_the_formula(load_
         assert document.status_code == 200
         assert "<title>Hello</title>" in document.text
         assert "'unsafe-eval'" in document.headers["content-security-policy"]
-        main = await client.post("/gramlot/main", json={"pageId": page_id(document.text)})
+        main = await client.post("/gramlot/rpc", content=envelope(page_id(document.text)), headers=RPC_HEADERS)
         assert main.status_code == 200
-        tags = source_tags(main.text)
+        tags = source_tags(rpc_source(main.text))
         assert tags["input"]["value"] == "^.name"
         assert tags["input"]["live"] is True
         assert tags["dataFormula"]["formula"] == "'Hello, ' + name"
@@ -46,7 +47,7 @@ async def test_tutorial_page_with_page_module_and_stylesheet_under_the_strict_pr
         assert companion.headers["content-type"] == "text/javascript; charset=utf-8"
         assert "greet(kwargs)" in companion.text
         assert (await client.get("/greeting.py")).status_code == 404
-        main = await client.post("/gramlot/main", json={"pageId": page_id(document.text)})
-        tags = source_tags(main.text)
+        main = await client.post("/gramlot/rpc", content=envelope(page_id(document.text)), headers=RPC_HEADERS)
+        tags = source_tags(rpc_source(main.text))
         assert tags["dataFormula"]["func"] == "greet"
         assert "formula" not in tags["dataFormula"]

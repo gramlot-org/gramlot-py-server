@@ -13,19 +13,17 @@ from secrets import token_urlsafe
 from flask import Blueprint, Flask, Response, request
 from gramlot.server import (
     GramlotFileServer,
-    ServerCapacity,
-    PageExpired,
+    InvalidRequest,
     PageNotFound,
-    SourceNotFound,
+    ServerCapacity,
     runtime_asset,
 )
 
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
-MAX_REQUEST_BYTES = 4096
 OWNER_COOKIE = "gramlot_owner"
-OPERATION_PATHS = {"/gramlot/main", "/gramlot/source", "/gramlot/close"}
+OPERATION_PATHS = {"/gramlot/rpc", "/gramlot/close"}
 COMPANION_MEDIA_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -102,8 +100,7 @@ class Pages:
         self.server = GramlotFileServer(
             pages,
             runtime_url="/assets/gramlot.js",
-            main_url="/gramlot/main",
-            source_url="/gramlot/source",
+            rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
             max_pages=max_pages,
@@ -113,8 +110,7 @@ class Pages:
         name = "gramlot_pages_" + (self.mount_path.strip("/") or "root").replace("/", "_")
         blueprint = Blueprint(name, __name__, url_prefix=self.mount_path or None)
         blueprint.add_url_rule("/assets/gramlot.js", "asset", self.asset, methods=["GET", "HEAD"])
-        blueprint.add_url_rule("/gramlot/main", "main", self.main, methods=["POST"])
-        blueprint.add_url_rule("/gramlot/source", "source", self.source, methods=["POST"])
+        blueprint.add_url_rule("/gramlot/rpc", "rpc", self.rpc, methods=["POST"])
         blueprint.add_url_rule("/gramlot/close", "close", self.close, methods=["POST"])
         if self.mount_path:
             blueprint.add_url_rule("", "mount", self.redirect, strict_slashes=False)
@@ -179,11 +175,8 @@ class Pages:
         return Response(body, content_type=COMPANION_MEDIA_TYPES[suffix],
                         headers={"Cache-Control": "no-store"})
 
-    def main(self) -> Response:
-        return self._operation("main")
-
-    def source(self) -> Response:
-        return self._operation("source")
+    def rpc(self) -> Response:
+        return self._operation("rpc")
 
     def close(self) -> Response:
         return self._operation("close")
@@ -191,36 +184,25 @@ class Pages:
     def _operation(self, operation: str) -> Response:
         if request.mimetype != "application/json":
             return Response("Expected application/json", status=415)
-        if request.content_length is not None and request.content_length > MAX_REQUEST_BYTES:
-            return Response("Request too large", status=413)
-        raw = request.get_data(cache=False)
-        if len(raw) > MAX_REQUEST_BYTES:
-            return Response("Request too large", status=413)
         try:
-            payload = json.loads(raw)
-            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-                raise ValueError
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
-            return Response("Invalid JSON request", status=400)
+            text = request.get_data(cache=False).decode()
+        except UnicodeDecodeError:
+            return Response("Request body is not UTF-8", status=400)
         owner = request.cookies.get(OWNER_COOKIE)
-        if operation == "source" and not isinstance(payload.get("method"), str):
-            return Response("Source method must be a string", status=400)
-        if operation == "source" and not isinstance(payload.get("params", {}), dict):
-            return Response("Source params must be a dictionary", status=400)
-        try:
-            if operation == "main":
-                result = asyncio.run(self.server.main(payload["pageId"], owner=owner))
-            elif operation == "source":
-                result = asyncio.run(self.server.source(
-                    payload["pageId"], payload.get("method"), payload.get("params", {}), owner=owner
-                ))
-            else:
-                self.server.close_page(payload["pageId"], owner=owner)
-                result = json.dumps({"ok": True})
-        except PageExpired:
-            return Response("Unknown page", status=404)
-        except SourceNotFound:
-            return Response("Unknown Source method", status=404)
+        if operation == "rpc":
+            try:
+                result = asyncio.run(self.server.call(text, owner=owner))
+            except InvalidRequest:
+                return Response("Invalid envelope", status=400)
+        else:
+            try:
+                payload = json.loads(text)
+                if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
+                    raise ValueError("Missing pageId")
+            except ValueError:
+                return Response("Invalid JSON request", status=400)
+            self.server.close_page(payload["pageId"], owner=owner)
+            result = json.dumps({"ok": True})
         return Response(result, mimetype="application/json", headers={"Cache-Control": "no-store"})
 
 

@@ -115,10 +115,14 @@ Named logic runs under both Content Security Policy profiles. Inline code (a
 
 Block ID: **GP-010-025**.
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute and `@endpoint`.
+Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
 
-The adapters still answer `POST /gramlot/source`; see
-section 030, What is served.
+Endpoints (`@endpoint`, called from the Source by `dataRpc`) are described in
+[Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html)
+of the core, section 100. The adapters answer every call, a fragment
+(`contentType` `source`) or an endpoint (`contentType` `data`), at
+`POST /gramlot/rpc`; see section 030, What is served. No adapter announces the
+`auth` capability: an endpoint with an `auth` rule answers `not_authenticated`.
 
 <a id="gp-010-030"></a>
 
@@ -136,7 +140,7 @@ Paths are shown without the mount prefix.
 | `GET`, `HEAD /themes/<file>` | a file of the themes packaged with the core, such as `/themes/gramlot-base/theme.css` |
 | `GET`, `HEAD` of a URL of the `assets` option | the file, with its media type |
 | `GET`, `HEAD` of a `.css` or `.js` file below the pages folder | the file |
-| `POST /gramlot/main`, `/gramlot/source`, `/gramlot/close` | the page protocol |
+| `POST /gramlot/rpc`, `/gramlot/close` | the page protocol: the envelopes of `GramlotServer.call`, the close of a page |
 
 Nothing else of the pages folder leaves the server: no `.py`, no `.md`, no
 other asset. Other static assets of the application live outside the pages

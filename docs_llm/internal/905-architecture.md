@@ -22,11 +22,15 @@ runs it. An adapter module imports no other adapter module; it imports
 `scaffold` and `gallery` of the package for its verbs (section 020).
 
 There is no shared module for the HTTP contract. Each adapter module defines its
-own copy of the small constants and helpers: `MAX_REQUEST_BYTES = 4096`,
-`OWNER_COOKIE = "gramlot_owner"`, `COMPANION_MEDIA_TYPES` for `.css` and `.js`,
-`THEMES`, `THEME_MEDIA_TYPES` and `theme_file`. `uvicorn.py` and
-`fastapi.py` also define their own `RequestTooLarge`. A change to the common
-contract is made in all five modules, with their tests.
+own copy of the small constants and helpers: `OWNER_COOKIE = "gramlot_owner"`,
+`COMPANION_MEDIA_TYPES` for `.css` and `.js`, `THEMES`, `THEME_MEDIA_TYPES` and
+`theme_file`. Each module has one `_operation` (Kajenn: `operation`) for
+`/gramlot/rpc` and `/gramlot/close`: it checks the media type (415), decodes
+the body as UTF-8 (400), passes the text of `rpc` to `GramlotServer.call`
+(400 on `InvalidRequest`, 200 with the response envelope otherwise) and reads
+`{pageId}` of `close`. The size limit `MAX_REQUEST_BYTES = 4096` and its 413
+left with core 0.2.14, which fixes no size. A change to the common contract is
+made in all five modules, with their tests.
 
 | Module | Public names | Framework object |
 | --- | --- | --- |
@@ -43,8 +47,8 @@ contract is made in all five modules, with their tests.
 Block ID: **GP-905-010**.
 
 Every adapter builds the core `GramlotFileServer` on the pages folder with the
-root-relative URLs `/assets/gramlot.js`, `/gramlot/main`, `/gramlot/source` and
-`/gramlot/close`, and passes `page_ttl` and `max_pages` to it. The URLs carry no
+root-relative URLs `/assets/gramlot.js`, `/gramlot/rpc` and `/gramlot/close`,
+and passes `page_ttl` and `max_pages` to it. The URLs carry no
 prefix. The adapter passes the mount prefix to `open_page` as `prefix`; the core
 adds it once to every root-relative URL of the bootstrap document. The request
 path carries the prefix and the adapter, or its framework, removes it before

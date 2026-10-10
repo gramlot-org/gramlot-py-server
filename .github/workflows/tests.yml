@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install the released core and the adapter with its extras
-        run: python -m pip install "gramlot>=0.2.12" -e ".[${{ matrix.extras || matrix.framework }},test]" coverage
+        run: python -m pip install "gramlot>=0.2.14" -e ".[${{ matrix.extras || matrix.framework }},test]" coverage
       - name: Show the core version
         run: python -m pip show gramlot
       - name: Test with coverage
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install "gramlot>=0.2.12" -e ".[test]"
+      - run: python -m pip install "gramlot>=0.2.14" -e ".[test]"
       - run: python -m pytest -q tests/test_readme.py tests/test_cli.py tests/test_gallery.py
 
   browser:
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: python -m pip install "gramlot>=0.2.12" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery]"
+      - run: python -m pip install "gramlot>=0.2.14" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery]"
       - name: Install Playwright Chromium
         run: |
           npm install --prefix "$RUNNER_TEMP/playwright" --no-fund --no-audit playwright

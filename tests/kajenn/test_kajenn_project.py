@@ -3,6 +3,7 @@ import httpx
 import pytest
 from kajenn import AsgiServer
 from project_checks import check_document, check_files, check_main
+from rpc_checks import RPC_HEADERS, envelope, rpc_source
 
 
 @pytest.mark.asyncio
@@ -19,5 +20,5 @@ async def test_new_project_serves_the_page_and_its_logic(new_project, capsys, so
         logic = await client.get("/pages/index.js")
         assert logic.headers["content-type"] == "text/javascript; charset=utf-8"
         assert "greeting(kwargs)" in logic.text
-        main = await client.post("/pages/gramlot/main", json={"pageId": page_id(document.text)})
-        check_main(source_tags(main.text))
+        main = await client.post("/pages/gramlot/rpc", content=envelope(page_id(document.text)), headers=RPC_HEADERS)
+        check_main(source_tags(rpc_source(main.text)))

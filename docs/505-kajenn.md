@@ -21,7 +21,7 @@ Block ID: **GP-505-005**.
 python -m pip install "gramlot-py-server[kajenn]"
 ```
 
-The extra `kajenn` installs `kajenn>=0.1.0`, which provides the command
+The extra `kajenn` installs `kajenn>=0.4.1`, which provides the command
 `kajenn`.
 
 <a id="gp-505-010"></a>

@@ -7,7 +7,6 @@ from gramlot_py_server.gallery import environment_catalogs, stage
 EXPECTED = [
     ("/", "text/html"),
     ("/e01", "text/html"),
-    ("/{environment}-01", "text/html"),
     ("/c03_aux.js", "text/javascript"),
     ("/pages/controllers/03_named_logic.js", "text/javascript"),
     ("/gallery/dist/gallery.js", "application/javascript"),
@@ -38,3 +37,4 @@ def check_index_main(source, prefix="/py"):
     """The Source of the gallery page carries the logo and the script under the mount path."""
     assert f"{prefix}/assets/branding/gramlot-logo-dark.svg" in source
     assert f"{prefix}/gallery/dist/gallery.js" in source
+    assert "Quick start" not in source

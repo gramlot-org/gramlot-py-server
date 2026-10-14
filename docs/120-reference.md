@@ -68,7 +68,9 @@ are plain text.
 | `POST /gramlot/close` | body `{"pageId": "…"}`; 200 `{"ok": true}`; 400 `Invalid JSON request` otherwise |
 | other methods on `/gramlot/*` | 405, `Allow: POST` |
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+Declare Source fragments with `@source` and mount them with `remote`;
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
+[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
 
 Common answers of the two protocol endpoints: 415
 `Expected application/json`; 400 `Request body is not UTF-8`. No body size is

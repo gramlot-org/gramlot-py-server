@@ -131,6 +131,13 @@ class Pages:
         return Response(body, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
     async def page(self, request: Request, page_path: str = "") -> Response:
+        if page_path == "app.webmanifest":
+            try:
+                manifest = await self.server.page_manifest(prefix=self.mount_path)
+            except PageNotFound:
+                return Response("Not found", status_code=404)
+            return Response("" if request.method == "HEAD" else json.dumps(manifest),
+                            media_type="application/manifest+json", headers={"Cache-Control": "no-store"})
         if "/" + page_path in OPERATION_PATHS:
             # The operation routes accept POST only; without this the GET falls through to the pages.
             return Response(status_code=405, headers={"Allow": "POST"})

@@ -33,7 +33,9 @@ choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+Declare Source fragments with `@source` and mount them with `remote`;
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
+[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
 
 The Kajenn adapter announces the `auth` capability: it evaluates an `auth`
 rule with `genro_toolbox.tags_match` against the tags of the request's Kajenn
@@ -42,7 +44,7 @@ endpoints as genro-routes `RouterNode`s with the other plugins belongs to
 genro-kajenn. The other adapters announce no capability: an endpoint with an
 `auth` rule answers `not_authenticated`.
 
-The current release is 0.2.7, on PyPI as `gramlot-py-server`.
+The current release is 0.2.8, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 

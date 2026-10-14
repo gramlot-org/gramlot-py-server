@@ -9,8 +9,8 @@ stylesheet ``<key>.css`` and ``<key>_aux.js``, which re-exports ``Logic`` from
 the URL of the logic module. The adapter serves the ``assets`` of
 ``build_gallery`` under the same mount path, each logic module as JavaScript.
 
-``gallery/<environment>/`` holds the catalogue of the environment, whose first
-family is the quick start of ``gramlot <environment> new``.
+Environment catalogues, when supplied, extend the common examples. Setup and
+quick-start instructions stay in the server documentation and project templates.
 """
 
 from __future__ import annotations

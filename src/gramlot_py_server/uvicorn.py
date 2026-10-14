@@ -138,6 +138,19 @@ class Application:
                 return
             path = path[len(self.mount_path):]
 
+        if path == "/app.webmanifest":
+            if method not in {"GET", "HEAD"}:
+                await self._send(send, 405, b"", "text/plain", [(b"allow", b"GET, HEAD")])
+                return
+            try:
+                manifest = await self.server.page_manifest(prefix=self.mount_path)
+            except PageNotFound:
+                await self._send(send, 404, b"Not found", "text/plain")
+                return
+            body = b"" if method == "HEAD" else json.dumps(manifest).encode()
+            await self._send(send, 200, body, "application/manifest+json")
+            return
+
         if path == "/assets/gramlot.js":
             if method not in {"GET", "HEAD"}:
                 await self._send(send, 405, b"", "text/plain", [(b"allow", b"GET, HEAD")])

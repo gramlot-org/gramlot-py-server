@@ -188,7 +188,9 @@ Paths below are without the mount.
 | `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
 | other methods | 405 `Method not allowed` |
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+Declare Source fragments with `@source` and mount them with `remote`;
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
+[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
 
 The Kajenn adapter passes the envelope to `GramlotServer.call` as the other
 adapters do and announces the capability `auth`: the bootstrap `config` carries
@@ -203,7 +205,106 @@ Kajenn site: for example a `basic_user` with `tags` under
 `authentication().credentials()` of the site recipe, sent as HTTP Basic
 credentials. Kajenn verifies the `Authorization` header through the route
 `/_server/auth/authenticate`, so the site also declares Kajenn's
-`ServerApplication` (`kajenn_server_app`, code `_server`); without it a request
+`ServerApplication` (`kajenn.server_app`, code `_server`); without it a request
 with credentials answers 401. A rule with a syntax error is the outcome `application_error`.
 Registering the endpoints as genro-routes `RouterNode`s, with the OpenAPI, env
 and logging plugins, belongs to genro-kajenn, not to this adapter.
+
+<a id="gp-505-030"></a>
+
+## 030 · Learn authorization through the existing Kajenn identity
+
+Block ID: **GP-505-030**.
+
+**Release stage:** core 0.2.14 endpoint rules, then 0.2.15 Source rules.
+**Goal:** distinguish an anonymous request, a refused identity and an allowed
+identity, then prove that the next anonymous request loses authorization.
+**Before this lesson:** [c11 Call on click](https://github.com/gramlot-org/gramlot-examples/blob/main/src/gramlot_examples/pages/controllers/11_call_on_click.md) and the site
+configuration above. This is a controlled adapter test walkthrough, not a new
+application login system.
+
+### Read the fixture
+
+`tests/kajenn/test_kajenn.py` already defines `auth_site(pages)`. Its site uses
+Kajenn's existing Basic credentials and `ServerApplication` from the current
+`kajenn.server_app` module. Older Kajenn installations used the separate import
+name `kajenn_server_app`; update Kajenn rather than adding an import fallback:
+
+```python
+from kajenn.server_app import ServerApplication
+```
+
+The existing configuration is:
+
+```python
+credentials = cfg.authentication().credentials()
+credentials.basic_user(username="ada", password="ada-secret", tags="admin,staff")
+credentials.basic_user(username="bob", password="bob-secret", tags="staff")
+applications = cfg.applications()
+applications.application(code="_server", app_class=ServerApplication)
+applications.application(
+    code="pages", mount="page", app_class=Application, pages=pages
+).request(body="raw")
+```
+
+These are local test credentials. The `_server` application verifies each
+request's identity; an owner cookie alone does not grant the `admin` tag.
+The shared page fixture declares an `@endpoint(auth="admin")` and a Source
+fragment containing a public span and `root.div(auth="admin")`.
+
+### Try it and predict the result
+
+Use the repository's configured development environment with the current
+released core. Source-element authorization requires core 0.2.15 or later; an
+older 0.2.14 installation can pass the endpoint test while failing the Source
+filtering test. Update the environment rather than copying a filter into the
+adapter:
+
+```sh
+python -m pip install --upgrade gramlot kajenn
+```
+
+Then run:
+
+```sh
+python -m pytest -q tests/kajenn/test_kajenn.py -k 'auth_capability or source_auth_filters'
+```
+
+Both tests retain the page owner while changing request credentials. Predict
+each row before reading its assertions:
+
+| Request identity | Protected endpoint | Source fragment |
+| --- | --- | --- |
+| Anonymous | `not_authenticated` | Public span only |
+| Bob, `staff` | `not_authorized` | Public span only |
+| Ada, `admin,staff` | `allowed` | Public span and protected branch |
+| Anonymous again | `not_authenticated` | Public span only |
+
+The Source response omits a refused branch before delivery. This differs from
+c11's `hidden=True` branch, which is present but not displayed. The final request
+proves that a previous allowed request does not authorize an anonymous one; it
+does not demonstrate a browser logout interface. The HTTP calls in these tests
+observe the protocol and are not application request code to copy.
+
+### Change it and check yourself
+
+In a local test copy, add `admin` to Bob's tags. Predict and update only Bob's
+expected endpoint outcome and protected-branch presence, then rerun the tests.
+
+**Answer:** Bob becomes allowed in both cases. Neither anonymous row changes.
+Restore the original fixture after the exercise. Page ownership and identity
+remain separate even when a single client makes all four calls.
+
+### The same example across stages
+
+c11 first taught an endpoint result/error and default refusal. Its later section
+adds server-side Source omission. Kajenn now supplies the existing identity to
+those same rules; the application needs no second authorization state in Data,
+manual hiding controller or alternative Source representation.
+
+### Limits and next step
+
+The common FileServer does not provide an identity. Named resource groups still
+require the separate genro-kajenn resource host; this authentication capability
+does not supply it. Continue with c12–c14 at the core 0.2.16 stage, keeping remote
+method names fixed and allowing only the documented variable parameters.

@@ -4,8 +4,8 @@
  * For each environment the gallery is started with --mount /py and without a prefix.
  * Under /py: /py answers 301 to /py/; the gallery page shows its logo and opens e01 in its
  * frame; every example it links starts without errors or failed requests; c03 calls its
- * Logic through the <key>_aux.js stub; <environment>-01 shows "Hello, Ada". Without a
- * prefix: the gallery, c03 and <environment>-01 at the site root.
+ * Logic through the <key>_aux.js stub. Without a prefix: the gallery and c03 at the
+ * site root. Setup quick starts are absent in every environment.
  */
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
@@ -73,9 +73,6 @@ const c03 = async page => {
     await page.fill('#price', '120');
     await page.waitForFunction(() => document.getElementById('final').textContent === '108');
 };
-const quickStart = async page => {
-    await page.waitForFunction(() => [...document.querySelectorAll('p')].some(p => p.textContent === 'Hello, Ada'));
-};
 
 let browser;
 try {
@@ -99,7 +96,8 @@ try {
                     }, null, {timeout: 10000}).catch(error => { throw new Error(`${label}: logo`, {cause: error}); });
                     const keys = await index.page.$$eval('a[id^="open-"]', links => links
                         .map(link => link.getAttribute('href')).filter(href => !href.startsWith('#')));
-                    assert.ok(keys.includes('e01') && keys.includes(`${environment}-01`), `${label}: links`);
+                    assert.ok(keys.includes('e01') && !keys.includes(`${environment}-01`), `${label}: links`);
+                    assert.equal((await index.page.request.get(`${gallery.url}/${environment}-01`)).status(), 404);
                     await index.page.click('#open-e01');
                     const frame = index.page.frameLocator('#frame-e01');
                     await frame.locator('body').waitFor();
@@ -107,12 +105,12 @@ try {
                         document.getElementById('frame-e01').contentWindow.gramlot?.state === 'started');
                     assert.deepEqual(index.errors, [], `${label} index`);
                     await index.page.close();
-                    const routes = mount ? keys : ['c03', `${environment}-01`];
+                    const routes = mount ? keys : ['c03'];
                     for (const key of routes) {
-                        const check = key === 'c03' ? c03 : key === `${environment}-01` ? quickStart : null;
+                        const check = key === 'c03' ? c03 : null;
                         await checkPage(browser, `${gallery.url}/${key}`, `${label} ${key}`, check);
                     }
-                    console.log(`PASS ${label}: gallery, ${routes.length} examples, Logic of c03, ${environment}-01`);
+                    console.log(`PASS ${label}: gallery, ${routes.length} examples, Logic of c03, no setup quick start`);
                 } finally {
                     gallery.close();
                 }

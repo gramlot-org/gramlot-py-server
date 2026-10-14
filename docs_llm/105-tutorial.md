@@ -189,3 +189,11 @@ follows `person.greeting`. These steps run in the browser. No request reaches
 the server while you type.
 
 Next: [Writing pages for these hosts](010-writing-pages.md).
+
+**Learning path.** Follow the [shared release-by-release example sequence](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015) after this
+environment's setup. Revisit examples when a later release simplifies the code;
+prerequisite links support that chronology. The gallery is a source viewer, not a file editor. Edit a
+separate project; Python Page runs on the server; its JavaScript Logic runs in the browser. Reload/reopen after saving; development reload is
+not automatic hot reload. The sequence explains inline and named Logic in their
+release context; use named Logic for reusable behavior. Inline examples require the
+documented CSP profile. Common examples do not cover every advanced case.

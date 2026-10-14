@@ -211,6 +211,15 @@ class Application(RoutedApplication):
         page_path = "/".join(segments)
         if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
             return self.redirect(_request)
+        if page_path == "app.webmanifest":
+            self.require_method(_request, "GET", "HEAD")
+            try:
+                manifest = await self.gramlot_server.page_manifest(prefix=self.prefix)
+            except PageNotFound as error:
+                raise HTTPNotFound("Not found") from error
+            _request.response.set_header("Cache-Control", "no-store")
+            body = b"" if _request.method == "HEAD" else json.dumps(manifest).encode()
+            return self.result_wrapper(body, media_type="application/manifest+json")
         asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
         if asset is not None:
             return self.static(_request, asset)

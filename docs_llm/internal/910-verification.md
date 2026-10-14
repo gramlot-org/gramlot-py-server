@@ -40,7 +40,7 @@ Playwright Chromium:
   `assets` map, the core theme, a Python page that takes its `Logic` from its
   page module); `scripts/verify_gallery_browser.mjs` starts
   `gramlot <environment> gallery` with and without `--mount /py` and opens the
-  gallery, every example it links, the `Logic` of c03 and `<environment>-01`.
+  gallery, every example it links, the `Logic` of c03 and the absence of environment quick-start routes.
 - `install`, one run per environment: `scripts/verify_install.py` installs the
   built wheel in a clean virtual environment, runs `gramlot <environment> new`,
   `pip install -r requirements.txt`, the printed start command and

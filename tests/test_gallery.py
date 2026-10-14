@@ -6,8 +6,7 @@ import pytest
 from gramlot_examples import build_gallery
 
 from gramlot_py_server import cli
-from gramlot_py_server.gallery import CATALOGS, environment_catalogs, examples_package, stage
-from gramlot_py_server.scaffold import TEMPLATES
+from gramlot_py_server.gallery import environment_catalogs, examples_package, stage
 
 ENVIRONMENTS = {
     "uvicorn": ["app.py"],
@@ -19,20 +18,14 @@ ENVIRONMENTS = {
 
 
 @pytest.mark.parametrize("environment", sorted(ENVIRONMENTS))
-def test_catalogue_of_each_environment_is_the_quick_start(environment):
+def test_environment_gallery_contains_common_examples_without_quick_start(environment):
     catalogs = environment_catalogs(environment)
-    assert catalogs == [(CATALOGS / environment / "catalog.json", CATALOGS / environment / "pages")]
-    families = build_gallery(catalogs)["families"]
-    family = families[-1]
-    assert family["key"] == f"{environment}_pages"
-    assert [example["key"] for example in family["examples"]] == [f"{environment}-01"]
-    folder = family["path"]
-    assert (folder / "01_quick_start.py").read_text() == (TEMPLATES / "pages" / "index.py").read_text()
-    assert (folder / "01_quick_start.js").read_text() == (TEMPLATES / "pages" / "index.js").read_text()
-    readme = (folder / "01_quick_start.md").read_text()
-    for name in ENVIRONMENTS[environment]:
-        assert f"```python\n{(TEMPLATES / environment / name).read_text()}```" in readme
-    assert f"gramlot {environment} new my-site" in readme
+    assert catalogs == []
+    gallery = build_gallery(catalogs)
+    assert gallery["routes"].keys() == build_gallery()["routes"].keys()
+    assert f"{environment}-01" not in gallery["routes"]
+    assert all(example["title"] != "Quick start"
+               for family in gallery["families"] for example in family["examples"])
 
 
 @pytest.mark.parametrize("prefix", ["/py", ""])
@@ -41,13 +34,13 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     index = (tmp_path / "index.py").read_text()
     assert f"logoUrl = '{prefix}/assets/branding/gramlot-logo-dark.svg'" in index
     assert f"galleryScript = '{prefix}/gallery/dist/gallery.js'" in index
-    assert str(CATALOGS / "uvicorn" / "catalog.json") in index
+    assert "catalogs = []" in index
     assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "e01.py").read_text()
     stub = (tmp_path / "c03_aux.js").read_text()
     assert stub == f'export {{Logic}} from "{prefix}/pages/controllers/03_named_logic.js";\n'
     assert assets["/pages/controllers/03_named_logic.js"]["type"] == "text/javascript; charset=utf-8"
-    assert (tmp_path / "uvicorn-01_aux.js").read_text() == (
-        f'export {{Logic}} from "{prefix}/pages/uvicorn_pages/01_quick_start.js";\n')
+    assert not (tmp_path / "uvicorn-01.py").exists()
+    assert not (tmp_path / "uvicorn-01_aux.js").exists()
     assert assets["/pages/controllers/03_named_logic.py"]["type"] == "text/plain"
     routes = build_gallery(environment_catalogs("uvicorn"))["routes"]
     for key, route in routes.items():

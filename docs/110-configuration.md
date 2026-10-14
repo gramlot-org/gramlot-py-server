@@ -143,3 +143,34 @@ core themes `/themes/…`, which every adapter serves without configuration. The
 is the `assets` part of `build_gallery` of `gramlot-examples`, which serves the
 example gallery. A URL outside the map follows the rules of
 [What is served](010-writing-pages.md).
+
+
+<a id="gp-110-035"></a>
+
+## 035 · An installable application root
+
+Block ID: **GP-110-035**. Development addition.
+
+Set `installable = True` and `app_icon = "/app-icon.png"` on `pages/index.py`,
+with the application's `title`. Serve that square 512×512 PNG through the existing
+asset map, for example:
+
+```python
+application = create_application("pages", assets={
+    "/app-icon.png": {"file": "assets/app-icon.png", "type": "image/png"},
+})
+```
+
+All five adapters expose GET/HEAD `<mount_path>/app.webmanifest`, with
+`application/manifest+json`. The default root Page method builds its JSON; override
+`manifest(self, *, base_url="./")` for additional fields. There is no `@endpoint`
+decorator or RPC envelope, and reading the manifest opens no page session. A
+disabled root answers 404; unsupported methods answer 405. Child pages do not
+advertise a manifest. The default icon path and launch/scope URLs include the
+mount prefix. Manifest content is public metadata.
+
+The gallery command supplies its icon asset automatically. Other applications
+can extend core `IndexPage` for the same navigation, iframe tabs and customizable
+footer: [authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-110).
+Use HTTPS or localhost to install; the server must remain running afterward.
+Safari on macOS Sonoma or later uses File → Add to Dock. No offline cache is added.

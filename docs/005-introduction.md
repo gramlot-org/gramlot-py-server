@@ -101,8 +101,9 @@ five adapters answer the same paths:
    `source` names a fragment, `data` an endpoint (`@endpoint`, called by
    `dataRpc`). A refused or failed call is an outcome in the response,
    `{"id", "contentType", "error": {"code", "name", "message"}}`, with HTTP 200.
-   Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API:
-   they arrive together with the `remote` grammar attribute.
+   Declare Source fragments with `@source` and mount them with `remote`;
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
+[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
 5. **Close.** When the browser disposes the page, or leaves it without keeping
    it in the back/forward cache, the runtime posts `{"pageId": …}` to
    `/gramlot/close`. The adapter forgets the page. A page that is never closed

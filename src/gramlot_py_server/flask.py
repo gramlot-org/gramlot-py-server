@@ -128,6 +128,13 @@ class Pages:
         return Response(body, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
 
     def page(self, page_path="") -> Response:
+        if page_path == "app.webmanifest":
+            try:
+                manifest = asyncio.run(self.server.page_manifest(prefix=self.mount_path))
+            except PageNotFound:
+                return Response("Not found", status=404)
+            return Response("" if request.method == "HEAD" else json.dumps(manifest),
+                            content_type="application/manifest+json", headers={"Cache-Control": "no-store"})
         if "/" + page_path in OPERATION_PATHS:
             # The operation rules accept POST only; without this the GET falls through to the pages.
             return Response(status=405, headers={"Allow": "POST"})

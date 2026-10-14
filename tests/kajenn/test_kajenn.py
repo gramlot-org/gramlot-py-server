@@ -8,7 +8,7 @@ import pytest
 from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
-from kajenn_server_app import ServerApplication
+from kajenn.server_app import ServerApplication
 
 from conformance_checks import conformance_pages
 from gallery_checks import check_index_main, expected, page_id, staged
@@ -415,3 +415,25 @@ async def test_auth_capability_evaluates_the_avatar_tags(tmp_path):
             "/gramlot/rpc", content=envelope(page_id, "check_endpoint", {"value": 3}, content_type="data"),
             headers=RPC_HEADERS)
         assert json.loads(anonymous.text)["value"] == 3
+
+@pytest.mark.asyncio
+async def test_source_auth_filters_each_request_avatar(tmp_path):
+    conformance_pages(tmp_path)
+    async with client_for(auth_site(tmp_path)) as client:
+        page_id = page_id_of(await client.get("/"))
+        for identity, allowed in [
+            (None, False),
+            (("bob", "bob-secret"), False),
+            (("ada", "ada-secret"), True),
+            (None, False),
+        ]:
+            response = await client.post(
+                "/gramlot/rpc", content=envelope(page_id, "check_fragment_auth"),
+                headers=RPC_HEADERS, auth=identity,
+            )
+            assert response.status_code == 200
+            tree = from_tytx(rpc_source(response.text))
+            assert tree.nodes[0].value == "check-public"
+            assert len(tree.nodes) == (2 if allowed else 1)
+            if allowed:
+                assert tree.nodes[1].value.nodes[0].value == "check-refused"

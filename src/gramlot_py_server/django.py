@@ -136,6 +136,15 @@ class Pages:
         return response
 
     def page(self, request, page_path=""):
+        if page_path == "app.webmanifest":
+            if request.method not in ("GET", "HEAD"):
+                return HttpResponse(status=405, headers={"Allow": "GET, HEAD"})
+            try:
+                manifest = async_to_sync(self.server.page_manifest)(prefix=self.mount_path)
+            except PageNotFound:
+                return HttpResponse("Not found", status=404)
+            return HttpResponse("" if request.method == "HEAD" else json.dumps(manifest),
+                                content_type="application/manifest+json", headers={"Cache-Control": "no-store"})
         asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
         if asset is not None:
             return self.static(request, asset)

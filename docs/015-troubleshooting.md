@@ -74,7 +74,9 @@ browser on the same one.
 
 **The outcome `not_found`.** The envelope names a fragment or an endpoint that
 the page does not declare for its `contentType`: `data` with the name `main`
-included. Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+included. Declare Source fragments with `@source` and mount them with `remote`;
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
+[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
 
 **The outcome `application_error`.** The method of the page raised: `name` and
 `message` are those of the exception. With `GRAMLOT_DEV=DEBUG` the error also

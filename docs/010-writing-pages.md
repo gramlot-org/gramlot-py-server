@@ -115,7 +115,9 @@ Named logic runs under both Content Security Policy profiles. Inline code (a
 
 Block ID: **GP-010-025**.
 
-Source methods (`@source`, `remoteSource`) are not yet part of the page-writing API: they arrive together with the `remote` grammar attribute.
+Declare Source fragments with `@source` and mount them with `remote`;
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
+[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
 
 Endpoints (`@endpoint`, called from the Source by `dataRpc`) are described in
 [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html)
@@ -149,3 +151,11 @@ other asset. Other static assets of the application live outside the pages
 folder; the `assets` option serves a list of them below the prefix, or the
 application and its web server serve them. The answers to other
 methods and paths differ between frameworks; each guide lists them.
+
+**Learning path.** Follow the [shared release-by-release example sequence](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015) after this
+environment's setup. Revisit examples when a later release simplifies the code;
+prerequisite links support that chronology. The gallery is a source viewer, not a file editor. Edit a
+separate project; Python Page runs on the server; its JavaScript Logic runs in the browser. Reload/reopen after saving; development reload is
+not automatic hot reload. The sequence explains inline and named Logic in their
+release context; use named Logic for reusable behavior. Inline examples require the
+documented CSP profile. Common examples do not cover every advanced case.

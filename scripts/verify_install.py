@@ -11,8 +11,8 @@ then:
    ``--find-links``, so the requirement resolves to WHEEL;
 3. the start command that ``new`` printed, then the page it printed in a real
    browser: it shows "Hello, Ada";
-4. ``gramlot ENVIRONMENT gallery --mount /py``, then ``/py/e01`` and
-   ``/py/ENVIRONMENT-01`` in a real browser.
+4. ``gramlot ENVIRONMENT gallery --mount /py``, then ``/py/e01`` in a real
+   browser; the removed setup route ``/py/ENVIRONMENT-01`` must return 404.
 
 ``--port`` serves the project on PORT instead of the port of the printed command,
 for a machine where that port is in use; without it the command runs as printed. Node.js runs scripts/verify_url_browser.mjs with PLAYWRIGHT_ENTRY.
@@ -28,6 +28,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+from urllib.error import HTTPError
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -121,7 +122,13 @@ def main():
 
         def check_gallery():
             browse(options.playwright, options.engines, gallery + "e01", "Hello, Gramlot!")
-            browse(options.playwright, options.engines, f"{gallery}{environment}-01", "Hello, Ada")
+            removed = f"{gallery}{environment}-01"
+            try:
+                urllib.request.urlopen(removed, timeout=10).close()
+            except HTTPError as error:
+                assert error.code == 404, f"{removed}: expected 404, got {error.code}"
+            else:
+                raise AssertionError(f"Removed setup page is still served: {removed}")
 
         serve(["gramlot", environment, "gallery", "--mount", "/py", "--port", str(port)], folder, env,
               folder / "gallery.log", gallery, check_gallery)

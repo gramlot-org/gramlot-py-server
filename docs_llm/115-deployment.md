@@ -94,7 +94,7 @@ These notes hold for every adapter of the package.
 
 Block ID: **GP-115-020**.
 
-- `gramlot-py-server[uvicorn]` installed with `gramlot>=0.2.14`;
+- `gramlot-py-server[uvicorn]` installed with `gramlot>=0.2.17`;
   `pip show gramlot` reports one version.
 - `mount_path` equal to the prefix the proxy routes, and the proxy passes the
   path unchanged (`proxy_pass` without a URI).

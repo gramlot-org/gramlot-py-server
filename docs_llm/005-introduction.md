@@ -41,7 +41,7 @@ does not talk to a database.
 
 Block ID: **GP-005-010**.
 
-Python 3.11 or later. The package declares `gramlot>=0.2.14`. Each adapter comes
+Python 3.11 or later. The package declares `gramlot>=0.2.17`. Each adapter comes
 with the extra of the same name, which installs its framework:
 
 | Extra | Module | Names | Guide |

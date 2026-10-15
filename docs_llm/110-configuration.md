@@ -149,7 +149,7 @@ example gallery. A URL outside the map follows the rules of
 
 ## 035 · An installable application root
 
-Block ID: **GP-110-035**. Development addition.
+Block ID: **GP-110-035**.
 
 Set `installable = True` and `app_icon = "/app-icon.png"` on `pages/index.py`,
 with the application's `title`. Serve that square 512×512 PNG through the existing

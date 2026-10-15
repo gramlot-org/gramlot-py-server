@@ -91,7 +91,7 @@ try {
                     }
                     // The logo may still be loading when the page has started: wait for it.
                     await index.page.waitForFunction(() => {
-                        const image = document.querySelector('.gallery-logo');
+                        const image = document.querySelector('.index-logo');
                         return image?.complete && image.naturalWidth > 0;
                     }, null, {timeout: 10000}).catch(error => { throw new Error(`${label}: logo`, {cause: error}); });
                     const keys = await index.page.$$eval('a[id^="open-"]', links => links

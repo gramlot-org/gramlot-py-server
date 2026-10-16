@@ -1,5 +1,7 @@
 # gramlot-py-server
 
+For an existing gallery, follow [the update procedure](docs/020-command.md#gp-020-025): update the active environment, restart and verify. Source checkouts require a separate browser build.
+
 [![tests](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gramlot-org/gramlot-py-server/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/gramlot-org/gramlot-py-server/branch/main/graph/badge.svg)](https://app.codecov.io/gh/gramlot-org/gramlot-py-server)
 [![Documentation](https://readthedocs.org/projects/gramlot-py-server/badge/?version=latest)](https://gramlot-py-server.readthedocs.io/en/latest/)

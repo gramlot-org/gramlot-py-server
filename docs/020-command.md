@@ -95,7 +95,7 @@ gramlot django gallery
 | `--catalog CATALOG PAGES` | none | adds the families of a `catalog.json` and its pages folder; repeatable |
 
 The gallery lists the common families of `gramlot-examples` (`e01`–`e13`,
-`b01`–`b11`, `c01`–`c17`). Setup quick starts remain in this server documentation
+`b01`–`b11`, and the controller lessons supplied by the installed examples package). Setup quick starts remain in this server documentation
 and in the projects created by `gramlot <environment> new`; they are not gallery
 sections or routes. Explicit `--catalog` extensions remain supported. Without
 `--mount` the gallery is the site root, `/`. With `--mount /py` the command
@@ -171,3 +171,41 @@ separate project; Python Page runs on the server; its JavaScript Logic runs in t
 not automatic hot reload. The sequence explains inline and named Logic in their
 release context; use named Logic for reusable behavior. Inline examples require the
 documented CSP profile. Common examples do not cover every advanced case.
+
+<a id="gp-020-025"></a>
+
+## 025 · Update a packaged Python gallery
+
+Block ID: **GP-020-025**.
+
+Stop the running gallery. Activate the **same virtual environment** that runs it.
+For Uvicorn and the common gallery:
+
+```sh
+python -m pip install --upgrade "gramlot-py-server[uvicorn,gallery]" gramlot gramlot-examples
+python -m pip check
+python -m pip show gramlot gramlot-examples gramlot-py-server
+python -c "import sys, gramlot, gramlot_examples, gramlot_py_server; print(sys.executable); print(gramlot.__file__); print(gramlot_examples.__file__); print(gramlot_py_server.__file__)"
+python -m gramlot_py_server.cli uvicorn gallery --port 8080
+```
+
+Keep your previous port/mount/catalog options. For another adapter, replace
+`uvicorn` and its extra with that adapter; FastAPI also needs the `uvicorn` extra.
+The explicit `python -m` start uses the interpreter just updated. Compare versions
+with the repositories' READMEs, rather than expecting equal version numbers.
+
+Name all three packages in the upgrade command: pip's default dependency strategy
+is `only-if-needed`, so upgrading just the adapter may keep an older core or
+examples package that still satisfies its minimum requirement. See
+[pip's upgrade options](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-U).
+
+**Published wheels contain the JavaScript bundles. No npm command is needed for
+this route.** If the printed module paths point into repository checkouts, or you
+use `PYTHONPATH`/editable installs, follow the
+[source-checkout procedure](https://github.com/gramlot-org/gramlot-examples/blob/main/docs/010-gallery.md#ge-010-050)
+instead; upgrading a wheel does not rebuild those source directories.
+
+Reload the browser after restarting. Verify Publish/Subscribe and the inspector's
+Styles tab using the [update checklist](https://github.com/gramlot-org/gramlot/blob/main/docs/public/018-quickstart.md#gc-018-025).
+If a newer menu opens a 404 page, check that the old process really stopped and
+that the browser uses the new process's port and mount path.

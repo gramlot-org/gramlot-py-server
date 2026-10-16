@@ -437,3 +437,86 @@ async def test_source_auth_filters_each_request_avatar(tmp_path):
             assert len(tree.nodes) == (2 if allowed else 1)
             if allowed:
                 assert tree.nodes[1].value.nodes[0].value == "check-refused"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mount", ["", "ui"])
+@pytest.mark.parametrize("folder", ["index", "other", "assets/index", "assets/other"])
+async def test_folder_page_companions_preserve_index_segments(tmp_path, mount, folder):
+    pages = tmp_path / "pages"
+    directory = pages / folder
+    directory.mkdir(parents=True)
+    name = directory.name
+    (directory / f"{name}.py").write_text(PAGE)
+    (directory / f"{name}.js").write_text("export class Logic {}")
+    (directory / f"{name}.css").write_text("h1 { color: red; }")
+    (tmp_path / "outside.js").write_text("secret")
+    (directory / "escape.js").symlink_to(tmp_path / "outside.js")
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount=mount, app_class=Application, pages=pages,
+            ).request(body="raw")
+
+    prefix = f"/{mount}" if mount else ""
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        paths = [f"/{folder}", f"/{folder}/index.html"]
+        if folder == "index":
+            paths.extend(["/", "/index.html"])
+        for path in paths:
+            document = await client.get(prefix + path)
+            assert document.status_code == 200, path
+            resources = json.loads(BOOTSTRAP.search(document.text).group(3))["resources"]
+            assert resources["js"] == [{"url": f"{prefix}/{folder}/{name}.js", "group": None}]
+            assert f"{prefix}/{folder}/{name}.css" in resources["css"]
+        for suffix, media_type, body in (("js", "text/javascript", "export class Logic {}"),
+                                         ("css", "text/css", "h1 { color: red; }")):
+            url = f"{prefix}/{folder}/{name}.{suffix}"
+            response = await client.get(url)
+            assert response.status_code == 200, url
+            assert response.text == body
+            assert response.headers["content-type"] == f"{media_type}; charset=utf-8"
+            head = await client.head(url)
+            assert head.status_code == 200 and head.content == b""
+            assert (await client.post(url)).status_code == 405
+        for filename in (f"{name}.py", "missing.js", "escape.js"):
+            url = f"{prefix}/{folder}/{filename}"
+            assert (await client.get(url)).status_code == 404, url
+            if filename.endswith(".js"):
+                assert (await client.head(url)).status_code == 404, url
+        if mount:
+            assert (await client.get(f"/{folder}/{name}.js")).status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mount", ["", "ui"])
+async def test_configured_assets_preserve_index_segments(tmp_path, mount):
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    asset = tmp_path / "logo.svg"
+    asset.write_text("<svg/>")
+    assets = {path: {"file": asset, "type": "image/svg+xml"}
+              for path in ("/index/logo.svg", "/assets/index/logo.svg")}
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount=mount, app_class=Application, pages=pages, assets=assets,
+            ).request(body="raw")
+
+    prefix = f"/{mount}" if mount else ""
+    transport = httpx.ASGITransport(app=AsgiServer(config=Site))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for path in assets:
+            url = prefix + path
+            response = await client.get(url)
+            assert response.status_code == 200, url
+            assert response.text == "<svg/>"
+            assert response.headers["content-type"] == "image/svg+xml"
+            head = await client.head(url)
+            assert head.status_code == 200 and head.content == b""
+            assert (await client.post(url)).status_code == 405
+        for path in ("/logo.svg", "/assets/logo.svg", "/assets/index/missing.svg"):
+            assert (await client.get(prefix + path)).status_code == 404, path

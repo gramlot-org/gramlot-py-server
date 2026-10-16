@@ -132,7 +132,7 @@ class _RuntimeAssets(RoutingClass):
     @route(media_type="text/html")
     async def index(self, *segments, _request, **_query):
         """Every other path below ``assets/``: the application's assets, companions and pages."""
-        return await self.application.index("assets", *segments, _request=_request, **_query)
+        return await self.application.index(_request=_request, **_query)
 
 
 class _Protocol(RoutingClass):
@@ -208,7 +208,9 @@ class Application(RoutedApplication):
 
     @route(media_type="text/html")
     async def index(self, *segments, _request, **_query):
-        page_path = "/".join(segments)
+        # Kajenn has already removed the mount from request.path. Route arguments
+        # omit an explicit "index" selector, so they cannot identify the file path.
+        page_path = _request.path.removeprefix("/")
         if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
             return self.redirect(_request)
         if page_path == "app.webmanifest":

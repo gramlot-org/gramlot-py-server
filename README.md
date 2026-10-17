@@ -46,7 +46,7 @@ endpoints as genro-routes `RouterNode`s with the other plugins belongs to
 genro-kajenn. The other adapters announce no capability: an endpoint with an
 `auth` rule answers `not_authenticated`.
 
-The current release is 0.2.9, on PyPI as `gramlot-py-server`.
+The current release is 0.2.10, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 
@@ -242,7 +242,7 @@ pages to it.
 | | Verified |
 | --- | --- |
 | Gramlot core | 0.3.0 (PyPI `gramlot`) |
-| Gallery | `gramlot-examples` 0.3.0 (extra `gallery`) |
+| Gallery | `gramlot-examples` 0.3.1 (extra `gallery`) |
 | Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.2 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.143.1, Kajenn 0.5.0 |
 | Browsers | Chromium 153 in CI; Chromium 153 and WebKit 26.6 locally, with Playwright 1.63.0 |

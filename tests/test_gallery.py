@@ -63,7 +63,7 @@ def test_gallery_options(tmp_path):
     served = {}
 
     def serve(pages, **options):
-        served.update(options, staged=sorted(path.name for path in pages.iterdir())[:3])
+        served.update(options, staged=sorted(path.name for path in pages.iterdir())[:3], index=(pages / "index.py").read_text())
 
     parser = cli.argparse.ArgumentParser()
     verbs = parser.add_subparsers(dest="verb", required=True)
@@ -71,10 +71,11 @@ def test_gallery_options(tmp_path):
 
     add_gallery(verbs, "uvicorn", serve)
     options = parser.parse_args(["gallery", "--port", "9001", "--mount", "py/",
-                                 "--catalog", str(catalog), str(tmp_path)])
+                                 "--catalog", str(catalog), str(tmp_path), "--serverless-download", "/downloads/gallery.zip"])
     assert options.run(options) == 0
     assert served["host"] == "127.0.0.1" and served["port"] == 9001
     assert served["mount_path"] == "/py"
+    assert "serverless_download_url = '/downloads/gallery.zip'" in served["index"]
     assert served["assets"]["/gallery/dist/gallery.js"]["type"] == "application/javascript"
     defaults = parser.parse_args(["gallery"])
     assert (defaults.host, defaults.port, defaults.mount, defaults.catalog) == ("127.0.0.1", 8080, "", [])

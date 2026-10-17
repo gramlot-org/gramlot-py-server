@@ -55,7 +55,7 @@ def subclass_module(original: Path, name: str, body: str) -> str:
     )
 
 
-def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str) -> dict:
+def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None) -> dict:
     """Write the pages of the gallery into ``folder``; return the assets to serve."""
     examples = examples_package()
     gallery = examples.build_gallery(catalogs)
@@ -66,6 +66,7 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str) -> dict:
     listed = [(str(catalog), str(pages)) for catalog, pages in catalogs]
     (folder / "index.py").write_text(subclass_module(gallery_page, "gramlot_gallery_index", (
         f"    catalogs = {listed!r}\n"
+        f"    serverless_download_url = {serverless_download_url!r}\n"
         f"    logoUrl = {prefix + '/assets/branding/gramlot-logo-dark.svg'!r}\n"
         f"    galleryScript = {prefix + '/gallery/dist/gallery.js'!r}\n"
     )))
@@ -96,6 +97,7 @@ def add_gallery(verbs, environment: str, serve) -> None:
     parser.add_argument("--mount", default="", help="the prefix of every URL, for example /py")
     parser.add_argument("--catalog", nargs=2, action="append", default=[], metavar=("CATALOG", "PAGES"),
                         help="add the families of a catalog.json and its pages folder; repeatable")
+    parser.add_argument("--serverless-download", help="URL of an offline gallery ZIP served by the deployment")
     parser.set_defaults(run=lambda options: run_gallery(environment, serve, options))
 
 
@@ -106,7 +108,7 @@ def run_gallery(environment: str, serve, options) -> int:
         (Path(catalog).resolve(), Path(pages).resolve()) for catalog, pages in options.catalog
     ]
     with TemporaryDirectory(prefix="gramlot-gallery-") as folder:
-        assets = stage(Path(folder), catalogs, prefix)
+        assets = stage(Path(folder), catalogs, prefix, options.serverless_download)
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
             serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,

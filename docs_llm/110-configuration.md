@@ -174,3 +174,12 @@ can extend core `IndexPage` for the same navigation, iframe tabs and customizabl
 footer: [authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-110).
 Use HTTPS or localhost to install; the server must remain running afterward.
 Safari on macOS Sonoma or later uses File → Add to Dock. No offline cache is added.
+
+<a id="gp-110-090"></a>
+## 090 · Application component collections (development)
+
+Block ID: **GP-110-090**.
+
+All five adapters accept `collections=()` and forward it to the core server. Each entry has `grammar` (generated JSON object) and `module` (root-relative browser module URL); serve that module through `assets`. The gallery command selects inputs automatically through its explicit application configuration. Restart the gallery after rebuilding development assets.
+
+This is the initial 0.3 development increment; no new package release is implied.

@@ -103,6 +103,7 @@ class Application:
         max_pages: int = 1000,
         content_security_policy: str | None = None,
         assets: dict[str, dict[str, Any]] | None = None,
+        collections=(),
     ) -> None:
         mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.mount_path = mount_path
@@ -114,7 +115,7 @@ class Application:
             rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
-            max_pages=max_pages,
+            max_pages=max_pages, collections=collections,
         )
 
     async def __call__(self, scope, receive, send) -> None:

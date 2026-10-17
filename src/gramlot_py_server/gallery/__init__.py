@@ -109,7 +109,8 @@ def run_gallery(environment: str, serve, options) -> int:
         assets = stage(Path(folder), catalogs, prefix)
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
-            serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets)
+            serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,
+                  collections=examples_package().build_gallery()["collections"])
         except ModuleNotFoundError as error:
             if error.name != "uvicorn":
                 raise

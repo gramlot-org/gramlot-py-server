@@ -93,7 +93,7 @@ class Pages:
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
                  max_pages: int = 1000, content_security_policy: str | None = None,
-                 assets: dict | None = None) -> None:
+                 assets: dict | None = None, collections=()) -> None:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
@@ -103,7 +103,7 @@ class Pages:
             rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
-            max_pages=max_pages,
+            max_pages=max_pages, collections=collections,
         )
 
     def blueprint(self) -> Blueprint:

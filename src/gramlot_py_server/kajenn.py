@@ -186,7 +186,7 @@ class Application(RoutedApplication):
     """
 
     def __init__(self, pages: str | Path, *, page_ttl: float = 1800, max_pages: int = 1000,
-                 content_security_policy: str | None = None, assets: dict | None = None,
+                 content_security_policy: str | None = None, assets: dict | None = None, collections=(),
                  **kwargs) -> None:
         super().__init__(**kwargs)
         if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
@@ -199,7 +199,7 @@ class Application(RoutedApplication):
             rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
-            max_pages=max_pages,
+            max_pages=max_pages, collections=collections,
         )
         self.add_branches([
             {"name": "assets", "instance": _RuntimeAssets(self)},

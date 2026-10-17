@@ -94,7 +94,7 @@ class Pages:
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
                  max_pages: int = 1000, content_security_policy: str | None = None,
-                 assets: dict | None = None) -> None:
+                 assets: dict | None = None, collections=()) -> None:
         self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
@@ -104,7 +104,7 @@ class Pages:
             rpc_url="/gramlot/rpc",
             close_url="/gramlot/close",
             page_ttl=page_ttl,
-            max_pages=max_pages,
+            max_pages=max_pages, collections=collections,
         )
 
     def mount(self, app: FastAPI) -> None:
@@ -223,11 +223,11 @@ class Application(FastAPI):
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
                  max_pages: int = 1000, content_security_policy: str | None = None,
-                 assets: dict | None = None, **fastapi_options) -> None:
+                 assets: dict | None = None, collections=(), **fastapi_options) -> None:
         super().__init__(**fastapi_options)
         self.gramlot_pages = mount_pages(
             self, pages, mount_path=mount_path, page_ttl=page_ttl, max_pages=max_pages,
-            content_security_policy=content_security_policy, assets=assets,
+            content_security_policy=content_security_policy, assets=assets, collections=collections,
         )
 
 

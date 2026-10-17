@@ -46,7 +46,7 @@ endpoints as genro-routes `RouterNode`s with the other plugins belongs to
 genro-kajenn. The other adapters announce no capability: an endpoint with an
 `auth` rule answers `not_authenticated`.
 
-The current release is 0.2.8.1, on PyPI as `gramlot-py-server`.
+The current release is 0.2.9, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 

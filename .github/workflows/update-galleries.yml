@@ -1,0 +1,46 @@
+name: Update hosted galleries
+
+on:
+  workflow_run:
+    workflows: [Publish release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-galleries
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: gallery-deploy
+    steps:
+      # No checkout or release artifact is executed by this privileged workflow.
+      - name: Reconcile published releases and verify both galleries and ZIP
+        env:
+          GALLERY_DEPLOY_KEY: ${{ secrets.GALLERY_DEPLOY_KEY }}
+          GALLERY_DEPLOY_HOST: ${{ vars.GALLERY_DEPLOY_HOST }}
+          GALLERY_DEPLOY_KNOWN_HOSTS: ${{ vars.GALLERY_DEPLOY_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GALLERY_DEPLOY_KEY"
+          test -n "$GALLERY_DEPLOY_HOST"
+          test -n "$GALLERY_DEPLOY_KNOWN_HOSTS"
+          credentials=$(mktemp -d)
+          trap 'rm -rf "$credentials"' EXIT
+          chmod 700 "$credentials"
+          printf '%s\n' "$GALLERY_DEPLOY_KEY" > "$credentials/key"
+          printf '%s\n' "$GALLERY_DEPLOY_KNOWN_HOSTS" > "$credentials/known_hosts"
+          chmod 600 "$credentials/key" "$credentials/known_hosts"
+          ssh -T -i "$credentials/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$credentials/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            "gramlot-gallery-ci@$GALLERY_DEPLOY_HOST"

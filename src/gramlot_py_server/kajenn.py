@@ -3,157 +3,50 @@
 
 from __future__ import annotations
 
-import json
 import re
-from importlib.resources import files
-from mimetypes import MimeTypes
 from pathlib import Path
-from secrets import token_urlsafe
 
-from genro_routes import RoutingClass, route
+from genro_routes import route
 from genro_toolbox import tags_match
-from gramlot.server import (
-    GramlotFileServer,
-    InvalidRequest,
-    PageNotFound,
-    ServerCapacity,
-    runtime_asset,
-)
-from kajenn import (
-    HTTPBadRequest,
-    HTTPException,
-    HTTPNotFound,
-    HTTPUnsupportedMediaType,
-    RoutedApplication,
-)
+from gramlot.server import GramlotFileServer
+from kajenn import RoutedApplication
 
+from gramlot_py_server import base
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
-
-OWNER_COOKIE = "gramlot_owner"
-COMPANION_MEDIA_TYPES = {
-    ".css": "text/css; charset=utf-8",
-    ".js": "text/javascript; charset=utf-8",
-}
-# The core themes, served below the mount path as the runtime is. The built-in
-# table of MimeTypes() ignores the system files; THEME_MEDIA_TYPES adds the types it
-# lacks in some Python version: fonts and WebP in every one, Markdown before 3.12.
-THEMES = Path(str(files("gramlot").joinpath("resources", "themes")))
-MEDIA_TYPES = MimeTypes()
-THEME_MEDIA_TYPES = {
-    ".woff2": "font/woff2",
-    ".woff": "font/woff",
-    ".ttf": "font/ttf",
-    ".otf": "font/otf",
-    ".webp": "image/webp",
-    ".md": "text/markdown",
-}
-
-
-def theme_file(path: str) -> dict | None:
-    """The file of the core themes at ``path`` (``/themes/…``), as an ``assets`` entry.
-
-    Every file whose real path is below ``gramlot/resources/themes`` is served
-    with the media type of its extension; ``None`` lets the request go on.
-    """
-    if not path.startswith("/themes/"):
-        return None
-    root = THEMES.resolve()
-    real = root.joinpath(*path.removeprefix("/themes/").split("/")).resolve()
-    if not (real.is_relative_to(root) and real.is_file()):
-        return None
-    media_type = THEME_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
-    media_type = media_type or "application/octet-stream"
-    if media_type.startswith("text/"):
-        media_type += "; charset=utf-8"
-    return {"file": real, "type": media_type}
 
 
 class _KajennFileServer(GramlotFileServer):
     """The core ``GramlotFileServer`` with the capability ``auth``.
 
     ``evaluate_auth`` evaluates a rule with ``genro_toolbox.tags_match`` against
-    the tags of the Kajenn avatar of the owner, as the genro-routes ``AuthPlugin``
-    does for route entries. ``owner_tags`` maps each owner (the ``gramlot_owner``
-    cookie of one browser) to the set of tags of the avatar of its latest RPC
-    request, or to ``None`` when that request was anonymous. ``Application``
-    records it with ``record_avatar`` before every ``call``, so a login or a
-    logout is seen at the next call. The map holds at most ``max_pages``
-    owners, the oldest dropped first; ``close_page`` removes the owner of the
-    page and ``close_all`` empties it.
+    the tags of the Kajenn avatar that the adapter passes with each call
+    (``identity``), as the genro-routes ``AuthPlugin`` does for route entries. The
+    server keeps no identity: a login or a logout is seen at the next call.
     """
-
-    def __init__(self, pages: str | Path, **options) -> None:
-        super().__init__(pages, **options)
-        self.owner_tags: dict[str | None, set[str] | None] = {}
 
     @property
     def capabilities(self) -> list[str]:
         """The capabilities announced in the bootstrap: ``auth``."""
         return ["auth"]
 
-    def record_avatar(self, owner: str | None, avatar) -> None:
-        """Record the tags of ``avatar`` (a Kajenn ``Avatar`` or ``None``) for ``owner``."""
-        self.owner_tags.pop(owner, None)
-        self.owner_tags[owner] = None if avatar is None else set(avatar.tags)
-        while len(self.owner_tags) > self.max_pages:
-            del self.owner_tags[next(iter(self.owner_tags))]
-
-    def evaluate_auth(self, rule, *, owner):
-        """``None`` when the avatar tags of ``owner`` satisfy ``rule``, else
+    def evaluate_auth(self, rule, *, owner, identity):
+        """``None`` when the tags of the avatar ``identity`` satisfy ``rule``, else
         ``"not_authenticated"`` (no avatar) or ``"not_authorized"``."""
         if rule is None:
             return None
-        tags = self.owner_tags.get(owner)
-        if tags is None:
+        if identity is None:
             return "not_authenticated"
-        return None if tags_match(rule, tags) else "not_authorized"
-
-    def close_page(self, page_id, *, owner=None):
-        super().close_page(page_id, owner=owner)
-        self.owner_tags.pop(owner, None)
-
-    def close_all(self):
-        """Forget every registered page and every recorded avatar."""
-        super().close_all()
-        self.owner_tags = {}
+        return None if tags_match(rule, set(identity.tags)) else "not_authorized"
 
 
-class _RuntimeAssets(RoutingClass):
-    def __init__(self, application):
-        self.application = application
-
-    @route(name="gramlot.js", media_type="text/javascript")
-    def runtime(self, _request, **_query):
-        self.application.require_method(_request, "GET", "HEAD")
-        _request.response.set_header("Cache-Control", "no-cache")
-        return b"" if _request.method == "HEAD" else runtime_asset().read_bytes()
-
-    @route(media_type="text/html")
-    async def index(self, *segments, _request, **_query):
-        """Every other path below ``assets/``: the application's assets, companions and pages."""
-        return await self.application.index(_request=_request, **_query)
-
-
-class _Protocol(RoutingClass):
-    def __init__(self, application):
-        self.application = application
-
-    @route(media_type="application/json")
-    async def rpc(self, _request, body_raw=None, **_query):
-        return await self.application.operation(_request, body_raw, "rpc")
-
-    @route(media_type="application/json")
-    async def close(self, _request, body_raw=None, **_query):
-        return await self.application.operation(_request, body_raw, "close")
-
-
-class Application(RoutedApplication):
+class Application(base.Adapter, RoutedApplication):
     """A Kajenn routed application backed by ``gramlot.server.GramlotFileServer``.
 
     The application builds ``_KajennFileServer``, a ``GramlotFileServer`` with the
     capability ``auth``: an ``auth`` rule is evaluated with ``tags_match`` against
-    the tags of the Kajenn avatar of the request (``request.avatar()``).
+    the tags of the Kajenn avatar of the request (``request.avatar()``), which the
+    application passes to ``GramlotServer.call`` with each rpc request.
 
     Declare it in the site recipe with ``request(body="raw")``: the request
     envelope reaches ``GramlotServer.call`` as the TYTX text the browser sent,
@@ -164,156 +57,57 @@ class Application(RoutedApplication):
     alike; the application tells them apart by the ASGI ``raw_path``.
     An empty ``mount`` puts the application at the site root, without prefix.
 
-    GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
-    pages folder: the companions of ``GramlotFileServer`` (stylesheet, page module or
-    ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
-    Every other file of the folder is not served.
-
-    ``<path>/index.html`` opens the page ``<path>`` and ``/index.html`` the index,
-    as a static host does.
-
-    GET and HEAD serve every file below the themes folder of the core at
-    ``/themes/…``, with the media type of its extension; a path the core does
-    not have goes on to ``assets``, the companions and the pages.
-
-    ``assets`` maps URLs below the mount to files served by GET and HEAD,
-    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
-    ``gramlot-examples`` returns them.
-
-    ``content_security_policy`` is the application's policy, sent as the
-    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
-    replaced by the nonce that ``open_page`` puts on the bootstrap script.
+    The HTTP rules, the same in every adapter, are those of ``gramlot_py_server.base``.
     """
 
-    def __init__(self, pages: str | Path, *, page_ttl: float = 1800, max_pages: int = 1000,
-                 content_security_policy: str | None = None, assets: dict | None = None, collections=(),
-                 **kwargs) -> None:
-        super().__init__(**kwargs)
+    server_class = _KajennFileServer
+
+    def __init__(self, pages: str | Path, *, mount_path: None = None, **options) -> None:
+        if mount_path is not None:
+            raise TypeError("mount_path is the mount of the Kajenn application: declare mount in the site recipe")
+        super().__init__(pages, **options)
         if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
             raise ValueError("mount must be a single lowercase URL segment or empty")
-        self.content_security_policy = content_security_policy
-        self.assets = dict(assets or {})
-        self.gramlot_server = _KajennFileServer(
-            pages,
-            runtime_url="/assets/gramlot.js",
-            rpc_url="/gramlot/rpc",
-            close_url="/gramlot/close",
-            page_ttl=page_ttl,
-            max_pages=max_pages, collections=collections,
-        )
-        self.add_branches([
-            {"name": "assets", "instance": _RuntimeAssets(self)},
-            {"name": "gramlot", "instance": _Protocol(self)},
-        ])
-
-    @route(media_type="text/html")
-    async def index(self, *segments, _request, **_query):
-        # Kajenn has already removed the mount from request.path. Route arguments
-        # omit an explicit "index" selector, so they cannot identify the file path.
-        page_path = _request.path.removeprefix("/")
-        if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
-            return self.redirect(_request)
-        if page_path == "app.webmanifest":
-            self.require_method(_request, "GET", "HEAD")
-            try:
-                manifest = await self.gramlot_server.page_manifest(prefix=self.prefix)
-            except PageNotFound as error:
-                raise HTTPNotFound("Not found") from error
-            _request.response.set_header("Cache-Control", "no-store")
-            body = b"" if _request.method == "HEAD" else json.dumps(manifest).encode()
-            return self.result_wrapper(body, media_type="application/manifest+json")
-        asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
-        if asset is not None:
-            return self.static(_request, asset)
-        suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
-        if suffix is not None:
-            return self.companion(_request, page_path, suffix)
-        self.require_method(_request, "GET")
-        # As on a static host, <path>/index.html is the page <path> and /index.html the index.
-        if ("/" + page_path).endswith("/index.html"):
-            page_path = page_path.removesuffix("index.html")
-        owner = _request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
-        try:
-            opened = await self.gramlot_server.open_page(page_path, owner=owner, prefix=self.prefix)
-        except PageNotFound as error:
-            raise HTTPNotFound("Page not found") from error
-        except ServerCapacity as error:
-            raise HTTPException(503, "Page capacity reached") from error
-        _request.response.set_header("Cache-Control", "no-store")
-        if self.content_security_policy is not None:
-            policy = self.content_security_policy.replace("{nonce}", opened.nonce)
-            _request.response.set_header("Content-Security-Policy", policy)
-        _request.response.set_cookie(
-            OWNER_COOKIE, owner, path=self.prefix or "/", httponly=True, samesite="lax"
-        )
-        return opened.html
-
-    def on_shutdown(self) -> None:
-        """Forget every registered page when the Kajenn server stops."""
-        self.gramlot_server.close_all()
 
     @property
-    def prefix(self) -> str:
+    def mount_path(self) -> str:
         """The mount prefix of the browser URLs: ``/<mount>``, or ``""`` at the site root."""
         return f"/{self.mount}" if self.mount else ""
 
-    def redirect(self, request):
-        """Answer the mount without the final slash with 301 to the mount with it."""
-        query = request.scope.get("query_string", b"").decode("latin-1")
-        request.response.status_code = 301
-        request.response.set_header("Location", f"/{self.mount}/" + (f"?{query}" if query else ""))
-        return self.result_wrapper(b"", media_type="text/plain")
+    @route(media_type="text/html")
+    async def index(self, *segments, _request, body_raw=None, **_query):
+        """Every URL below the mount.
 
-    def static(self, request, asset):
-        """Serve one file of ``assets`` with its media type."""
-        self.require_method(request, "GET", "HEAD")
-        request.response.set_header("Cache-Control", "no-store")
-        body = b"" if request.method == "HEAD" else Path(asset["file"]).read_bytes()
-        return self.result_wrapper(body, media_type=asset["type"])
+        Kajenn has already removed the mount from request.path. Route arguments
+        omit an explicit "index" selector, so they cannot identify the file path.
+        """
+        query = _request.scope.get("query_string", b"").decode("latin-1")
+        if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
+            reply = self.redirect(query)
+        else:
+            reply = await self.handle(base.Request(
+                method=_request.method,
+                path=_request.path,
+                body=lambda: self.read_body(body_raw),
+                query=query,
+                content_type=str(_request.content_type or ""),
+                owner=_request.cookies.get(self.OWNER_COOKIE),
+                identity=_request.avatar(),
+            ))
+        for name, value in reply.headers:
+            _request.response.set_header(name, value)
+        _request.response.status_code = reply.status
+        return self.result_wrapper(reply.body, media_type=reply.content_type)
 
-    def companion(self, request, page_path: str, suffix: str):
-        """Serve the file of ``page_path`` when its real path is below the pages folder."""
-        self.require_method(request, "GET", "HEAD")
-        root = self.gramlot_server.pages_dir.resolve()
-        real = root.joinpath(*page_path.split("/")).resolve()
-        if not (real.is_relative_to(root) and real.is_file()):
-            raise HTTPNotFound("Not found")
-        request.response.set_header("Cache-Control", "no-store")
-        body = b"" if request.method == "HEAD" else real.read_bytes()
-        return self.result_wrapper(body, media_type=COMPANION_MEDIA_TYPES[suffix])
-
-    def require_method(self, request, *methods: str) -> None:
-        if request.method not in methods:
-            raise HTTPException(405, "Method not allowed")
-
-    async def operation(self, request, body_raw: bytes | None, operation: str) -> str:
-        self.require_method(request, "POST")
+    async def read_body(self, body_raw: bytes | None) -> bytes:
+        """The raw request body, which the site recipe must declare with ``request(body="raw")``."""
         if not self.raw_body:
             raise RuntimeError("Application requires request(body='raw')")
-        content_type = str(request.content_type or "").split(";", 1)[0].strip().lower()
-        if content_type != "application/json":
-            raise HTTPUnsupportedMediaType("Expected application/json")
-        try:
-            text = (body_raw or b"").decode()
-        except UnicodeDecodeError as error:
-            raise HTTPBadRequest("Request body is not UTF-8") from error
-        owner = request.cookies.get(OWNER_COOKIE)
-        request.response.set_header("Cache-Control", "no-store")
-        if operation == "rpc":
-            self.gramlot_server.record_avatar(owner, request.avatar())
-            try:
-                result: str = await self.gramlot_server.call(text, owner=owner)
-            except InvalidRequest as error:
-                raise HTTPBadRequest("Invalid envelope") from error
-            return result
-        try:
-            payload = json.loads(text)
-            if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-                raise ValueError("Missing pageId")
-        except ValueError as error:
-            raise HTTPBadRequest("Invalid JSON request") from error
-        self.gramlot_server.close_page(payload["pageId"], owner=owner)
-        return json.dumps({"ok": True})
+        return body_raw or b""
+
+    def on_shutdown(self) -> None:
+        """Forget every registered page when the Kajenn server stops."""
+        self.shutdown()
 
 
 def serve(pages: str | Path, *, host: str = "127.0.0.1", port: int = 8000, mount_path: str = "",

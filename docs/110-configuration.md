@@ -113,8 +113,8 @@ Block ID: **GP-110-025**.
 - A body that is not UTF-8 answers 400. A body of `/gramlot/rpc` that
   `GramlotServer.call` refuses as an envelope answers 400; a body of
   `/gramlot/close` that is not a JSON object with a string `pageId` answers 400.
-- Every response of this adapter carries `Cache-Control: no-store`, the runtime
-  included.
+- Every response of this adapter carries `Cache-Control: no-store`, except the
+  runtime, which carries `Cache-Control: no-cache`.
 - The page registry lives in the process: pages opened by one worker are
   unknown to another. On `lifespan.shutdown` the application forgets every
   open page.

@@ -7,7 +7,14 @@ before changing this repository. The Gramlot constitution is authoritative.
 The repository publishes one PyPI package, `gramlot-py-server`, with one adapter
 module per framework in `src/gramlot_py_server/`: `uvicorn.py`, `django.py`,
 `flask.py`, `fastapi.py` and `kajenn.py`. Each module imports only its own
-framework, which arrives with the extra of the same name.
+framework, which arrives with the extra of the same name. `base.py` holds the
+HTTP rules the five share (methods and `Allow`, `Cache-Control`, the owner
+cookie, the status codes, shutdown) on top of the core server API
+(`decode_body`, `call`, `close`, `companion_file`, `theme_file`,
+`open_page`): an adapter only builds its routes and translates its framework
+request into `base.Request` and `base.Reply` into its response. A rule common
+to the five changes in `base.py`, with `tests/test_base.py` and the check of
+each adapter.
 
 ## Rules common to every adapter
 

@@ -113,19 +113,18 @@ path that no other application claims, the prefix is empty and the cookie
 
 Block ID: **GP-505-020**.
 
-- **Routes.** The branch `assets` serves `gramlot.js` with `GET` and `HEAD`;
-  its `index` route passes every other path below `assets/` to the `index`
-  route of the application. The branch `gramlot` holds `rpc` and `close`, which
-  accept `POST`. The `index` route serves the files of `assets`,
-  the pages and the companions from the remaining path segments.
-- **Methods.** A page accepts `GET` only; `HEAD` answers 405. A method that a
-  route does not accept answers 405 `Method not allowed`, without an `Allow`
-  header.
+- **Routes.** One `index` route receives every path below the mount,
+  `assets/gramlot.js` and `gramlot/rpc` included. It reads `request.path` and
+  serves the runtime, the pages, the core themes, the files of `assets`, the
+  companions and the protocol URLs.
+- **Methods.** A page accepts `GET` only; `HEAD` and every other method answer
+  405 `Method not allowed` with `Allow: GET`. A file accepts `GET` and `HEAD`,
+  the protocol URLs `POST`. Every 405 carries an `Allow` header.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
-  Errors are Kajenn HTTP exceptions: the answer is `application/json` with the
-  body `{"error": "…"}`, for example `{"error": "Invalid envelope"}`. The
+  Errors are plain text with `Content-Type: text/plain; charset=utf-8`, as in the
+  other adapters, for example `Invalid envelope`. The
   outcomes of a call are not errors: they arrive in the 200 response envelope.
 - **Request body.** The application reads the raw body and passes it to
   `GramlotServer.call` as text. The adapter fixes no size, and Kajenn 0.1
@@ -163,16 +162,16 @@ Kajenn's `RoutedApplication`. The site recipe passes them.
 
 - `gramlot_server`: a subclass of the core `GramlotFileServer` built on `pages`
   with the URLs `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`. Its
-  `capabilities` is `["auth"]`; `record_avatar(owner, avatar)` records the avatar
-  tags of an owner in `owner_tags`, at most `max_pages` owners, emptied by
-  `close_all`; `evaluate_auth(rule, owner=…)` evaluates a rule against them.
+  `capabilities` is `["auth"]`; `evaluate_auth(rule, *, owner, identity)`
+  evaluates a rule against the tags of `identity`, the Kajenn avatar that the
+  application passes with the call. The server keeps no avatar between calls.
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
-- `index`: the route of assets, pages and companions.
+- `index`: the route of every path below the mount.
+- `mount_path`: `/<mount>`, or `""` at the site root.
 - `on_shutdown()`: the Kajenn lifecycle hook; it forgets every open page.
-- `redirect(request)`, `static(request, asset)`, `companion(request,
-  page_path, suffix)`, `operation(request, body_raw, operation)`,
-  `require_method(request, *methods)`: the helpers of the routes.
+- `read_body(body_raw)`: the raw request body of the site recipe's
+  `request(body="raw")`.
 
 Paths below are without the mount.
 
@@ -185,8 +184,8 @@ Paths below are without the mount.
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
-| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
-| other methods | 405 `Method not allowed` |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
+| other methods | 405 `Method not allowed`, with `Allow`: `GET` on a page path, `GET, HEAD` on a file, `POST` on `/gramlot/*` |
 
 Declare Source fragments with `@source` and mount them with `remote`;
 use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
@@ -194,11 +193,11 @@ use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
 
 The Kajenn adapter passes the envelope to `GramlotServer.call` as the other
 adapters do and announces the capability `auth`: the bootstrap `config` carries
-`"capabilities": ["auth"]`. Before each call through `/gramlot/rpc` the
-application records the tags of the request's Kajenn avatar (`request.avatar()`)
-for the owner cookie, or no identity when the request is anonymous. The
+`"capabilities": ["auth"]`. With each call through `/gramlot/rpc` the
+application passes the request's Kajenn avatar (`request.avatar()`), or `None`
+when the request is anonymous, as the `identity` of `GramlotServer.call`. The
 `evaluate_auth` of `gramlot_server` evaluates an `auth` rule with
-`genro_toolbox.tags_match` against those tags, the evaluation the genro-routes
+`genro_toolbox.tags_match` against the tags of that avatar, the evaluation the genro-routes
 `AuthPlugin` applies to route entries: no avatar answers `not_authenticated`, tags
 that do not satisfy the rule answer `not_authorized`. The avatar comes from the
 Kajenn site: for example a `basic_user` with `tags` under

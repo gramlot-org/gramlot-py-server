@@ -59,8 +59,8 @@ the application's own stylesheets outside the pages folder are assets of the
 application: add them to `assets`, or serve them from the proxy or from another
 ASGI route. Reference a stylesheet from `Page.css` with a root-relative URL (it
 receives the mount prefix) or an absolute URL. The application sends `Cache-Control: no-store` on every
-response, including the runtime. A cache in front of it has to decide on its
-own.
+response, except the runtime, which carries `Cache-Control: no-cache`. A cache in
+front of it has to decide on its own.
 
 <a id="gp-115-015"></a>
 

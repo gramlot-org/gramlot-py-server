@@ -1,7 +1,7 @@
 """Checks shared by the gallery tests of every adapter."""
 import re
 
-from gramlot_py_server.gallery import environment_catalogs, stage
+from gramlot_py_server.gallery import environment_catalogs, examples_package, stage
 
 # URL below the mount path, start of its media type.
 EXPECTED = [
@@ -22,6 +22,11 @@ def staged(tmp_path, environment, prefix="/py"):
     folder = tmp_path / "gallery"
     folder.mkdir()
     return folder, stage(folder, environment_catalogs(environment), prefix)
+
+
+def gallery_collections():
+    """The component collections of the gallery, as the gallery command passes them to the adapter."""
+    return examples_package().build_gallery()["collections"]
 
 
 def expected(environment, prefix="/py"):

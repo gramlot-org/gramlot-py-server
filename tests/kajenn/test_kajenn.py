@@ -11,7 +11,9 @@ from kajenn.config.templates import DefaultConfiguration
 from kajenn.server_app import ServerApplication
 
 from conformance_checks import conformance_pages
-from gallery_checks import check_index_main, expected, page_id, staged
+from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+                        check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.kajenn import Application
 from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
@@ -190,7 +192,9 @@ async def test_mount_companions_and_content_security_policy(tmp_path):
         assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
         assert json.loads(runtime) == "/page/assets/gramlot.js"
         resources = json.loads(argument)["resources"]
-        assert resources["css"] == ["/page/themes/theme.css", "local.css", "/page/index.css"]
+        assert resources["css"] == [
+            "/page/themes/gramlot-base/theme.css", "/page/themes/theme.css", "local.css", "/page/index.css"
+        ]
         assert resources["js"] == [{"url": "/page/index_aux.js", "group": None}]
         for url, media_type in (("/themes/theme.css", "text/css"),
                                 ("/index.css", "text/css"),
@@ -312,6 +316,7 @@ async def test_gallery_under_the_mount_path(tmp_path):
         def applications_section(self, cfg):
             cfg.applications().application(
                 code="gallery", mount="py", app_class=Application, pages=folder, assets=assets,
+                collections=gallery_collections(),
             ).request(body="raw")
 
     transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
@@ -408,7 +413,7 @@ async def test_auth_capability_evaluates_the_avatar_tags(tmp_path):
         assert (await check_endpoint_auth())["error"]["code"] == "not_authenticated"
         assert (await check_endpoint_auth(("bob", "bob-secret")))["error"]["code"] == "not_authorized"
         assert (await check_endpoint_auth(("ada", "ada-secret")))["value"] == "allowed"
-        # The avatar is recorded at every call: an anonymous call after a login is a logout.
+        # The avatar is passed with every call: an anonymous call after a login is a logout.
         assert (await check_endpoint_auth())["error"]["code"] == "not_authenticated"
         # An endpoint without a rule runs for anyone.
         anonymous = await client.post(
@@ -520,3 +525,61 @@ async def test_configured_assets_preserve_index_segments(tmp_path, mount):
             assert (await client.post(url)).status_code == 405
         for path in ("/logo.svg", "/assets/logo.svg", "/assets/index/missing.svg"):
             assert (await client.get(prefix + path)).status_code == 404, path
+
+
+@pytest.mark.asyncio
+async def test_http_rules_of_the_shared_base(tmp_path):
+    folder, assets = rules_pages(tmp_path)
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount="page", app_class=Application, pages=folder, assets=assets,
+            ).request(body="raw")
+
+    async with client_for(AsgiServer(config=Site)) as client:
+        for method in REFUSED_ON_A_PAGE:
+            response = await client.request(method, "/")
+            check_refusal(method, response.status_code, response.headers)
+        for url in NO_STORE_URLS:
+            check_no_store(url, (await client.get(url)).headers)
+        check_no_cache(RUNTIME_URL, (await client.get(RUNTIME_URL)).headers)
+        check_no_cache(RUNTIME_URL, (await client.head(RUNTIME_URL)).headers)
+        for url in ("/gramlot/rpc", "/gramlot/close"):
+            response = await client.get(url)
+            check_refusal("GET", response.status_code, response.headers, "POST")
+        for url in ("/assets/gramlot.js", "/themes/gramlot-base/theme.css", "/index.css", "/extra/logo.svg"):
+            response = await client.post(url)
+            check_refusal("POST", response.status_code, response.headers, "GET, HEAD")
+            check_no_store(url, response.headers)
+        first = await client.get("/")
+        owner = check_owner_cookie(first.headers["set-cookie"], "/page")
+        assert check_owner_cookie((await client.get("/")).headers["set-cookie"], "/page") == owner
+        redirect = await client.get("http://test/page", follow_redirects=False)
+        assert redirect.status_code == 301
+        check_no_store("/page", redirect.headers)
+
+
+class Avatar:
+    """What the application needs of a Kajenn avatar: its tags."""
+
+    def __init__(self, *tags):
+        self.tags = list(tags)
+
+
+def test_auth_rules_are_evaluated_against_the_identity_of_the_call(tmp_path):
+    server = Application(tmp_path, code="pages", mount="page").gramlot_server
+    assert server.evaluate_auth(None, owner="a", identity=None) is None
+    assert server.evaluate_auth("admin", owner="a", identity=None) == "not_authenticated"
+    assert server.evaluate_auth("admin", owner="a", identity=Avatar("staff")) == "not_authorized"
+    assert server.evaluate_auth("admin", owner="a", identity=Avatar("admin", "staff")) is None
+    # Nothing is kept between calls: the same owner with another identity is judged on that identity.
+    assert server.evaluate_auth("admin", owner="a", identity=Avatar("staff")) == "not_authorized"
+    assert not hasattr(server, "owner_tags") and not hasattr(server, "record_avatar")
+
+
+def test_mount_path_is_the_kajenn_mount(tmp_path):
+    assert Application(tmp_path, code="pages", mount="page").mount_path == "/page"
+    assert Application(tmp_path, code="pages", mount="").mount_path == ""
+    with pytest.raises(TypeError, match="mount_path"):
+        Application(tmp_path, code="pages", mount="page", mount_path="/other")

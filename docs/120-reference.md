@@ -28,7 +28,7 @@ Module functions, outside `__all__`:
   `lifespan` scopes. Any other scope type raises `ValueError`
   ("Application supports HTTP only"). On `lifespan.shutdown` it forgets every
   open page.
-  - `server`: the core `GramlotFileServer` built on `pages` with the URLs
+  - `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
@@ -51,8 +51,8 @@ Block ID: **GP-120-010**.
 All paths are shown without the mount prefix. With a prefix, the request path
 carries it; a path outside it answers 404 `Not found`, and the prefix without
 the final slash answers 301 with `Location: /py/` and the query string. Every
-response carries `Cache-Control: no-store` and `Content-Length`. Error bodies
-are plain text.
+response carries `Content-Length` and `Cache-Control: no-store`, except the
+runtime, which carries `Cache-Control: no-cache`. Error bodies are plain text.
 
 | Method and path | Answer |
 | --- | --- |

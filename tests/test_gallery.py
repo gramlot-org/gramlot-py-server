@@ -1,5 +1,7 @@
 """The staging of the gallery and the catalogues of the five environments."""
 import json
+import shutil
+import subprocess
 import sys
 
 import pytest
@@ -37,7 +39,7 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     assert "catalogs = []" in index
     assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "e01.py").read_text()
     stub = (tmp_path / "c03_aux.js").read_text()
-    assert stub == f'export {{Logic}} from "{prefix}/pages/controllers/03_named_logic.js";\n'
+    assert stub == f'export * from "{prefix}/pages/controllers/03_named_logic.js";\n'
     assert assets["/pages/controllers/03_named_logic.js"]["type"] == "text/javascript; charset=utf-8"
     assert not (tmp_path / "uvicorn-01.py").exists()
     assert not (tmp_path / "uvicorn-01_aux.js").exists()
@@ -47,6 +49,46 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
         assert (tmp_path / f"{key}.py").is_file()
         assert (tmp_path / f"{key}.css").is_file() == (route["stylesheet"] is not None)
         assert (tmp_path / f"{key}_aux.js").is_file() == (route["logic"] is not None)
+
+
+def logic_catalog(tmp_path):
+    """A catalogue of two examples: ``extra-01`` with a JS module without ``Logic``, ``extra-02`` with one."""
+    folder = tmp_path / "pages" / "logic"
+    folder.mkdir(parents=True)
+    for name in ("01_plain", "02_logic"):
+        (folder / f"{name}.py").write_text("from gramlot import Page as BasePage\n\n\nclass Page(BasePage):\n    pass\n")
+    (folder / "01_plain.js").write_text("export const note = 'a page module without Logic';\n")
+    (folder / "02_logic.js").write_text("export class Logic {\n    twice(value) { return value * 2; }\n}\n")
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(json.dumps({"environment": "extra", "families": [{"key": "logic", "title": "Logic", "examples": [
+        {"key": f"extra-0{number}", "title": name, "folder": name, "description": name, "explanation": name}
+        for number, name in ((1, "01_plain"), (2, "02_logic"))]}]}))
+    return [(catalog, tmp_path / "pages")]
+
+
+def test_stage_accepts_logic_modules_with_and_without_logic(tmp_path):
+    pages = tmp_path / "staged"
+    pages.mkdir()
+    assets = stage(pages, logic_catalog(tmp_path), "/py")
+    for key, name in (("extra-01", "01_plain"), ("extra-02", "02_logic")):
+        assert (pages / f"{key}_aux.js").read_text() == f'export * from "/py/pages/logic/{name}.js";\n'
+        assert assets[f"/pages/logic/{name}.js"]["type"] == "text/javascript; charset=utf-8"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs node to import the staged modules")
+def test_staged_companions_import_with_and_without_logic(tmp_path):
+    (tmp_path / "package.json").write_text('{"type": "module"}')
+    pages = tmp_path / "staged"
+    pages.mkdir()
+    stage(pages, logic_catalog(tmp_path), tmp_path.as_uri())
+    script = (
+        f"const plain = await import({(pages / 'extra-01_aux.js').as_uri()!r});\n"
+        f"const logic = await import({(pages / 'extra-02_aux.js').as_uri()!r});\n"
+        "console.log(JSON.stringify([plain.Logic === undefined, typeof logic.Logic, new logic.Logic().twice(4)]));\n"
+    )
+    result = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == [True, "function", 8]
 
 
 def test_gallery_without_gramlot_examples_names_the_extra(monkeypatch):

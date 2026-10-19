@@ -113,9 +113,10 @@ of `gramlot-examples`:
 - `<key>.py`: the example page, which appends `<prefix>/gallery/dist/frame.js`
   so the example follows the theme of the gallery;
 - `<key>.css`: the stylesheet of the example, when it has one;
-- `<key>_aux.js`: `export {Logic} from "<prefix>/pages/<family>/<file>.js";`,
-  the logic module of the example. The adapter serves that file as
-  JavaScript.
+- `<key>_aux.js`: `export * from "<prefix>/pages/<family>/<file>.js";`,
+  the logic module of the example. It re-exports `Logic` when the module
+  exports it, and nothing when the module has no `Logic`. The adapter serves
+  that file as JavaScript.
 
 The gallery sends no Content Security Policy: the examples use inline code. The
 temporary folder is removed when the server stops.

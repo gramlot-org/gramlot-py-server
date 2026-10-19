@@ -53,8 +53,9 @@ adapter reads no client address and no forwarded header. TLS ends at the proxy.
 Block ID: **GP-115-010**.
 
 The application serves the runtime at `/assets/gramlot.js`, the themes of the
-core at `/themes/…`, the companions of the pages folder and the files of its
-`assets` option ([Configuration](110-configuration.md)). Images, fonts and
+core at `/themes/…` (every page loads the base theme from there), the companions
+of the pages folder and the files of its `assets` option
+([Configuration](110-configuration.md)). Images, fonts and
 the application's own stylesheets outside the pages folder are assets of the
 application: add them to `assets`, or serve them from the proxy or from another
 ASGI route. Reference a stylesheet from `Page.css` with a root-relative URL (it
@@ -84,9 +85,9 @@ These notes hold for every adapter of the package.
   code. The permissive profile allows `'unsafe-eval'`.
 - The owner cookie identifies a browser, not a user. Put authentication in
   front of the adapter.
-- A page expires after `page_ttl` seconds and the process keeps at most
-  `max_pages` open pages. A browser that keeps a page past its expiry gets 404
-  on the next request and must reload.
+- A page expires when no call names it for `page_ttl` seconds, and the process
+  keeps at most `max_pages` open pages. A browser that keeps a page past its
+  expiry gets the outcome `page_expired` on its next call and must reload.
 
 <a id="gp-115-020"></a>
 

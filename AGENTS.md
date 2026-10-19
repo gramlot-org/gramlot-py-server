@@ -32,9 +32,10 @@ each adapter.
   the core themes at `/themes/…`, the `assets` option, the owner cookie `gramlot_owner`,
   `POST /gramlot/rpc` passing the body text to `GramlotServer.call`, `POST /gramlot/close`
   and the `content_security_policy` option with `{nonce}`. A change to one adapter's
-  contract is made in all five, with its tests. The server protocol GC-230 of
-  the core prevails: `tests/<framework>/test_<framework>_conformance.py` runs
-  the core `check_protocol` on each adapter started with its `serve`.
+  contract is made in all five, with its tests. The server protocol GC-101 of
+  the core (public, derived from the internal GC-230) prevails:
+  `tests/<framework>/test_<framework>_conformance.py` runs the core
+  `check_protocol` on each adapter started with its `serve`.
 - Never ship a substitute runtime. Fail if an accepted integration is unavailable.
 - No database adapters in this release; they come in the next cycle under
   `gramlot_py_server/db/<engine>.py`.

@@ -105,8 +105,10 @@ app = Application(PAGES, mount_path="/py", title="Pages")
 - With a prefix the router has one more route, `/py` without the final slash,
   that answers 301 to `/py/` with the query string: pages link each other with
   relative URLs.
-- `page_ttl`, `max_pages`, `content_security_policy` and `assets` have the
-  meaning of the [Uvicorn options](110-configuration.md).
+- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
+  have the meaning of the [Uvicorn options](110-configuration.md). The option
+  `css_theme` of the core server is not exposed: the base theme is
+  `gramlot-base`.
 
 <a id="gp-405-020"></a>
 
@@ -157,10 +159,12 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages` and calls
   `mount(app)`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, **fastapi_options)`: a `FastAPI` application.
-  `gramlot_pages` holds its `Pages`.
+  content_security_policy=None, assets=None, collections=(), **fastapi_options)`:
+  a `FastAPI` application. `gramlot_pages` holds its `Pages`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None)`:
+  content_security_policy=None, assets=None, collections=())`: a subclass of
+  `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
+  section 020):
   - `mount(app)`: includes the router and registers the shutdown handler.
   - `shutdown()`: forgets every open page.
   - `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
@@ -169,7 +173,7 @@ Module functions, outside `__all__`:
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
   - `route`, `mount_route`: the route functions of the pages and of the bare
-    prefix.
+    prefix; `response(reply)`: the Starlette response of a `base.Reply`.
 
 | Method and path | Answer |
 | --- | --- |
@@ -185,5 +189,6 @@ Module functions, outside `__all__`:
 | other methods | 405 from the adapter, with `Allow`: `GET` on a page path, `GET, HEAD` on a file, `POST` on `/gramlot/*` |
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).

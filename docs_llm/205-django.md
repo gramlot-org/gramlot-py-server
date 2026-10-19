@@ -107,9 +107,11 @@ the prefix of the browser URLs and to the `Path` of the owner cookie. The page
 same pages without the 301 of `/py`. A different path in `include()` and in
 `mount_path` gives browser URLs that the URLconf does not route.
 
-`Pages` takes `page_ttl`, `max_pages`, `content_security_policy` and `assets`
-with the meaning of the [Uvicorn options](110-configuration.md). One `Pages` instance
-owns one page registry. Create it once, at URLconf import, not per request.
+`Pages` takes `page_ttl`, `max_pages`, `content_security_policy`, `assets` and
+`collections` with the meaning of the [Uvicorn options](110-configuration.md).
+It does not expose the option `css_theme` of the core server: the base theme is
+`gramlot-base`. One `Pages` instance owns one page registry. Create it once, at
+URLconf import, not per request.
 
 <a id="gp-205-020"></a>
 
@@ -123,8 +125,9 @@ view `view`, which serves the runtime, the pages, the core themes, the files of
 
 - **CSRF.** The Gramlot runtime posts JSON without a Django CSRF token, so the
   views are wrapped in `csrf_exempt`. A `POST` to a URL that accepts none
-  answers 405 where `CsrfViewMiddleware` would answer 403, as GC-230 of the
-  core requires.
+  answers 405 where `CsrfViewMiddleware` would answer 403, as the
+  [server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
+  of the core requires.
 - **Synchronous views.** The views are plain Django functions. They call the
   asynchronous core `GramlotFileServer` through `asgiref.sync.async_to_sync`.
 - **`HEAD` on a page.** A page path accepts `GET` only. `HEAD` and every other
@@ -166,7 +169,9 @@ Module functions, outside `__all__`:
   entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-content_security_policy=None, assets=None)`
+content_security_policy=None, assets=None, collections=())`: a subclass of
+`gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md), section
+020).
 
 - `urlpatterns`: the URL patterns for the URLconf, `urls` included at
   `mount_path` and the 301 of the bare prefix.
@@ -176,8 +181,10 @@ content_security_policy=None, assets=None)`
 - `mount_path`: the normalized prefix (`""` or `/py`).
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
-- `view`: the view behind `urls`; `mount_view`: the view of the bare prefix.
-- `finalizer`: the `weakref.finalize` that forgets every open page at exit.
+- `view`: the view behind `urls`; `mount_view`: the view of the bare prefix;
+  `response(reply)`: the Django response of a `base.Reply`.
+- `finalizer`: the `weakref.finalize` that forgets every open page at exit;
+  `shutdown()` forgets them at once.
 
 | Method and path | Answer |
 | --- | --- |
@@ -192,5 +199,6 @@ content_security_policy=None, assets=None)`
 | `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md); 405, `Allow: POST`, for other methods |
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).

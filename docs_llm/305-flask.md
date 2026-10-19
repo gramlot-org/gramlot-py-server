@@ -96,8 +96,10 @@ pages = mount_pages(app, PAGES, mount_path="/py")
   at the same path gives the same name, and Flask raises `ValueError`.
 - The `Pages` is recorded in `app.extensions["gramlot_pages"][mount_path]`,
   for example `app.extensions["gramlot_pages"]["/py"]`.
-- `page_ttl`, `max_pages`, `content_security_policy` and `assets` have the
-  meaning of the [Uvicorn options](110-configuration.md).
+- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
+  have the meaning of the [Uvicorn options](110-configuration.md). The option
+  `css_theme` of the core server is not exposed: the base theme is
+  `gramlot-base`.
 
 `Pages(pages, **options).blueprint()` builds the blueprint without registering
 it, for an application that registers blueprints itself.
@@ -156,15 +158,19 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages`, registers
   its blueprint and records it in `app.extensions["gramlot_pages"]`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None)`:
+  content_security_policy=None, assets=None, collections=())`: a subclass of
+  `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
+  section 020):
   - `blueprint()`: a new `Blueprint` with the routes below.
   - `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
-  - `view`, `mount_view`: the views of the blueprint and of the bare prefix.
-  - `finalizer`: the `weakref.finalize` that forgets every open page at exit.
+  - `view`, `mount_view`: the views of the blueprint and of the bare prefix;
+    `response(reply)`: the Flask response of a `base.Reply`.
+  - `finalizer`: the `weakref.finalize` that forgets every open page at exit;
+    `shutdown()` forgets them at once.
 
 | Method and path | Answer |
 | --- | --- |
@@ -180,5 +186,6 @@ Module functions, outside `__all__`:
 | other methods | 405 from Flask, with `Allow`; a `GET` on `/gramlot/*` answers 405 with `Allow: POST` |
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).

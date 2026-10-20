@@ -8,9 +8,12 @@ Derived from a guide of the archived gramlot-uvicorn repository.
 
 The binding itself, pointers, formulas, controllers, buttons and events, is the
 core guide
-[Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html).
+[Data binding and controllers](https://gramlot.readthedocs.io/en/latest/docs/public/097-data-binding.html);
+the structure of a page is [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html).
 This guide covers what depends on the server. It is valid for every adapter of
-this package: all five serve the pages folder through the core `GramlotFileServer`.
+this package: all five serve the pages folder through the core `GramlotFileServer`
+and answer the HTTP rules of the
+[server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html).
 
 <a id="gp-010-005"></a>
 
@@ -45,26 +48,27 @@ Beside the page file, with the page's name:
 | File | Role | Served at |
 | --- | --- | --- |
 | `orders.css` | the page stylesheet | `/orders.css` |
-| `orders.js` | the page module, exporting `class Logic` | `/orders.js` |
+| `orders.js` | the page module, exporting `class Logic` when the page has named logic | `/orders.js` |
 | `orders_aux.js` | the page's JavaScript module, exporting `class Logic` | `/orders_aux.js` |
 | `orders.md` | the README of the page | not served |
 
 The URLs carry the mount prefix, for example `/py/orders.css`. Every companion
 is optional. The logic of `orders.py` is the `Logic` export of `orders.js`,
 else of `orders_aux.js`; with both files the opening of the page raises
-`ValueError`. `orders.js` may also export a `Page`, the JavaScript version of
-the same page, which the Python server leaves unused. The module imports the
-runtime as `@gramlot/gramlot/page`: the import map of the bootstrap resolves
-it. The bootstrap loads the `Page.css` URLs first, then `orders.css`, then
-imports the logic module. A folder page keeps its companions in its folder,
-beside `orders/orders.py`.
+`ValueError`. A page without `Logic` has no logic methods: write the class only
+when the page names a method with `func=`. `orders.js` may also export a `Page`,
+the JavaScript version of the same page, which the Python server leaves unused.
+The module imports the runtime as `@gramlot/gramlot/page`: the import map of the
+bootstrap resolves it. The bootstrap loads the theme of the page first, then the
+`Page.css` URLs, then `orders.css`, then imports the logic module. A folder page
+keeps its companions in its folder, beside `orders/orders.py`.
 
 The companion rule: `GET` and `HEAD` answer a `.css` or `.js` file whose real
 path is below the pages folder, so a page module and its relative imports reach
-the browser. Any other file answers 404. Another method is refused; the status
-depends on the adapter and is in its guide. The `.js` files of the folder run
-in the browser, so they are public. Server-only logic belongs in Python modules
-that the page imports, never in a `.js` file of the pages folder.
+the browser. Any other file answers 404. Another method answers 405 with
+`Allow: GET, HEAD`. The `.js` files of the folder run in the browser, so they
+are public. Server-only logic belongs in Python modules that the page imports,
+never in a `.js` file of the pages folder.
 
 <a id="gp-010-015"></a>
 
@@ -72,19 +76,28 @@ that the page imports, never in a `.js` file of the pages folder.
 
 Block ID: **GP-010-015**.
 
-`Page.css` is a tuple of stylesheet URLs, written as in `<link href>`:
+`Page.css` is a tuple of stylesheet URLs, written as in `<link href>`. The
+server loads the theme of the page before them: the base theme `gramlot-base`,
+which every page has without a line in `Page.css`. `Page.css` lists what follows
+the theme, such as an overlay of the core and the stylesheets of the application:
 
 ```python
 class Page(BasePage):
-    css = ("/themes/gramlot-base/theme.css", "orders-print.css")
+    css = ("/themes/gramlot-compact/theme.css", "orders-print.css")
 ```
 
-A root-relative URL (`/themes/gramlot-base/theme.css`) receives the mount prefix
-once: the adapter serves it from the themes of the core. A relative URL
+A page replaces the base theme with `css_theme = "<name>"` and loads none with
+`css_theme = False`. The adapters of this package do not expose the option
+`css_theme` of `GramlotServer`, the base theme of the server: it stays
+`gramlot-base` for every page, and `Page.css_theme` is the only way to change it.
+
+A root-relative URL (`/themes/gramlot-compact/theme.css`) receives the mount
+prefix once: the adapter serves it from the themes of the core. A relative URL
 (`orders-print.css`) and an absolute URL stay as written. A `Page.css`
 URL that points inside the pages folder is served by the companion rule when it
 ends in `.css`. A URL outside the folder is an asset of the application, which
-serves it itself or through its web server.
+serves it itself or through its web server. See
+[Themes and CSS](https://gramlot.readthedocs.io/en/latest/docs/public/096-themes-and-css.html).
 
 `css_requires` and `js_requires` name resources of a `GramlotServer` with a
 resource system. `GramlotFileServer` and the adapters of this package have
@@ -99,6 +112,9 @@ part of Genro, the framework that succeeds GenroPy.
 Block ID: **GP-010-020**.
 
 The methods of `class Logic` in the companion are the named logic of the page.
+`Logic` is optional: a page without named logic needs no class. A misspelt
+export (`logic`) is not an error when the module loads; the error appears when
+a `func=` looks for its method.
 `func="greet"` on a `dataFormula` calls `greet(kwargs)` and uses the returned
 value. `func="countChange"` on a `dataController` calls
 `countChange(node, kwargs)`. `kwargs` holds the resolved parameters of the
@@ -116,12 +132,15 @@ Named logic runs under both Content Security Policy profiles. Inline code (a
 Block ID: **GP-010-025**.
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).
 
 Endpoints (`@endpoint`, called from the Source by `dataRpc`) are described in
-[Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html)
-of the core, section 100. The adapters answer every call, a fragment
+[Calling the server](https://gramlot.readthedocs.io/en/latest/docs/public/098-server-calls.html)
+of the core, and fragments and lazy Data in
+[Remote content and lazy Data](https://gramlot.readthedocs.io/en/latest/docs/public/099-remote-content.html).
+The adapters answer every call, a fragment
 (`contentType` `source`) or an endpoint (`contentType` `data`), at
 `POST /gramlot/rpc`; see section 030, What is served. Only the Kajenn adapter announces
 the `auth` capability and evaluates an `auth` rule against the tags of the Kajenn
@@ -144,18 +163,14 @@ Paths are shown without the mount prefix.
 | `GET`, `HEAD /themes/<file>` | a file of the themes packaged with the core, such as `/themes/gramlot-base/theme.css` |
 | `GET`, `HEAD` of a URL of the `assets` option | the file, with its media type |
 | `GET`, `HEAD` of a `.css` or `.js` file below the pages folder | the file |
+| `GET`, `HEAD /app.webmanifest` | the web manifest of an installable root page ([Configuration](110-configuration.md)); 404 otherwise |
 | `POST /gramlot/rpc`, `/gramlot/close` | the page protocol: the envelopes of `GramlotServer.call`, the close of a page |
 
 Nothing else of the pages folder leaves the server: no `.py`, no `.md`, no
 other asset. Other static assets of the application live outside the pages
 folder; the `assets` option serves a list of them below the prefix, or the
-application and its web server serve them. The answers to other
-methods and paths differ between frameworks; each guide lists them.
-
-**Learning path.** Follow the [shared release-by-release example sequence](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015) after this
-environment's setup. Revisit examples when a later release simplifies the code;
-prerequisite links support that chronology. The gallery is a source viewer, not a file editor. Edit a
-separate project; Python Page runs on the server; its JavaScript Logic runs in the browser. Reload/reopen after saving; development reload is
-not automatic hot reload. The sequence explains inline and named Logic in their
-release context; use named Logic for reusable behavior. Inline examples require the
-documented CSP profile. Common examples do not cover every advanced case.
+application and its web server serve them. The five adapters answer the same
+status codes and headers (the 405 with `Allow` of any other method included);
+each guide lists the answers, and the
+[server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
+of the core states the rules.

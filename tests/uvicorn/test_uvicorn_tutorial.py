@@ -40,7 +40,7 @@ async def test_tutorial_page_with_page_module_and_stylesheet_under_the_strict_pr
         assert document.status_code == 200
         nonce = re.search(r'nonce="([^"]+)"', document.text).group(1)
         assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
-        assert '"css":["/greeting.css"]' in document.text
+        assert '"css":["/themes/gramlot-base/theme.css","/greeting.css"]' in document.text
         assert '{"url":"/greeting.js","group":null}' in document.text
         assert (await client.get("/greeting.css")).headers["content-type"] == "text/css; charset=utf-8"
         companion = await client.get("/greeting.js")

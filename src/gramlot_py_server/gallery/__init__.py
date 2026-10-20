@@ -5,8 +5,9 @@ The environment serves the gallery with its own adapter (GE-010 section 025 of
 ``gramlot-examples``). A temporary pages folder holds one page per route:
 ``index.py``, the gallery page with the catalogues and its URLs under the mount
 path, and for each example ``<key>.py``, which appends ``frame.js``, its
-stylesheet ``<key>.css`` and ``<key>_aux.js``, which re-exports ``Logic`` from
-the URL of the logic module. The adapter serves the ``assets`` of
+stylesheet ``<key>.css`` and ``<key>_aux.js``, which re-exports every name of the
+logic module from its URL (``export *``): ``Logic`` when the module exports it, nothing
+when it does not, as the core allows. The adapter serves the ``assets`` of
 ``build_gallery`` under the same mount path, each logic module as JavaScript.
 
 Environment catalogues, when supplied, extend the common examples. Setup and
@@ -85,7 +86,7 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
             if url is None:
                 raise ValueError(f"The logic module of {key} is not a gallery asset: {route['logic']}")
             assets[url] = {**assets[url], "type": JAVASCRIPT}
-            (folder / f"{key}_aux.js").write_text(f"export {{Logic}} from {json.dumps(prefix + url)};\n")
+            (folder / f"{key}_aux.js").write_text(f"export * from {json.dumps(prefix + url)};\n")
     return assets
 
 

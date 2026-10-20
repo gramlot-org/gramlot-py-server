@@ -4,6 +4,6 @@ import pytest
 from conformance_checks import CASE_IDS, CASES, check_adapter
 
 
-@pytest.mark.parametrize(("mount_path", "policy"), CASES, ids=CASE_IDS)
-def test_uvicorn_conforms_to_the_server_protocol(tmp_path, mount_path, policy):
-    check_adapter("uvicorn", tmp_path, mount_path, policy)
+@pytest.mark.parametrize(("mount_path", "policy", "page_ttl"), CASES, ids=CASE_IDS)
+def test_uvicorn_conforms_to_the_server_protocol(tmp_path, mount_path, policy, page_ttl):
+    check_adapter("uvicorn", tmp_path, mount_path, policy, page_ttl)

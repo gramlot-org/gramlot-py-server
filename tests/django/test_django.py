@@ -9,7 +9,9 @@ from django.test import Client
 from django.urls import clear_url_caches, include, path
 from genro_tytx import from_tytx
 
-from gallery_checks import check_index_main, expected, page_id, staged
+from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+                        check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.django import Pages
 from rpc_checks import envelope, rpc_outcome, rpc_source
@@ -50,7 +52,7 @@ def test_page_source_lifecycle_and_owner(tmp_path):
     page_id = re.search(rb'"pageId":"([0-9a-f]+)"', response.content).group(1).decode()
     asset = client.get("/hello/assets/gramlot.js")
     assert asset.status_code == 200
-    assert b"Gramlot" in b"".join(asset.streaming_content)
+    assert b"Gramlot" in asset.content
 
     def rpc(sender, *args, **kwargs):
         return sender.post("/hello/gramlot/rpc", envelope(page_id, *args, **kwargs),
@@ -154,7 +156,9 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     assert json.loads(runtime) == "/hello/assets/gramlot.js"
     argument = json.loads(argument)
     assert argument["config"]["closeUrl"] == "/hello/gramlot/close"
-    assert argument["resources"]["css"] == ["/hello/themes/theme.css", "local.css", "/hello/index.css"]
+    assert argument["resources"]["css"] == [
+        "/hello/themes/gramlot-base/theme.css", "/hello/themes/theme.css", "local.css", "/hello/index.css"
+    ]
     assert argument["resources"]["js"] == [{"url": "/hello/index_aux.js", "group": None}]
     for url, media_type in (("/hello/themes/theme.css", "text/css"),
                             ("/hello/index.css", "text/css"),
@@ -269,7 +273,7 @@ def test_core_themes_below_the_mount_path(tmp_path):
 
 def test_gallery_under_the_mount_path(tmp_path):
     folder, assets = staged(tmp_path, "django")
-    integration = Pages(folder, mount_path="/py", assets=assets)
+    integration = Pages(folder, mount_path="/py", assets=assets, collections=gallery_collections())
     global urlpatterns
     urlpatterns = integration.urlpatterns
     clear_url_caches()
@@ -295,3 +299,49 @@ def test_index_html_opens_the_page_of_its_folder(tmp_path):
         assert title_of(response.content.decode()) == title, url
     for url in INDEX_HTML_MISSING:
         assert client.get("/hello" + url).status_code == 404, url
+
+
+def test_http_rules_of_the_shared_base(tmp_path):
+    folder, assets = rules_pages(tmp_path)
+    integration = Pages(folder, mount_path="/hello", assets=assets)
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client(enforce_csrf_checks=True)
+    for method in REFUSED_ON_A_PAGE:
+        response = client.generic(method, "/hello/")
+        check_refusal(method, response.status_code, response.headers)
+    for url in NO_STORE_URLS:
+        check_no_store(url, client.get("/hello" + url).headers)
+    check_no_cache(RUNTIME_URL, client.get("/hello" + RUNTIME_URL).headers)
+    check_no_cache(RUNTIME_URL, client.head("/hello" + RUNTIME_URL).headers)
+    for url in ("/gramlot/rpc", "/gramlot/close"):
+        response = client.get("/hello" + url)
+        check_refusal("GET", response.status_code, response.headers, "POST")
+    for url in ("/assets/gramlot.js", "/themes/gramlot-base/theme.css", "/index.css", "/extra/logo.svg"):
+        response = client.post("/hello" + url)
+        check_refusal("POST", response.status_code, response.headers, "GET, HEAD")
+        check_no_store(url, response.headers)
+    first = client.get("/hello/")
+    owner = check_owner_cookie(first.cookies["gramlot_owner"], "/hello")
+    assert check_owner_cookie(client.get("/hello/").cookies["gramlot_owner"], "/hello") == owner
+    redirect = client.get("/hello")
+    assert redirect.status_code == 301
+    check_no_store("/hello", redirect.headers)
+    assert client.post("/hello").status_code == 301
+
+
+def test_the_registered_pages_are_forgotten_at_exit(tmp_path):
+    folder, _ = rules_pages(tmp_path)
+    integration = Pages(folder, mount_path="/hello")
+    global urlpatterns
+    urlpatterns = integration.urlpatterns
+    clear_url_caches()
+    client = Client()
+    document = client.get("/hello/").content.decode()
+    assert len(integration.gramlot_server._pages) == 1
+    assert integration.finalizer.alive and integration.finalizer.atexit
+    integration.finalizer()
+    assert integration.gramlot_server._pages == {}
+    main = client.post("/hello/gramlot/rpc", envelope(page_id(document)), content_type="application/json")
+    assert rpc_outcome(main.content) == "page_expired"

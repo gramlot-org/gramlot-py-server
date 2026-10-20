@@ -43,8 +43,8 @@ nothing.
 
 Every project also has:
 
-- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.3`, and
-  `gramlot-py-server[fastapi,uvicorn]>=0.2.3` for FastAPI, which needs a server;
+- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.11`, and
+  `gramlot-py-server[fastapi,uvicorn]>=0.2.11` for FastAPI, which needs a server;
 - `pages/index.py`: the page, whose formula names the method `greeting`;
 - `pages/index.js`: the page module, which exports `class Logic` with
   `greeting`. It runs in the browser.
@@ -93,14 +93,15 @@ gramlot django gallery
 | `--port PORT` | `8080` | the port the server listens on |
 | `--mount PATH` | none | the prefix of every URL, for example `/py` |
 | `--catalog CATALOG PAGES` | none | adds the families of a `catalog.json` and its pages folder; repeatable |
+| `--serverless-download URL` | none | the URL of an offline gallery ZIP that the deployment serves; the gallery shows a footer link to it (section 030) |
 
-The gallery lists the common families of `gramlot-examples` (`e01`–`e13`,
-`b01`–`b11`, and the controller lessons supplied by the installed examples package). Setup quick starts remain in this server documentation
-and in the projects created by `gramlot <environment> new`; they are not gallery
-sections or routes. Explicit `--catalog` extensions remain supported. Without
-`--mount` the gallery is the site root, `/`. With `--mount /py` the command
-prints `http://127.0.0.1:8080/py/`, `/py` answers 301 to `/py/`, and `/`
-answers 404: there is no redirect to the prefix.
+The gallery lists the families of the `catalog.json` of `gramlot-examples`, as
+the installed examples package defines them. Setup quick starts remain in this
+server documentation and in the projects created by `gramlot <environment> new`;
+they are not gallery sections or routes. Explicit `--catalog` extensions remain
+supported. Without `--mount` the gallery is the site root, `/`. With
+`--mount /py` the command prints `http://127.0.0.1:8080/py/`, `/py` answers 301
+to `/py/`, and `/` answers 404: there is no redirect to the prefix.
 
 The command stages one page per route in a temporary folder and serves it with
 the `assets` of `build_gallery`, as described in
@@ -112,9 +113,10 @@ of `gramlot-examples`:
 - `<key>.py`: the example page, which appends `<prefix>/gallery/dist/frame.js`
   so the example follows the theme of the gallery;
 - `<key>.css`: the stylesheet of the example, when it has one;
-- `<key>_aux.js`: `export {Logic} from "<prefix>/pages/<family>/<file>.js";`,
-  the logic module of the example. The adapter serves that file as
-  JavaScript.
+- `<key>_aux.js`: `export * from "<prefix>/pages/<family>/<file>.js";`,
+  the logic module of the example. It re-exports `Logic` when the module
+  exports it, and nothing when the module has no `Logic`. The adapter serves
+  that file as JavaScript.
 
 The gallery sends no Content Security Policy: the examples use inline code. The
 temporary folder is removed when the server stops.
@@ -163,14 +165,6 @@ adapter adds a verb of its own in its `commands` without changing the others.
 `gramlot_py_server.scaffold.add_new` and `gramlot_py_server.gallery.add_gallery`
 add the two verbs of this package; `add_gallery` takes the function `serve` of
 the adapter, which runs the server of the framework.
-
-**Learning path.** Follow the [shared release-by-release example sequence](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015) after this
-environment's setup. Revisit examples when a later release simplifies the code;
-prerequisite links support that chronology. The gallery is a source viewer, not a file editor. Edit a
-separate project; Python Page runs on the server; its JavaScript Logic runs in the browser. Reload/reopen after saving; development reload is
-not automatic hot reload. The sequence explains inline and named Logic in their
-release context; use named Logic for reusable behavior. Inline examples require the
-documented CSP profile. Common examples do not cover every advanced case.
 
 <a id="gp-020-025"></a>
 

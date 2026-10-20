@@ -93,9 +93,11 @@ The application is declared in the site recipe, as in the example:
 - `.request(body="raw")`. The request envelope reaches `GramlotServer.call` as
   the TYTX text the browser sent, not through Kajenn's TYTX hydration. Without it every protocol request raises
   `RuntimeError` ("Application requires request(body='raw')") and answers 500.
-- `page_ttl`, `max_pages`, `content_security_policy` and `assets`, with the
-  meaning of the [Uvicorn options](110-configuration.md). There is no
-  `mount_path` option.
+- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`,
+  with the meaning of the [Uvicorn options](110-configuration.md). There is no
+  `mount_path` option: `Application` raises `TypeError` when it is given. The
+  option `css_theme` of the core server is not exposed: the base theme is
+  `gramlot-base`.
 
 The Kajenn server removes the mount from the request path. The application
 passes `/<mount>` to `open_page` as the prefix of the browser URLs and uses it
@@ -113,22 +115,21 @@ path that no other application claims, the prefix is empty and the cookie
 
 Block ID: **GP-505-020**.
 
-- **Routes.** The branch `assets` serves `gramlot.js` with `GET` and `HEAD`;
-  its `index` route passes every other path below `assets/` to the `index`
-  route of the application. The branch `gramlot` holds `rpc` and `close`, which
-  accept `POST`. The `index` route serves the files of `assets`,
-  the pages and the companions from the remaining path segments.
-- **Methods.** A page accepts `GET` only; `HEAD` answers 405. A method that a
-  route does not accept answers 405 `Method not allowed`, without an `Allow`
-  header.
+- **Routes.** One `index` route receives every path below the mount,
+  `assets/gramlot.js` and `gramlot/rpc` included. It reads `request.path` and
+  serves the runtime, the pages, the core themes, the files of `assets`, the
+  companions and the protocol URLs.
+- **Methods.** A page accepts `GET` only; `HEAD` and every other method answer
+  405 `Method not allowed` with `Allow: GET`. A file accepts `GET` and `HEAD`,
+  the protocol URLs `POST`. Every 405 carries an `Allow` header.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
-  Errors are Kajenn HTTP exceptions: the answer is `application/json` with the
-  body `{"error": "…"}`, for example `{"error": "Invalid envelope"}`. The
+  Errors are plain text with `Content-Type: text/plain; charset=utf-8`, as in the
+  other adapters, for example `Invalid envelope`. The
   outcomes of a call are not errors: they arrive in the 200 response envelope.
 - **Request body.** The application reads the raw body and passes it to
-  `GramlotServer.call` as text. The adapter fixes no size, and Kajenn 0.1
+  `GramlotServer.call` as text. The adapter fixes no size, and Kajenn 0.5
   reads the whole body before the route runs; a size limit declared on the
   application is kajenn-org/kajenn#32. The media type of `Content-Type` is compared with
   `application/json`; parameters such as `charset` are ignored.
@@ -158,21 +159,24 @@ Module functions, outside `__all__`:
   entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 `Application(pages, *, page_ttl=1800, max_pages=1000,
-content_security_policy=None, assets=None, **kwargs)`: the other keyword arguments go to
-Kajenn's `RoutedApplication`. The site recipe passes them.
+content_security_policy=None, assets=None, collections=(), **kwargs)`: a subclass
+of `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
+section 020) and of Kajenn's `RoutedApplication`; the other keyword arguments go
+to `RoutedApplication`. The site recipe passes them.
 
 - `gramlot_server`: a subclass of the core `GramlotFileServer` built on `pages`
   with the URLs `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`. Its
-  `capabilities` is `["auth"]`; `record_avatar(owner, avatar)` records the avatar
-  tags of an owner in `owner_tags`, at most `max_pages` owners, emptied by
-  `close_all`; `evaluate_auth(rule, owner=…)` evaluates a rule against them.
+  `capabilities` is `["auth"]`; `evaluate_auth(rule, *, owner, identity)`
+  evaluates a rule against the tags of `identity`, the Kajenn avatar that the
+  application passes with the call. The server keeps no avatar between calls.
 - `content_security_policy`: the configured policy or `None`.
 - `assets`: the map of URLs to files, `{}` when not given.
-- `index`: the route of assets, pages and companions.
-- `on_shutdown()`: the Kajenn lifecycle hook; it forgets every open page.
-- `redirect(request)`, `static(request, asset)`, `companion(request,
-  page_path, suffix)`, `operation(request, body_raw, operation)`,
-  `require_method(request, *methods)`: the helpers of the routes.
+- `index`: the route of every path below the mount.
+- `mount_path`: `/<mount>`, or `""` at the site root.
+- `on_shutdown()`: the Kajenn lifecycle hook; it calls `shutdown()` and forgets
+  every open page.
+- `read_body(body_raw)`: the raw request body of the site recipe's
+  `request(body="raw")`.
 
 Paths below are without the mount.
 
@@ -185,20 +189,21 @@ Paths below are without the mount.
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
-| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md), with JSON error bodies |
-| other methods | 405 `Method not allowed` |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
+| other methods | 405 `Method not allowed`, with `Allow`: `GET` on a page path, `GET, HEAD` on a file, `POST` on `/gramlot/*` |
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).
 
 The Kajenn adapter passes the envelope to `GramlotServer.call` as the other
 adapters do and announces the capability `auth`: the bootstrap `config` carries
-`"capabilities": ["auth"]`. Before each call through `/gramlot/rpc` the
-application records the tags of the request's Kajenn avatar (`request.avatar()`)
-for the owner cookie, or no identity when the request is anonymous. The
+`"capabilities": ["auth"]`. With each call through `/gramlot/rpc` the
+application passes the request's Kajenn avatar (`request.avatar()`), or `None`
+when the request is anonymous, as the `identity` of `GramlotServer.call`. The
 `evaluate_auth` of `gramlot_server` evaluates an `auth` rule with
-`genro_toolbox.tags_match` against those tags, the evaluation the genro-routes
+`genro_toolbox.tags_match` against the tags of that avatar, the evaluation the genro-routes
 `AuthPlugin` applies to route entries: no avatar answers `not_authenticated`, tags
 that do not satisfy the rule answer `not_authorized`. The avatar comes from the
 Kajenn site: for example a `basic_user` with `tags` under
@@ -216,19 +221,18 @@ and logging plugins, belongs to genro-kajenn, not to this adapter.
 
 Block ID: **GP-505-030**.
 
-**Release stage:** core 0.2.14 endpoint rules, then 0.2.15 Source rules.
 **Goal:** distinguish an anonymous request, a refused identity and an allowed
 identity, then prove that the next anonymous request loses authorization.
-**Before this lesson:** [c11 Call on click](https://github.com/gramlot-org/gramlot-examples/blob/main/src/gramlot_examples/pages/controllers/11_call_on_click.md) and the site
-configuration above. This is a controlled adapter test walkthrough, not a new
-application login system.
+**Before this lesson:** the lesson *Call on click* of the
+[examples manual](https://gramlot-examples.readthedocs.io/en/latest/) and the
+site configuration above. This is a controlled adapter test walkthrough, not a
+new application login system.
 
 ### Read the fixture
 
 `tests/kajenn/test_kajenn.py` already defines `auth_site(pages)`. Its site uses
-Kajenn's existing Basic credentials and `ServerApplication` from the current
-`kajenn.server_app` module. Older Kajenn installations used the separate import
-name `kajenn_server_app`; update Kajenn rather than adding an import fallback:
+Kajenn's existing Basic credentials and `ServerApplication` from the module
+`kajenn.server_app`:
 
 ```python
 from kajenn.server_app import ServerApplication
@@ -254,11 +258,9 @@ fragment containing a public span and `root.div(auth="admin")`.
 
 ### Try it and predict the result
 
-Use the repository's configured development environment with the current
-released core. Source-element authorization requires core 0.2.15 or later; an
-older 0.2.14 installation can pass the endpoint test while failing the Source
-filtering test. Update the environment rather than copying a filter into the
-adapter:
+Use the repository's development environment, with the core and Kajenn at the
+versions that `pyproject.toml` requires. Update the environment rather than
+copying a filter into the adapter:
 
 ```sh
 python -m pip install --upgrade gramlot kajenn
@@ -281,10 +283,11 @@ each row before reading its assertions:
 | Anonymous again | `not_authenticated` | Public span only |
 
 The Source response omits a refused branch before delivery. This differs from
-c11's `hidden=True` branch, which is present but not displayed. The final request
-proves that a previous allowed request does not authorize an anonymous one; it
-does not demonstrate a browser logout interface. The HTTP calls in these tests
-observe the protocol and are not application request code to copy.
+the `hidden=True` branch of the lesson *Call on click*, which is present but
+not displayed. The final request proves that a previous allowed request does
+not authorize an anonymous one; it does not demonstrate a browser logout
+interface. The HTTP calls in these tests observe the protocol and are not
+application request code to copy.
 
 ### Change it and check yourself
 
@@ -295,16 +298,20 @@ expected endpoint outcome and protected-branch presence, then rerun the tests.
 Restore the original fixture after the exercise. Page ownership and identity
 remain separate even when a single client makes all four calls.
 
-### The same example across stages
+### The same rules in the lesson
 
-c11 first taught an endpoint result/error and default refusal. Its later section
-adds server-side Source omission. Kajenn now supplies the existing identity to
-those same rules; the application needs no second authorization state in Data,
-manual hiding controller or alternative Source representation.
+The lesson *Call on click* teaches an endpoint result and error, the default
+refusal of an `auth` rule and the server-side omission of protected Source.
+Kajenn supplies the existing identity to those same rules; the application needs
+no second authorization state in Data, manual hiding controller or alternative
+Source representation.
 
 ### Limits and next step
 
-The common FileServer does not provide an identity. Named resource groups still
-require the separate genro-kajenn resource host; this authentication capability
-does not supply it. Continue with c12–c14 at the core 0.2.16 stage, keeping remote
-method names fixed and allowing only the documented variable parameters.
+The core `GramlotFileServer` provides no identity: this adapter passes the
+Kajenn avatar of each call to it. Named resource groups (`js_requires`) still
+require a server with a resource system, which genro-kajenn provides; this
+authentication capability does not supply it. Continue with the lessons on
+`remote` and `dataRemote` in the examples manual and with
+[Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105),
+which states the form of the method name and the request rule.

@@ -5,7 +5,7 @@ from rpc_checks import envelope, rpc_source
 
 def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags, page_id):
     folder, module = new_project("flask", "app.py")
-    check_files(folder, "app.py", "gramlot-py-server[flask]>=0.2.3", "flask --app app run --port 8000",
+    check_files(folder, "app.py", "gramlot-py-server[flask]>=0.2.11", "flask --app app run --port 8000",
                 capsys.readouterr().out)
     client = module.app.test_client()
     document = client.get("/")

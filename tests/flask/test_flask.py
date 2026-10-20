@@ -5,7 +5,9 @@ from importlib.resources import files
 from flask import Flask
 from genro_tytx import from_tytx
 
-from gallery_checks import check_index_main, expected, page_id, staged
+from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+                        check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.flask import mount_pages
 from rpc_checks import envelope, rpc_outcome, rpc_source
@@ -114,7 +116,9 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     assert document.headers["Content-Security-Policy"] == STRICT_CSP.replace("{nonce}", nonce)
     assert json.loads(runtime) == "/nested/assets/gramlot.js"
     resources = json.loads(argument)["resources"]
-    assert resources["css"] == ["/nested/themes/theme.css", "local.css", "/nested/index.css"]
+    assert resources["css"] == [
+        "/nested/themes/gramlot-base/theme.css", "/nested/themes/theme.css", "local.css", "/nested/index.css"
+    ]
     assert resources["js"] == [{"url": "/nested/index_aux.js", "group": None}]
     for url, media_type in (("/nested/themes/theme.css", "text/css"),
                             ("/nested/index.css", "text/css"),
@@ -224,7 +228,7 @@ def test_core_themes_below_the_mount_path(tmp_path):
 def test_gallery_under_the_mount_path(tmp_path):
     folder, assets = staged(tmp_path, "flask")
     app = Flask(__name__)
-    mount_pages(app, folder, mount_path="/py", assets=assets)
+    mount_pages(app, folder, mount_path="/py", assets=assets, collections=gallery_collections())
     client = app.test_client()
     for url, kind in expected("flask"):
         response = client.get(url)
@@ -245,3 +249,45 @@ def test_index_html_opens_the_page_of_its_folder(tmp_path):
         assert title_of(response.get_data(as_text=True)) == title, path
     for path in INDEX_HTML_MISSING:
         assert client.get("/nested" + path).status_code == 404, path
+
+
+def test_http_rules_of_the_shared_base(tmp_path):
+    folder, assets = rules_pages(tmp_path)
+    app = Flask(__name__)
+    mount_pages(app, folder, mount_path="/nested", assets=assets)
+    client = app.test_client()
+    for method in REFUSED_ON_A_PAGE:
+        response = client.open("/nested/", method=method)
+        check_refusal(method, response.status_code, response.headers)
+    for url in NO_STORE_URLS:
+        check_no_store(url, client.get("/nested" + url).headers)
+    check_no_cache(RUNTIME_URL, client.get("/nested" + RUNTIME_URL).headers)
+    check_no_cache(RUNTIME_URL, client.head("/nested" + RUNTIME_URL).headers)
+    for url in ("/gramlot/rpc", "/gramlot/close"):
+        response = client.get("/nested" + url)
+        check_refusal("GET", response.status_code, response.headers, "POST")
+    for url in ("/assets/gramlot.js", "/themes/gramlot-base/theme.css", "/index.css", "/extra/logo.svg"):
+        response = client.post("/nested" + url)
+        check_refusal("POST", response.status_code, response.headers, "GET, HEAD")
+        check_no_store(url, response.headers)
+    first = client.get("/nested/")
+    owner = check_owner_cookie(first.headers["Set-Cookie"], "/nested")
+    assert check_owner_cookie(client.get("/nested/").headers["Set-Cookie"], "/nested") == owner
+    redirect = client.get("/nested")
+    assert redirect.status_code == 301
+    check_no_store("/nested", redirect.headers)
+    assert client.post("/nested").status_code == 301
+
+
+def test_the_registered_pages_are_forgotten_at_exit(tmp_path):
+    folder, _ = rules_pages(tmp_path)
+    app = Flask(__name__)
+    integration = mount_pages(app, folder)
+    client = app.test_client()
+    document = client.get("/").text
+    assert len(integration.gramlot_server._pages) == 1
+    assert integration.finalizer.alive and integration.finalizer.atexit
+    integration.finalizer()
+    assert integration.gramlot_server._pages == {}
+    main = client.post("/gramlot/rpc", data=envelope(page_id(document)), content_type="application/json")
+    assert rpc_outcome(main.text) == "page_expired"

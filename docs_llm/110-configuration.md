@@ -25,9 +25,18 @@ Kajenn adapter takes all of them except `mount_path`, whose role its Kajenn
 | `max_pages` | `int` | `1000` | the number of open pages the process accepts; the next opening answers 503 |
 | `content_security_policy` | `str` or `None` | `None` | the `Content-Security-Policy` header of HTML pages; see section 015 |
 | `assets` | `dict` or `None` | `None` | URLs below the prefix served from files; see section 030 |
+| `collections` | sequence | `()` | the component collections of the application; see section 090 |
 
-`page_ttl` and `max_pages` are passed to `GramlotFileServer`. A value outside the rule
-raises `ValueError` when the application is created.
+`pages`, `page_ttl`, `max_pages` and `collections` are passed to the core server
+(`GramlotFileServer`); the adapter keeps `mount_path`, `content_security_policy`
+and `assets`. A value of `page_ttl` or `max_pages` outside the rule raises
+`ValueError` when the application is created. `page_ttl` counts from the last
+call to the page: every call to a page that has not expired starts the period
+again.
+
+The base theme of the core server, its option `css_theme` (default
+`gramlot-base`), is not an option of the adapters: every page gets
+`gramlot-base` before its `Page.css`, unless the page sets `Page.css_theme`.
 
 The environment variable `GRAMLOT_DEV` of the core applies to every adapter.
 Unset, the runtime URL serves the minified `gramlot.min.js` and each page file
@@ -51,9 +60,9 @@ document: runtime, main, source, close, companions and root-relative
 a prefix. Leading and trailing slashes are normalized: `"py"`, `"/py"` and
 `"/py/"` give `/py`.
 
-The rule is the same in the Django, Flask and FastAPI adapters. Until 0.2.1
-the Uvicorn application expected the prefix removed by a front server; a
-proxy that removes it now makes every request answer 404.
+The rule is the same in the Django, Flask and FastAPI adapters. The Uvicorn
+application expects the request path with the prefix: a proxy that removes it
+makes every request answer 404.
 
 <a id="gp-110-015"></a>
 
@@ -110,11 +119,12 @@ Block ID: **GP-110-025**.
   `Content-Type: application/json`. Another media type answers 415.
 - The adapter fixes no request body size. A web server in front may set one
   and answer 413.
-- A body that is not UTF-8 answers 400. A body of `/gramlot/rpc` that
-  `GramlotServer.call` refuses as an envelope answers 400; a body of
-  `/gramlot/close` that is not a JSON object with a string `pageId` answers 400.
-- Every response of this adapter carries `Cache-Control: no-store`, the runtime
-  included.
+- A body that is not UTF-8 answers 400; a leading byte order mark is removed.
+  A body of `/gramlot/rpc` that `GramlotServer.call` refuses as an envelope
+  answers 400; a body of `/gramlot/close` that is not a JSON object with a
+  string `pageId` answers 400.
+- Every response of this adapter carries `Cache-Control: no-store`, except the
+  runtime, which carries `Cache-Control: no-cache`.
 - The page registry lives in the process: pages opened by one worker are
   unknown to another. On `lifespan.shutdown` the application forgets every
   open page.
@@ -176,10 +186,8 @@ Use HTTPS or localhost to install; the server must remain running afterward.
 Safari on macOS Sonoma or later uses File → Add to Dock. No offline cache is added.
 
 <a id="gp-110-090"></a>
-## 090 · Application component collections (development)
+## 090 · Application component collections
 
 Block ID: **GP-110-090**.
 
-All five adapters accept `collections=()` and forward it to the core server. Each entry has `grammar` (generated JSON object) and `module` (root-relative browser module URL); serve that module through `assets`. The gallery command selects inputs automatically through its explicit application configuration. Restart the gallery after rebuilding development assets.
-
-This is the initial 0.3 development increment; no new package release is implied.
+All five adapters accept `collections=()` and forward it to the core server. Each entry has `grammar` (generated JSON object) and `module` (root-relative browser module URL); serve that module through `assets`. The core guide [Components](https://github.com/gramlot-org/gramlot/blob/main/docs/public/105-components.md#gc-105-035) describes an entry. The gallery command passes the collections of `gramlot-examples` through its explicit application configuration. Restart the gallery after rebuilding development assets.

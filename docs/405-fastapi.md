@@ -105,8 +105,10 @@ app = Application(PAGES, mount_path="/py", title="Pages")
 - With a prefix the router has one more route, `/py` without the final slash,
   that answers 301 to `/py/` with the query string: pages link each other with
   relative URLs.
-- `page_ttl`, `max_pages`, `content_security_policy` and `assets` have the
-  meaning of the [Uvicorn options](110-configuration.md).
+- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
+  have the meaning of the [Uvicorn options](110-configuration.md). The option
+  `css_theme` of the core server is not exposed: the base theme is
+  `gramlot-base`.
 
 <a id="gp-405-020"></a>
 
@@ -114,22 +116,23 @@ app = Application(PAGES, mount_path="/py", title="Pages")
 
 Block ID: **GP-405-020**.
 
-- **Routes.** `/assets/gramlot.js` accepts `GET` and `HEAD`.
-  `/gramlot/rpc` and `/gramlot/close` accept `POST`. `/`
-  and `/{page_path:path}` accept `GET` and `HEAD` and serve the pages, the
-  files of `assets` and the companions.
+- **Routes.** `/` and `/{page_path:path}` take every method and serve the
+  runtime, the pages, the core themes, the files of `assets`, the companions
+  and the protocol URLs. The adapter decides the method of each URL and
+  answers 405 with an `Allow` header. The routes stay out of the OpenAPI
+  schema.
 - **`HEAD` on a page.** The adapter answers 405 with `Allow: GET`. `HEAD` on a
   companion or a file of `assets` answers 200 without a body.
-- **Other methods.** FastAPI answers them with 405, the JSON body
-  `{"detail": "Method Not Allowed"}` and `Allow: GET, HEAD`. A `GET` on
-  `/gramlot/rpc` or `/gramlot/close` matches the page route, which answers 405
-  with `Allow: POST`.
+- **Other methods.** `/gramlot/rpc` and `/gramlot/close` accept `POST`, a file
+  accepts `GET` and `HEAD`; any other method answers 405 with the `Allow`
+  header of the URL and the plain text body `Method not allowed`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
-  Error messages are plain text bodies without a `Content-Type` header.
-- **Request body.** The protocol endpoints read the whole body and pass it to
-  `GramlotServer.call` as text. The adapter fixes no size; a web server in
+  Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
+- **Request body.** The protocol endpoints read the whole body; the core
+  decodes it (UTF-8, a leading byte order mark removed) into the text that
+  `GramlotServer.call` takes. The adapter fixes no size; a web server in
   front may set one. The media type of `Content-Type` is compared with
   `application/json`; parameters such as `charset` are ignored.
 - **Errors.** An exception of the page's own code while a page opens reaches
@@ -156,19 +159,21 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages` and calls
   `mount(app)`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, **fastapi_options)`: a `FastAPI` application.
-  `gramlot_pages` holds its `Pages`.
+  content_security_policy=None, assets=None, collections=(), **fastapi_options)`:
+  a `FastAPI` application. `gramlot_pages` holds its `Pages`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None)`:
+  content_security_policy=None, assets=None, collections=())`: a subclass of
+  `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
+  section 020):
   - `mount(app)`: includes the router and registers the shutdown handler.
   - `shutdown()`: forgets every open page.
-  - `server`: the core `GramlotFileServer` built on `pages` with the URLs
+  - `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
-  - `asset`, `page`, `static`, `companion`, `rpc`, `close`, `redirect`: the
-    route functions.
+  - `route`, `mount_route`: the route functions of the pages and of the bare
+    prefix; `response(reply)`: the Starlette response of a `base.Reply`.
 
 | Method and path | Answer |
 | --- | --- |
@@ -176,13 +181,14 @@ Module functions, outside `__all__`:
 | `GET /<page path>/index.html`, `GET /index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
 | `HEAD /<page path>` | 405, `Allow: GET` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
-| `GET`, `HEAD /py` (the bare prefix) | 301, `Location: /py/` with the query string |
+| any method on `/py` (the bare prefix) | 301, `Location: /py/` with the query string |
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
 | `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
-| other methods | 405 from FastAPI, with `Allow`; a `GET` on `/gramlot/*` answers 405 with `Allow: POST` |
+| other methods | 405 from the adapter, with `Allow`: `GET` on a page path, `GET, HEAD` on a file, `POST` on `/gramlot/*` |
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).

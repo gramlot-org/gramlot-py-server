@@ -32,14 +32,16 @@ class Page(BasePage):
 """
 SERVE = """import sys
 from importlib import import_module
-framework, pages, port, mount_path, policy = sys.argv[1:]
+framework, pages, port, mount_path, policy, page_ttl = sys.argv[1:]
 import_module('gramlot_py_server.' + framework).serve(
     pages, host='127.0.0.1', port=int(port), mount_path=mount_path,
-    content_security_policy=policy or None)
+    content_security_policy=policy or None, **({'page_ttl': float(page_ttl)} if page_ttl else {}))
 """
-# The conformance cases: no mount prefix and no policy, a mount prefix and the strict policy.
-CASES = [("", None), ("/py", STRICT_CSP)]
-CASE_IDS = ["root", "mount-and-policy"]
+# The conformance cases: no mount prefix, no policy and a short page_ttl for the check of the expiry
+# (GC-230 item 18, which takes about 2.5 times page_ttl), a mount prefix and the strict policy.
+PAGE_TTL = 2
+CASES = [("", None, PAGE_TTL), ("/py", STRICT_CSP, None)]
+CASE_IDS = ["root-and-page-ttl", "mount-and-policy"]
 
 
 def conformance_pages(folder):
@@ -58,11 +60,12 @@ def free_port():
 
 
 @contextmanager
-def served(framework, pages, mount_path, policy, timeout=30):
+def served(framework, pages, mount_path, policy, page_ttl=None, timeout=30):
     """Run ``serve`` of the adapter module until the block ends; yield the base URL."""
     port = free_port()
     process = subprocess.Popen(
-        [sys.executable, "-c", SERVE, framework, str(pages), str(port), mount_path, policy or ""],
+        [sys.executable, "-c", SERVE, framework, str(pages), str(port), mount_path, policy or "",
+         "" if page_ttl is None else str(page_ttl)],
         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
     )
     try:
@@ -88,9 +91,13 @@ def served(framework, pages, mount_path, policy, timeout=30):
             process.communicate()
 
 
-def check_adapter(framework, tmp_path, mount_path, policy):
-    """Check the index page (``/``) and the page ``/orders`` of one running adapter."""
+def check_adapter(framework, tmp_path, mount_path, policy, page_ttl):
+    """Check the index page (``/``) and the page ``/orders`` of one running adapter.
+
+    With ``page_ttl`` the adapter runs with that page lifetime and the check of ``/orders`` includes
+    the renewal and the expiry of a page.
+    """
     pages = conformance_pages(tmp_path)
-    with served(framework, pages, mount_path, policy) as base_url:
+    with served(framework, pages, mount_path, policy, page_ttl) as base_url:
         check_protocol(base_url, "/")
-        check_protocol(base_url, "/orders")
+        check_protocol(base_url, "/orders", page_ttl=page_ttl)

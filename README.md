@@ -29,15 +29,22 @@ server. One package holds one adapter per framework; each comes with its extra:
 Every adapter serves one folder of `Page` modules through the core `GramlotFileServer`:
 it sends the bootstrap document, passes the envelopes of `POST /gramlot/rpc`
 to `GramlotServer.call` (the page `main`, fragments and `@endpoint` methods),
-serves the page companions (`.css` and `.js`), an optional map of assets and
-the browser runtime, with a mount prefix and a Content Security Policy of your
-choice. It does not serve JavaScript pages
+serves the page companions (`.css` and `.js`), the themes of the core, an
+optional map of assets and the browser runtime, with a mount prefix and a
+Content Security Policy of your choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
 and it does not talk to a database.
 
+What an adapter answers over HTTP is the [server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
+of the core, Part B. The five adapters share one base, `gramlot_py_server.base`,
+which writes those rules once (methods and `Allow`, `Cache-Control`, the owner
+cookie, status codes, shutdown); each adapter adds only its routing and the
+translation between its framework and the base.
+
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).
 
 The Kajenn adapter announces the `auth` capability: it evaluates an `auth`
 rule with `genro_toolbox.tags_match` against the tags of the request's Kajenn
@@ -46,7 +53,7 @@ endpoints as genro-routes `RouterNode`s with the other plugins belongs to
 genro-kajenn. The other adapters announce no capability: an endpoint with an
 `auth` rule answers `not_authenticated`.
 
-The current release is 0.2.10, on PyPI as `gramlot-py-server`.
+The current release is 0.2.11, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 
@@ -234,14 +241,19 @@ pages to it.
     [FastAPI](https://gramlot-py-server.readthedocs.io/en/latest/405-fastapi.html), [Kajenn](https://gramlot-py-server.readthedocs.io/en/latest/505-kajenn.html).
 - The core: [The Gramlot family](https://gramlot.readthedocs.io/en/latest/docs/public/055-family.html),
   [Classes, repository and server adapters](https://gramlot.readthedocs.io/en/latest/docs/public/090-classes-and-hosts.html)
-  (the shared adapter contract: mount prefix, companions, CSP profiles),
-  [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html).
+  (mount prefix, companions, CSP profiles),
+  [Server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
+  (what every server answers),
+  [Writing pages](https://gramlot.readthedocs.io/en/latest/docs/public/095-writing-pages.html),
+  [Data binding and controllers](https://gramlot.readthedocs.io/en/latest/docs/public/097-data-binding.html),
+  [Calling the server](https://gramlot.readthedocs.io/en/latest/docs/public/098-server-calls.html) and
+  [Remote content and lazy Data](https://gramlot.readthedocs.io/en/latest/docs/public/099-remote-content.html).
 
 ## Compatibility
 
 | | Verified |
 | --- | --- |
-| Gramlot core | 0.3.0 (PyPI `gramlot`) |
+| Gramlot core | 0.3.6 (PyPI `gramlot`) |
 | Gallery | `gramlot-examples` 0.3.1 (extra `gallery`) |
 | Python | 3.11 and 3.12 in CI; 3.11.11 and 3.12.9 locally |
 | Frameworks | Uvicorn 0.54.0, Django 6.1.2 with asgiref 3.12.1, Flask 3.1.3, FastAPI 0.143.1, Kajenn 0.5.0 |

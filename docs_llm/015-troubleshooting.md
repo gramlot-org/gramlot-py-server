@@ -139,7 +139,7 @@ command `gramlot` reports the same case as
 without `gramlot-examples` as `The gallery needs gramlot-examples: …`; the
 other messages of the command are in [The gramlot command](020-command.md).
 
-**Two cores.** The package declares `gramlot>=0.2.17`. `pip show gramlot`
+**Two cores.** The package declares `gramlot>=0.3.6`. `pip show gramlot`
 reports the version and the location of the core that Python imports. When a
 copy from PyPI and a copy installed in editable mode from a checkout are both
 present, the report names the one that wins. Uninstall the other, or keep one

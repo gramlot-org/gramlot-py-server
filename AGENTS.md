@@ -21,7 +21,7 @@ each adapter.
 - The repository owns HTTP routing, payload parsing, response mapping and
   request identity for each framework. It does not own Gramlot Source, Data
   Bags, `GramlotServer` or the browser runtime.
-- Depend on the released core only: `gramlot>=0.2.14` from PyPI. The `core-main`
+- Depend on the released core only: `gramlot>=0.3.6` from PyPI. The `core-main`
   CI job, which installs the core from `main`, is the only exception. Never
   copy the core into this repository.
 - Every adapter keeps the same contract: the core `GramlotFileServer` with root-relative

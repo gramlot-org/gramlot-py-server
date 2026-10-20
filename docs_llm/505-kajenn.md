@@ -129,7 +129,7 @@ Block ID: **GP-505-020**.
   other adapters, for example `Invalid envelope`. The
   outcomes of a call are not errors: they arrive in the 200 response envelope.
 - **Request body.** The application reads the raw body and passes it to
-  `GramlotServer.call` as text. The adapter fixes no size, and Kajenn 0.1
+  `GramlotServer.call` as text. The adapter fixes no size, and Kajenn 0.5
   reads the whole body before the route runs; a size limit declared on the
   application is kajenn-org/kajenn#32. The media type of `Content-Type` is compared with
   `application/json`; parameters such as `charset` are ignored.

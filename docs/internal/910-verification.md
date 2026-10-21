@@ -129,3 +129,6 @@ Intermediate release qualification — 2026-10-21. Owner authorizes tree, pages,
 
 
 Clean-install verification follow-up — 2026-10-21. The wheel installation check now obtains the e01 route from the installed examples catalogue instead of the retired short URL. A fresh Uvicorn virtual environment, generated project and mounted gallery pass Chromium against the published core and examples packages. The same script is exercised for all five frameworks by CI.
+
+
+Publication receipt — 2026-10-21. Release v0.2.12 passed all required repository and tag checks and is published on PyPI. The five framework matrices, clean wheel installations, generated projects and gallery browser checks pass. Publication workflow: https://github.com/gramlot-org/gramlot-py-server/actions/runs/39575513271 . Hosted gallery promotion has its own deployment receipt.

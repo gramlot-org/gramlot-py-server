@@ -11,7 +11,7 @@ then:
    ``--find-links``, so the requirement resolves to WHEEL;
 3. the start command that ``new`` printed, then the page it printed in a real
    browser: it shows "Hello, Ada";
-4. ``gramlot ENVIRONMENT gallery --mount /py``, then ``/py/e01`` in a real
+4. ``gramlot ENVIRONMENT gallery --mount /py``, then the catalogue route for ``e01`` in a real
    browser; the removed setup route ``/py/ENVIRONMENT-01`` must return 404.
 
 ``--port`` serves the project on PORT instead of the port of the printed command,
@@ -19,6 +19,7 @@ for a machine where that port is in use; without it the command runs as printed.
 """
 
 import argparse
+import json
 import os
 import re
 import shlex
@@ -103,6 +104,14 @@ def main():
         pip = [str(bin_dir / "python"), "-m", "pip", "install", "-q"]
         extras = EXTRAS.get(environment, environment)
         subprocess.run([*pip, f"{wheel}[{extras},gallery]"], check=True, env=env)
+        catalog = json.loads(subprocess.check_output([
+            str(bin_dir / "python"), "-c",
+            "from importlib.resources import files; print(files('gramlot_examples').joinpath('catalog.json').read_text())",
+        ], env=env, text=True))
+        lesson_route = next(
+            f"pages/{family['folder']}/{item['folder']}"
+            for family in catalog["families"] for item in family["examples"] if item["key"] == "e01"
+        )
         created = subprocess.run(["gramlot", environment, "new", "project"], cwd=folder, env=env,
                                  check=True, capture_output=True, text=True).stdout
         lines = created.splitlines()
@@ -121,7 +130,7 @@ def main():
         print(f"{environment}: gramlot {environment} gallery --mount /py --port {port}", flush=True)
 
         def check_gallery():
-            browse(options.playwright, options.engines, gallery + "e01", "Hello, Gramlot!")
+            browse(options.playwright, options.engines, gallery + lesson_route, "Hello, Gramlot!")
             removed = f"{gallery}{environment}-01"
             try:
                 urllib.request.urlopen(removed, timeout=10).close()

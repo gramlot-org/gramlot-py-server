@@ -8,13 +8,39 @@
  * site root. Setup quick starts are absent in every environment.
  */
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
+import {spawn, execFileSync} from 'node:child_process';
 import {createServer} from 'node:net';
 import {pathToFileURL} from 'node:url';
 
 const [python, playwrightEntry, ...engines] = process.argv.slice(2);
 if (!playwrightEntry) throw new Error('Usage: node scripts/verify_gallery_browser.mjs PYTHON PLAYWRIGHT_ENTRY [ENGINE …]');
 const playwright = await import(pathToFileURL(playwrightEntry));
+const catalog = JSON.parse(execFileSync(python, ['-c', "from importlib.resources import files; print(files('gramlot_examples').joinpath('catalog.json').read_text())"], {encoding:'utf8'}));
+async function galleryRow(page, key) {
+    const family = catalog.families.find(group => group.key === key || group.examples.some(item => item.key === key));
+    if (!family) throw new Error(`Unknown gallery test key: ${key}`);
+    const tree = page.locator('#gallery-navigation-tree');
+    const branch = tree.locator(`[data-path="${family.key}"]`);
+    if (await tree.isVisible() && await branch.getAttribute('aria-expanded') !== 'true') {
+        await branch.locator(':scope > .row > button').click();
+    }
+    const example = family.examples.find(item => item.key === key);
+    let path = family.key;
+    if (example) {
+        for (const directory of example.folder.split('/').slice(0, -1)) {
+            path += `.${directory}`;
+            const node = tree.locator(`[data-path="${path}"]`);
+            if (await node.getAttribute('aria-expanded') !== 'true') {
+                await node.locator(':scope > .row > button').click();
+            }
+        }
+        path += `.${key}`;
+    }
+    return tree.locator(`[data-path="${path}"] > .row`);
+}
+
+const galleryRoutes=Object.fromEntries(catalog.families.flatMap(family=>family.examples.map(item=>[item.key,`pages/${family.folder}/${item.folder}`])));
+
 const ENVIRONMENTS = ['uvicorn', 'django', 'flask', 'fastapi', 'kajenn'];
 
 function freePort() {
@@ -94,11 +120,10 @@ try {
                         const image = document.querySelector('.index-logo');
                         return image?.complete && image.naturalWidth > 0;
                     }, null, {timeout: 10000}).catch(error => { throw new Error(`${label}: logo`, {cause: error}); });
-                    const keys = await index.page.$$eval('a[id^="open-"]', links => links
-                        .map(link => link.getAttribute('href')).filter(href => !href.startsWith('#')));
+                    const keys = Object.keys(galleryRoutes);
                     assert.ok(keys.includes('e01') && !keys.includes(`${environment}-01`), `${label}: links`);
                     assert.equal((await index.page.request.get(`${gallery.url}/${environment}-01`)).status(), 404);
-                    await index.page.click('#open-e01');
+                    await (await galleryRow(index.page, 'e01')).click();
                     const frame = index.page.frameLocator('#frame-e01');
                     await frame.locator('body').waitFor();
                     await index.page.waitForFunction(() =>
@@ -108,7 +133,7 @@ try {
                     const routes = mount ? keys : ['c03'];
                     for (const key of routes) {
                         const check = key === 'c03' ? c03 : null;
-                        await checkPage(browser, `${gallery.url}/${key}`, `${label} ${key}`, check);
+                        await checkPage(browser, `${gallery.url}/${galleryRoutes[key]}`, `${label} ${key}`, check);
                     }
                     console.log(`PASS ${label}: gallery, ${routes.length} examples, Logic of c03, no setup quick start`);
                 } finally {

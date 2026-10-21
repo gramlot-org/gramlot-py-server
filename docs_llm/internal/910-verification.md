@@ -126,3 +126,6 @@ Verification: nine gallery catalogue/staging tests pass, including mounted paths
 
 
 Intermediate release qualification — 2026-10-21. Owner authorizes tree, pages, gallery and guide only, including the necessary connected integrations. All 126 tests pass. Chromium passes all 84 common lessons under /py and the root gallery/Logic check on Uvicorn, Django, Flask, FastAPI and Kajenn. Both documentation views build without warnings. Database selectors and Genropy experiments are excluded. Package publication is pending at this checkpoint.
+
+
+Clean-install verification follow-up — 2026-10-21. The wheel installation check now obtains the e01 route from the installed examples catalogue instead of the retired short URL. A fresh Uvicorn virtual environment, generated project and mounted gallery pass Chromium against the published core and examples packages. The same script is exercised for all five frameworks by CI.

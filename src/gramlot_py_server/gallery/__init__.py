@@ -69,12 +69,16 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
         f"    catalogs = {listed!r}\n"
         f"    serverless_download_url = {serverless_download_url!r}\n"
         f"    logoUrl = {prefix + '/assets/branding/gramlot-logo-dark.svg'!r}\n"
-        f"    galleryScript = {prefix + '/gallery/dist/gallery.js'!r}\n"
     )))
+    (folder / "index_aux.js").write_text(f"export {{Logic}} from {json.dumps(prefix + '/gallery/dist/gallery.js')};\n")
+    gallery_urls = {key: prefix + "/" + route["url"] for key, route in routes.items() if key != "index"}
     for key, route in routes.items():
         if key == "index":
             continue
+        key = route["url"]
+        (folder / f"{key}.py").parent.mkdir(parents=True, exist_ok=True)
         (folder / f"{key}.py").write_text(subclass_module(route["page"], f"gramlot_gallery_{key}", (
+            f"    gallery_urls = {gallery_urls!r}\n"
             "    def main(self, root):\n"
             "        super().main(root)\n"
             f"        root.script(src={prefix + '/gallery/dist/frame.js'!r})\n"

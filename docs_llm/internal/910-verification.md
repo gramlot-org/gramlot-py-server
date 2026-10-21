@@ -99,3 +99,30 @@ Local verification, 2026-10-05, for 0.2.3 with `gramlot` 0.2.6,
   `verify_gallery_browser.mjs` 20/20;
 - `verify_install.py` for the five environments from the built wheel, with
   `--port 8123`, in Chromium.
+
+
+Local database-selector development verification, 2026-10-18: connected core and
+Python server sources, SQLAlchemy 2.1.5 with SQLite. Server suite: 117 passed,
+including registered projection/filter boundaries and the environment catalog.
+The five gallery fixtures now activate the same inputs/layout collections as
+run_gallery. Live Python gallery checks cover typed keys, key resolution, dependent
+filters, dedicated methods, invalid drafts, free text and sole-candidate selection.
+GP-025 documents the unreleased increment; core GC-070 §1425 records combined
+qualification. Browser/SQL tests do not claim support for other database engines.
+
+
+Development verification, 2026-10-20 — Gallery staging now creates parent directories for filesystem routes and stages index_aux.js re-exporting the ordinary gallery Logic. The Python gallery/staging and core index checks pass (34 focused tests), and live Chromium/WebKit checks pass under Uvicorn for nested directories, own index pages and retained tabs.
+
+
+<a id="gp-910-015"></a>
+
+## 015 · Numbered gallery paths — 2026-10-21
+
+Block ID: **GP-910-015**.
+
+Owner explicitly authorizes connected catalogue and staging changes: “Sì, adegua anche le integrazioni”. Gallery catalogues require the physical family `folder`; each executable route is staged at its nested `url`, with its companions. Catalogue keys remain lesson identities. Hosted carousel links include the mount path; offline links include the route depth. Numbered path segments, including `00-index`, are supported by the static exporter without accepting traversal or empty segments. Markdown directory descriptions are supplied by the examples navigation and rendered by the gallery. No core loader change, route alias, release or deployment is included.
+
+Verification: nine gallery catalogue/staging tests pass, including mounted paths. Both documentation builds pass. Live Uvicorn gallery checks confirm numbered navigation, executable and Markdown indexes, nested lesson URLs and retained Python source display.
+
+
+Intermediate release qualification — 2026-10-21. Owner authorizes tree, pages, gallery and guide only, including the necessary connected integrations. All 126 tests pass. Chromium passes all 84 common lessons under /py and the root gallery/Logic check on Uvicorn, Django, Flask, FastAPI and Kajenn. Both documentation views build without warnings. Database selectors and Genropy experiments are excluded. Package publication is pending at this checkpoint.

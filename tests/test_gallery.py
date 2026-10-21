@@ -35,20 +35,21 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     assets = stage(tmp_path, environment_catalogs("uvicorn"), prefix)
     index = (tmp_path / "index.py").read_text()
     assert f"logoUrl = '{prefix}/assets/branding/gramlot-logo-dark.svg'" in index
-    assert f"galleryScript = '{prefix}/gallery/dist/gallery.js'" in index
+    assert f'{prefix}/gallery/dist/gallery.js' in (tmp_path / "index_aux.js").read_text()
     assert "catalogs = []" in index
-    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "e01.py").read_text()
-    stub = (tmp_path / "c03_aux.js").read_text()
-    assert stub == f'export * from "{prefix}/pages/controllers/03_named_logic.js";\n'
-    assert assets["/pages/controllers/03_named_logic.js"]["type"] == "text/javascript; charset=utf-8"
+    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/01-html_elements/01-html_basics/01-hello_world.py").read_text()
+    stub = (tmp_path / "pages/03-controllers/01-logic/03-named_logic_aux.js").read_text()
+    assert stub == f'export * from "{prefix}/pages/03-controllers/01-logic/03-named_logic.js";\n'
+    assert assets["/pages/03-controllers/01-logic/03-named_logic.js"]["type"] == "text/javascript; charset=utf-8"
     assert not (tmp_path / "uvicorn-01.py").exists()
     assert not (tmp_path / "uvicorn-01_aux.js").exists()
-    assert assets["/pages/controllers/03_named_logic.py"]["type"] == "text/plain"
+    assert assets["/pages/03-controllers/01-logic/03-named_logic.py"]["type"] == "text/plain"
     routes = build_gallery(environment_catalogs("uvicorn"))["routes"]
     for key, route in routes.items():
+        key = "index" if key == "index" else route["url"]
         assert (tmp_path / f"{key}.py").is_file()
         assert (tmp_path / f"{key}.css").is_file() == (route["stylesheet"] is not None)
-        assert (tmp_path / f"{key}_aux.js").is_file() == (route["logic"] is not None)
+        assert (tmp_path / f"{key}_aux.js").is_file() == (key == "index" or route["logic"] is not None)
 
 
 def logic_catalog(tmp_path):
@@ -60,7 +61,7 @@ def logic_catalog(tmp_path):
     (folder / "01_plain.js").write_text("export const note = 'a page module without Logic';\n")
     (folder / "02_logic.js").write_text("export class Logic {\n    twice(value) { return value * 2; }\n}\n")
     catalog = tmp_path / "catalog.json"
-    catalog.write_text(json.dumps({"environment": "extra", "families": [{"key": "logic", "title": "Logic", "examples": [
+    catalog.write_text(json.dumps({"environment": "extra", "families": [{"key": "logic", "folder": "logic", "title": "Logic", "examples": [
         {"key": f"extra-0{number}", "title": name, "folder": name, "description": name, "explanation": name}
         for number, name in ((1, "01_plain"), (2, "02_logic"))]}]}))
     return [(catalog, tmp_path / "pages")]
@@ -71,7 +72,7 @@ def test_stage_accepts_logic_modules_with_and_without_logic(tmp_path):
     pages.mkdir()
     assets = stage(pages, logic_catalog(tmp_path), "/py")
     for key, name in (("extra-01", "01_plain"), ("extra-02", "02_logic")):
-        assert (pages / f"{key}_aux.js").read_text() == f'export * from "/py/pages/logic/{name}.js";\n'
+        assert (pages / f"pages/logic/{name}_aux.js").read_text() == f'export * from "/py/pages/logic/{name}.js";\n'
         assert assets[f"/pages/logic/{name}.js"]["type"] == "text/javascript; charset=utf-8"
 
 
@@ -82,8 +83,8 @@ def test_staged_companions_import_with_and_without_logic(tmp_path):
     pages.mkdir()
     stage(pages, logic_catalog(tmp_path), tmp_path.as_uri())
     script = (
-        f"const plain = await import({(pages / 'extra-01_aux.js').as_uri()!r});\n"
-        f"const logic = await import({(pages / 'extra-02_aux.js').as_uri()!r});\n"
+        f"const plain = await import({(pages / 'pages/logic/01_plain_aux.js').as_uri()!r});\n"
+        f"const logic = await import({(pages / 'pages/logic/02_logic_aux.js').as_uri()!r});\n"
         "console.log(JSON.stringify([plain.Logic === undefined, typeof logic.Logic, new logic.Logic().twice(4)]));\n"
     )
     result = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=False)

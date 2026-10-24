@@ -48,6 +48,9 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     for key, route in routes.items():
         key = "index" if key == "index" else route["url"]
         assert (tmp_path / f"{key}.py").is_file()
+        assert (tmp_path / f"{key}_data.tytx").is_file() == (route["data"] is not None)
+        if route["data"] is not None:
+            assert (tmp_path / f"{key}_data.tytx").read_bytes() == route["data"].read_bytes()
         assert (tmp_path / f"{key}.css").is_file() == (route["stylesheet"] is not None)
         assert (tmp_path / f"{key}_aux.js").is_file() == (key == "index" or route["logic"] is not None)
 

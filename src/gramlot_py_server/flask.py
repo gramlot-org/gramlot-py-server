@@ -62,8 +62,9 @@ class Pages(base.Adapter):
     @staticmethod
     def response(reply: base.Reply) -> Response:
         """The Flask response of a ``Reply``."""
-        return Response(reply.body, status=reply.status, content_type=reply.content_type,
-                        headers=list(reply.headers))
+        response = Response(reply.body, status=reply.status, content_type=reply.content_type)
+        response.headers.update(reply.headers)
+        return response
 
 
 def mount_pages(app, pages: str | Path, **options) -> Pages:

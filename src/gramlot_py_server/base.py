@@ -37,6 +37,8 @@ from gramlot.server import (
     runtime_asset,
 )
 
+from .collection_resources import GramlotCollectionResources, _CollectionFileServer
+
 TEXT = "text/plain; charset=utf-8"
 JSON = "application/json"
 JAVASCRIPT = "text/javascript; charset=utf-8"
@@ -144,7 +146,7 @@ class Adapter:
         ".webp": "image/webp",
         ".md": "text/markdown",
     })
-    server_class: type[GramlotFileServer] = GramlotFileServer
+    server_class: type[GramlotFileServer] = _CollectionFileServer
 
     def __init__(
         self,
@@ -156,16 +158,22 @@ class Adapter:
         content_security_policy: str | None = None,
         assets: dict[str, dict[str, Any]] | None = None,
         collections: Any = (),
+        reload: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self._mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
         self.content_security_policy = content_security_policy
         self.assets = dict(assets or {})
+        if any(url == "/gramlot/collections" or url.startswith("/gramlot/collections/") for url in self.assets):
+            raise ValueError("The collection resource route is reserved")
+        self.collection_resources = GramlotCollectionResources(base_url="/gramlot/collections")
         self.mime_types = MimeTypes()
         self.gramlot_server = self.server_class(
-            pages, page_ttl=page_ttl, max_pages=max_pages, collections=collections
+            pages, page_ttl=page_ttl, max_pages=max_pages, collections=collections,
+            reload=reload, collection_resources=self.collection_resources,
         )
+        self.gramlot_server.initialize_collections()
 
     @property
     def mount_path(self) -> str:
@@ -231,6 +239,14 @@ class Adapter:
     async def handle(self, request: Request) -> Reply:
         """Answer one request below the mount prefix."""
         path, server = request.path, self.gramlot_server
+        if path == "/gramlot/collections" or path.startswith("/gramlot/collections/"):
+            if request.method not in ("GET", "HEAD"):
+                return self.refuse("GET", "HEAD")
+            parts = path.removeprefix("/gramlot/collections/").split("/", 2)
+            resource = self.collection_resources.asset(parts[0], "sha256:" + parts[1], parts[2]) if len(parts) == 3 else None
+            if resource is None:
+                return self.reply(404, "Not found")
+            return await self.send_file(request, resource, self.media_type(Path(resource.name)), "public, max-age=31536000, immutable")
         if path == "/app.webmanifest":
             return await self.manifest(request)
         if path == server.runtime_url:
@@ -255,8 +271,9 @@ class Adapter:
         """The file ``source`` for ``GET`` and ``HEAD``."""
         if request.method not in ("GET", "HEAD"):
             return self.refuse("GET", "HEAD")
-        body = b"" if request.method == "HEAD" else await asyncio.to_thread(source.read_bytes)
-        return self.reply(200, body, media_type, cache_control=cache_control)
+        content = await asyncio.to_thread(source.read_bytes)
+        body = b"" if request.method == "HEAD" else content
+        return self.reply(200, body, media_type, headers=(("Content-Length", str(len(content))),), cache_control=cache_control)
 
     async def manifest(self, request: Request) -> Reply:
         """The web manifest of the installable root page, for ``GET`` and ``HEAD``."""

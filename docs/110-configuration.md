@@ -191,3 +191,8 @@ Safari on macOS Sonoma or later uses File → Add to Dock. No offline cache is a
 Block ID: **GP-110-090**.
 
 All five adapters accept `collections=()` and forward it to the core server. Each entry has `grammar` (generated JSON object) and `module` (root-relative browser module URL); serve that module through `assets`. The core guide [Components](https://github.com/gramlot-org/gramlot/blob/main/docs/public/105-components.md#gc-105-035) describes an entry. The gallery command passes the collections of `gramlot-examples` through its explicit application configuration. Restart the gallery after rebuilding development assets.
+
+
+Collection browser resources are verified once at startup and served through fingerprinted URLs with `Cache-Control: public, max-age=31536000, immutable`. The fixed registry is discovered from page declarations. Page bootstrap includes only that page's collections. Restart after changing collection definitions. The runtime uses `no-cache` so browsers may store and revalidate it; other assets, HTML and RPC retain `no-store`.
+
+Known upstream limitation: Kajenn 0.5.0 rewrites `Content-Length` to zero on HEAD responses. GET content and caching remain correct. The other adapters preserve representation length. See [Kajenn issue 77](https://github.com/kajenn-org/kajenn/issues/77).

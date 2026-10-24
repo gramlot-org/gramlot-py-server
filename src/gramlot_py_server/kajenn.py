@@ -8,7 +8,7 @@ from pathlib import Path
 
 from genro_routes import route
 from genro_toolbox import tags_match
-from gramlot.server import GramlotFileServer
+from .collection_resources import _CollectionFileServer
 from kajenn import RoutedApplication
 
 from gramlot_py_server import base
@@ -16,7 +16,7 @@ from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
 
-class _KajennFileServer(GramlotFileServer):
+class _KajennFileServer(_CollectionFileServer):
     """The core ``GramlotFileServer`` with the capability ``auth``.
 
     ``evaluate_auth`` evaluates a rule with ``genro_toolbox.tags_match`` against

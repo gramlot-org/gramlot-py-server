@@ -174,3 +174,12 @@ status codes and headers (the 405 with `Allow` of any other method included);
 each guide lists the answers, and the
 [server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
 of the core states the rules.
+
+
+<a id="gp-010-035"></a>
+
+## 035 · Initial Data companion
+
+Block ID: **GP-010-035**.
+
+The optional `foo_data.tytx` beside the page supplies a typed initial Data Bag before browser defaults and rendering. No loader declaration is needed in main. Existing dataSetter, default and remote data mechanisms remain available. Invalid files fail loading; missing files leave behavior unchanged. Client edits do not write back to the file. The gallery copies the Data companion beside its staged Python wrapper.

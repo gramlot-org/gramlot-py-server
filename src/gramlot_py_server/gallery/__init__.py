@@ -56,12 +56,56 @@ def subclass_module(original: Path, name: str, body: str) -> str:
     )
 
 
-def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None) -> dict:
+def stage_tools(folder, *, remote_edit=False):
+    """Expose only a disposable sample workspace through the Python IDE."""
+    from gramlot_py_server.ide import stage_ide
+    examples = examples_package()
+    documents = folder / ".gallery-documents"
+    shutil.copytree(Path(examples.__file__).parent / "documents", documents)
+    source = folder / ".gallery-tools"
+    tools = source / "07-tools"
+    stage_ide(tools, roots=[documents], remote_edit=remote_edit)
+    page = tools / "index.py"
+    page.write_text(page.read_text(encoding="utf-8") + f'''    title = "IDE: edit sample documents"
+    def top(self, pane):
+        pane.set_attr(dict(height="80px", padding="8px 12px"))
+        pane.h2(self.title, margin="0 0 4px")
+        pane.p("Open a file, edit its draft and try Undo or Revert. "
+               "Save requires Remote Edit on the host. The gallery restores these samples on restart.", margin="0")
+    def behavior(self, shell):
+        super().behavior(shell)
+        shell.dataController("this.SET('.browser.requestedRoot', root)",
+                             root={str(documents)!r}, _onStart=True)
+''', encoding="utf-8")
+    introduction = (
+        "# Tools and IDE\n\n"
+        "Open **IDE: edit sample documents** to browse a small document workspace. "
+        "Edit drafts, compare previews, undo changes or revert to the saved text. "
+        "Saving is disabled unless the host enables Remote Edit.\n\n"
+        "The Inspector is available from the gallery rail: inspect the Source and Data "
+        "of the current lesson without leaving it.\n"
+    )
+    for name in ("00-index.md", "README.md", "index.md"):
+        (tools / name).write_text(introduction, encoding="utf-8")
+    catalog = source / "catalog.json"
+    catalog.write_text(json.dumps({"environment": "python", "families": [{
+        "key": "python_tools", "title": "Tools and IDE", "folder": "07-tools",
+        "examples": []
+    }]}), encoding="utf-8")
+    return catalog, source
+
+
+def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None, *, remote_edit=False) -> dict:
     """Write the pages of the gallery into ``folder``; return the assets to serve."""
     examples = examples_package()
+    catalogs = [*catalogs, stage_tools(folder, remote_edit=remote_edit)]
     gallery = examples.build_gallery(catalogs)
     routes = gallery["routes"]
     assets: dict = gallery["assets"]
+    # Tools open as workspace pages, without the lesson's explanation/code split.
+    ide = routes["pages/07-tools/index"]
+    ide["logic"] = ide["page"].with_name("index_aux.js")
+    assets["/pages/07-tools/index_aux.js"] = {"file": ide["logic"], "type": JAVASCRIPT}
     url_of = {Path(asset["file"]).resolve(): url for url, asset in assets.items()}
     gallery_page = Path(examples.__file__).resolve().parent / "gallery" / "page.py"
     listed = [(str(catalog), str(pages)) for catalog, pages in catalogs]
@@ -105,6 +149,7 @@ def add_gallery(verbs, environment: str, serve) -> None:
     parser.add_argument("--catalog", nargs=2, action="append", default=[], metavar=("CATALOG", "PAGES"),
                         help="add the families of a catalog.json and its pages folder; repeatable")
     parser.add_argument("--serverless-download", help="URL of an offline gallery ZIP served by the deployment")
+    parser.add_argument("--remote-edit", action="store_true", help="allow saving in the disposable IDE sample workspace")
     parser.set_defaults(run=lambda options: run_gallery(environment, serve, options))
 
 
@@ -115,7 +160,7 @@ def run_gallery(environment: str, serve, options) -> int:
         (Path(catalog).resolve(), Path(pages).resolve()) for catalog, pages in options.catalog
     ]
     with TemporaryDirectory(prefix="gramlot-gallery-") as folder:
-        assets = stage(Path(folder), catalogs, prefix, options.serverless_download)
+        assets = stage(Path(folder), catalogs, prefix, options.serverless_download, remote_edit=options.remote_edit)
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
             serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets)

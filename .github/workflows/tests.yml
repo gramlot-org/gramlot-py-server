@@ -140,6 +140,7 @@ jobs:
         working-directory: gramlot
         run: |
           npm --prefix js install --ignore-scripts --package-lock=false
+          npm --prefix tools/gramlot-builder install --ignore-scripts --package-lock=false
           npm --prefix js run build
       - name: Install the core in editable mode and every adapter
         run: python -m pip install -e ../gramlot -e ".[uvicorn,django,flask,fastapi,kajenn,test]"

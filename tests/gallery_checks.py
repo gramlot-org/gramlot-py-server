@@ -6,7 +6,7 @@ from gramlot_py_server.gallery import environment_catalogs, examples_package, st
 # URL below the mount path, start of its media type.
 EXPECTED = [
     ("/", "text/html"),
-    ("/pages/01-html_elements/01-html_basics/01-hello_world", "text/html"),
+    ("/pages/08-html_svg/01-html_basics/01-hello_world", "text/html"),
     ("/pages/03-controllers/01-logic/03-named_logic_aux.js", "text/javascript"),
     ("/pages/03-controllers/01-logic/03-named_logic.js", "text/javascript"),
     ("/gallery/dist/gallery.js", "application/javascript"),

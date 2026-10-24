@@ -222,3 +222,32 @@ output directory, and tell users to unzip it and open `index.html`. Both hosted
 galleries may serve the same artifact: Python server execution is not embedded in
 the download; the serverless gallery uses the JavaScript equivalents and browser
 Workers. Its named endpoints execute locally, without a Python or Node server.
+
+<a id="gp-020-035"></a>
+## 035 · IDE sample workspace and Remote Edit
+
+Block ID: **GP-020-035**.
+
+Every Python `gallery` command adds **Tools and IDE**. Open its IDE page to edit
+Python, JSON, HTML, Markdown or Typst sample documents. The host automatically opens
+a temporary copy of the package's sample directory; other server directories are
+not accessible. Opening a Python document never executes it.
+
+By default, changes stay in the browser draft. Undo, Redo and Revert remain
+available, but Save is disabled and the host rejects document writes. To allow
+explicit saving **inside the temporary sample workspace**, start a local gallery:
+
+```console
+gramlot uvicorn gallery --remote-edit
+```
+
+The same flag is available for Django, Flask, FastAPI and Kajenn. It is a server
+startup option, not a client preference or an authentication mechanism. Leave it
+off on the public demo. Restarting the gallery resets the sample workspace even
+when saving was enabled. The flag does not enable editing gallery source pages.
+
+The reusable `gramlot_py_server.ide.stage_ide(pages, roots=[...], remote_edit=False)`
+stages the IDE using Page.gramlots and the standard bootstrap. `FileSystemPageMixin`
+owns directory/read/save/create RPCs, with explicit roots, symlink/traversal rejection,
+UTF-8 text limits, revision checks and Python syntax validation on save. These
+endpoints do not provide Python execution or native compiler requests.

@@ -36,8 +36,8 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     index = (tmp_path / "index.py").read_text()
     assert f"logoUrl = '{prefix}/assets/branding/gramlot-logo-dark.svg'" in index
     assert f'{prefix}/gallery/dist/gallery.js' in (tmp_path / "index_aux.js").read_text()
-    assert "catalogs = []" in index
-    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/01-html_elements/01-html_basics/01-hello_world.py").read_text()
+    assert "07-tools" in (tmp_path / ".gallery-tools/catalog.json").read_text()
+    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/08-html_svg/01-html_basics/01-hello_world.py").read_text()
     stub = (tmp_path / "pages/03-controllers/01-logic/03-named_logic_aux.js").read_text()
     assert stub == f'export * from "{prefix}/pages/03-controllers/01-logic/03-named_logic.js";\n'
     assert assets["/pages/03-controllers/01-logic/03-named_logic.js"]["type"] == "text/javascript; charset=utf-8"

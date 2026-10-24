@@ -71,11 +71,12 @@ class Application(base.Adapter):
 
     @staticmethod
     async def _send(send, reply: base.Reply) -> None:
-        headers = [
-            (b"content-type", reply.content_type.encode()),
-            (b"content-length", str(len(reply.body)).encode()),
-            *((name.lower().encode("latin-1"), value.encode("latin-1")) for name, value in reply.headers),
-        ]
+        headers = {
+            "content-type": reply.content_type,
+            "content-length": str(len(reply.body)),
+            **{name.lower(): value for name, value in reply.headers},
+        }
+        headers = [(name.encode("latin-1"), value.encode("latin-1")) for name, value in headers.items()]
         await send({"type": "http.response.start", "status": reply.status, "headers": headers})
         await send({"type": "http.response.body", "body": reply.body})
 

@@ -16,7 +16,7 @@ class Page(BasePage):
     def manifest(self, *, base_url='./'):
         return {**super().manifest(base_url=base_url), 'description':'Custom manifest'}
 ''')
-    (tmp_path/'child.py').write_text('from index import Page\n')
+    (tmp_path/'child.py').write_text('from gramlot import Page\n')
     with served(framework,tmp_path,'/demo',None) as base:
         url=base+'/app.webmanifest'
         with urlopen(url) as response:

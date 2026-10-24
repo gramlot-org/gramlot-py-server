@@ -83,6 +83,8 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
             "        super().main(root)\n"
             f"        root.script(src={prefix + '/gallery/dist/frame.js'!r})\n"
         )))
+        if route["data"] is not None:
+            shutil.copyfile(route["data"], folder / f"{key}_data.tytx")
         if route["stylesheet"] is not None:
             shutil.copyfile(route["stylesheet"], folder / f"{key}.css")
         if route["logic"] is not None:
@@ -116,8 +118,7 @@ def run_gallery(environment: str, serve, options) -> int:
         assets = stage(Path(folder), catalogs, prefix, options.serverless_download)
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
-            serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,
-                  collections=examples_package().build_gallery()["collections"])
+            serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets)
         except ModuleNotFoundError as error:
             if error.name != "uvicorn":
                 raise

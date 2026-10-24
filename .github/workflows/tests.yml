@@ -60,8 +60,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install "gramlot>=0.3.6" -e ".[test]"
-      - run: python -m pytest -q tests/test_readme.py tests/test_cli.py tests/test_gallery.py
+      - run: python -m pip install "gramlot>=0.3.6" -e ".[test,uvicorn,django,flask,fastapi,kajenn]"
+      - run: python -m pytest -q tests/test_readme.py tests/test_cli.py tests/test_gallery.py tests/test_filesystem.py tests/test_ide.py
 
   browser:
     # Required: the five adapters under a mount path and the gallery of each environment, in Chromium.

@@ -61,7 +61,8 @@ def stage_tools(folder, *, remote_edit=False):
     from gramlot_py_server.ide import stage_ide
     examples = examples_package()
     documents = folder / ".gallery-documents"
-    shutil.copytree(Path(examples.__file__).parent / "documents", documents)
+    shutil.copytree(Path(examples.__file__).parent / "documents", documents,
+                    ignore=shutil.ignore_patterns("__pycache__", ".*", "*.pyc", "*.pyo"))
     source = folder / ".gallery-tools"
     tools = source / "07-tools"
     stage_ide(tools, roots=[documents], remote_edit=remote_edit)
@@ -77,8 +78,29 @@ def stage_tools(folder, *, remote_edit=False):
         shell.dataController("this.SET('.browser.requestedRoot', root)",
                              root={str(documents)!r}, _onStart=True)
 ''', encoding="utf-8")
+    (tools / "02-directory_tree.py").write_text(
+        'from gramlot import Page as BasePage\n'
+        'from gramlot.page import file_system_tree\n'
+        'from gramlot.collections.tree import mygramlot as tree\n'
+        'from gramlot_py_server.filesystem import FileSystemPageMixin\n\n'
+        'class Page(FileSystemPageMixin, BasePage):\n'
+        '    title = "Browse a directory on disk"\n'
+        '    gramlots = [tree]\n'
+        f'    filesystem_roots = ({str(documents)!r},)\n'
+        '    def main(self, root):\n'
+        '        pane = root.main(padding="16px", datapath="filesDemo")\n'
+        '        pane.h2(self.title)\n'
+        '        pane.p("These are real files in the gallery sample directory on the server. "\n'
+        '               "Expand a folder to load its contents on demand. This view does not modify files.")\n'
+        '        file_system_tree(pane, datapath=".browser")\n'
+        '        pane.dataController("this.SET(\'.browser.requestedRoot\', root)",\n'
+        f'                            root={str(documents)!r}, _onStart=True)\n', encoding="utf-8")
+    (tools / "02-directory_tree_aux.js").write_text(
+        'export {FileSystemLogic as Logic} from "@gramlot/gramlot";\n', encoding="utf-8")
     introduction = (
         "# Tools and IDE\n\n"
+        "Open **Live Source playground** to create, update and remove Source nodes.\n\n"
+        "Open **Browse a directory on disk** to expand real folders on demand.\n\n"
         "Open **IDE: edit sample documents** to browse a small document workspace. "
         "Edit drafts, compare previews, undo changes or revert to the saved text. "
         "Saving is disabled unless the host enables Remote Edit.\n\n"
@@ -95,24 +117,28 @@ def stage_tools(folder, *, remote_edit=False):
     return catalog, source
 
 
-def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None, *, remote_edit=False) -> dict:
+def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None, *, remote_edit=False, modules=()) -> dict:
     """Write the pages of the gallery into ``folder``; return the assets to serve."""
     examples = examples_package()
     catalogs = [*catalogs, stage_tools(folder, remote_edit=remote_edit)]
+    from gramlot_examples.gallery.modules import registered_modules
+    registered_modules(modules)  # Fail before creating a partially configured gallery.
     gallery = examples.build_gallery(catalogs)
     routes = gallery["routes"]
     assets: dict = gallery["assets"]
     # Tools open as workspace pages, without the lesson's explanation/code split.
-    ide = routes["pages/07-tools/index"]
-    ide["logic"] = ide["page"].with_name("index_aux.js")
-    assets["/pages/07-tools/index_aux.js"] = {"file": ide["logic"], "type": JAVASCRIPT}
+    for name in ("index", "02-directory_tree"):
+        tool = routes[f"pages/07-tools/{name}"]
+        tool["logic"] = tool["page"].with_name(f"{name}_aux.js")
+        assets[f"/pages/07-tools/{name}_aux.js"] = {"file": tool["logic"], "type": JAVASCRIPT}
     url_of = {Path(asset["file"]).resolve(): url for url, asset in assets.items()}
     gallery_page = Path(examples.__file__).resolve().parent / "gallery" / "page.py"
     listed = [(str(catalog), str(pages)) for catalog, pages in catalogs]
     (folder / "index.py").write_text(subclass_module(gallery_page, "gramlot_gallery_index", (
         f"    catalogs = {listed!r}\n"
+        f"    gallery_modules = {modules!r}\n"
         f"    serverless_download_url = {serverless_download_url!r}\n"
-        f"    logoUrl = {prefix + '/assets/branding/gramlot-logo-dark.svg'!r}\n"
+        f"    logoUrl = {prefix + '/assets/branding/svg/gramlot-horizontal-primary.svg'!r}\n"
     )))
     (folder / "index_aux.js").write_text(f"export {{Logic}} from {json.dumps(prefix + '/gallery/dist/gallery.js')};\n")
     gallery_urls = {key: prefix + "/" + route["url"] for key, route in routes.items() if key != "index"}

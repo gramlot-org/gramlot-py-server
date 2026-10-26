@@ -132,3 +132,11 @@ Clean-install verification follow-up — 2026-10-21. The wheel installation chec
 
 
 Publication receipt — 2026-10-21. Release v0.2.12 passed all required repository and tag checks and is published on PyPI. The five framework matrices, clean wheel installations, generated projects and gallery browser checks pass. Publication workflow: https://github.com/gramlot-org/gramlot-py-server/actions/runs/39575513271 . Hosted gallery promotion has its own deployment receipt.
+
+
+Coordinated 0.3.17 qualification — 2026-10-26. Owner explicitly requested aligned
+publication of the servers with core and examples. All 154 adapter tests pass
+against the prepared 0.3.17 candidate; both documentation views build. Gallery
+asset tests use the transparent branding path supplied by the core. Remote Edit
+remains disabled by default; the Kajenn HEAD Content-Length debt is unchanged.
+Registry publication is pending.

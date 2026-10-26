@@ -6,14 +6,14 @@ from gramlot_py_server.gallery import environment_catalogs, examples_package, st
 # URL below the mount path, start of its media type.
 EXPECTED = [
     ("/", "text/html"),
-    ("/pages/08-html_svg/01-html_basics/01-hello_world", "text/html"),
+    ("/pages/00-html_svg/01-html_basics/01-hello_world", "text/html"),
     ("/pages/03-controllers/01-logic/03-named_logic_aux.js", "text/javascript"),
     ("/pages/03-controllers/01-logic/03-named_logic.js", "text/javascript"),
     ("/gallery/dist/gallery.js", "application/javascript"),
     ("/gallery/dist/frame.js", "application/javascript"),
     ("/gallery/gallery.css", "text/css"),
     ("/themes/gramlot-base/theme.css", "text/css"),
-    ("/assets/branding/gramlot-logo-dark.svg", "image/svg+xml"),
+    ("/assets/branding/svg/gramlot-horizontal-primary.svg", "image/svg+xml"),
 ]
 
 
@@ -40,7 +40,7 @@ def page_id(document):
 
 def check_index_main(source, prefix="/py"):
     """The Source carries the mounted logo and invokes the staged Logic lifecycle."""
-    assert f"{prefix}/assets/branding/gramlot-logo-dark.svg" in source
+    assert f"{prefix}/assets/branding/svg/gramlot-horizontal-primary.svg" in source
     assert "galleryInitialize" in source
     assert "galleryMount" in source
     assert "Quick start" not in source

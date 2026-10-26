@@ -69,3 +69,39 @@ def test_ide_staging_rejects_invalid_roots_and_existing_pages(tmp_path):
     stage_ide(pages, roots=[documents])
     with pytest.raises(FileExistsError):
         stage_ide(pages, roots=[documents])
+
+
+def test_gallery_copies_documents_without_installation_caches(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from gramlot_py_server import gallery
+
+    package = tmp_path / "package"
+    documents = package / "documents"
+    (documents / "nested").mkdir(parents=True)
+    (documents / "__pycache__").mkdir()
+    (documents / "nested" / "__pycache__").mkdir()
+    (documents / ".pytest_cache").mkdir()
+    files = {
+        "notes.py": "value = 1\n", "Welcome.md": "# Welcome\n",
+        "nested/report.typ": "= Report\n",
+        "__pycache__/notes.cpython-312.pyc": "compiled",
+        "nested/__pycache__/report.pyc": "compiled",
+        "orphan.pyc": "compiled", "orphan.pyo": "compiled",
+        ".DS_Store": "metadata", ".pytest_cache/README.md": "cache",
+        "nested/.metadata": "metadata",
+    }
+    for name, content in files.items():
+        (documents / name).write_text(content)
+    monkeypatch.setattr(gallery, "examples_package", lambda: SimpleNamespace(__file__=str(package / "__init__.py")))
+    target = tmp_path / "gallery"
+    target.mkdir()
+    _, sources = stage_tools(target)
+    root = target / ".gallery-documents"
+    assert sorted(str(path.relative_to(root)) for path in root.rglob("*")) == [
+        "Welcome.md", "nested", "nested/report.typ", "notes.py"]
+    assert (root / "notes.py").read_text() == files["notes.py"]
+    assert (documents / "__pycache__/notes.cpython-312.pyc").exists()
+    page = GramlotFileServer(sources / "07-tools").resolve_page("index")()
+    assert [node.attr["caption"] for node in page.directory_tree(str(root)).nodes] == [
+        "nested", "notes.py", "Welcome.md"]
+    assert not page.remote_edit

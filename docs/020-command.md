@@ -228,10 +228,18 @@ Workers. Its named endpoints execute locally, without a Python or Node server.
 
 Block ID: **GP-020-035**.
 
-Every Python `gallery` command adds **Tools and IDE**. Open its IDE page to edit
+Every Python `gallery` command adds **Tools and IDE**. This category combines
+**Live Source playground**, **Browse a directory on disk** and the IDE.
+The directory tree uses `file_system_tree` and `FileSystemLogic` with the host
+filesystem endpoints, loads subfolders on expansion, and exposes only the
+disposable sample documents. It is read-only, including when IDE saves are enabled.
+
+Open its IDE page to edit
 Python, JSON, HTML, Markdown or Typst sample documents. The host automatically opens
 a temporary copy of the package's sample directory; other server directories are
-not accessible. Opening a Python document never executes it.
+not accessible. The copy excludes `__pycache__`, dot-prefixed entries and compiled
+Python files (`.pyc` and `.pyo`), including inside subdirectories. Ordinary
+document folders are preserved. Opening a Python document never executes it.
 
 By default, changes stay in the browser draft. Undo, Redo and Revert remain
 available, but Save is disabled and the host rejects document writes. To allow

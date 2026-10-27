@@ -34,10 +34,10 @@ def test_environment_gallery_contains_common_examples_without_quick_start(enviro
 def test_stage_writes_one_page_per_route(tmp_path, prefix):
     assets = stage(tmp_path, environment_catalogs("uvicorn"), prefix)
     index = (tmp_path / "index.py").read_text()
-    assert f"logoUrl = '{prefix}/assets/branding/gramlot-logo-dark.svg'" in index
+    assert f"logoUrl = '{prefix}/assets/branding/svg/gramlot-horizontal-primary.svg'" in index
     assert f'{prefix}/gallery/dist/gallery.js' in (tmp_path / "index_aux.js").read_text()
     assert "07-tools" in (tmp_path / ".gallery-tools/catalog.json").read_text()
-    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/08-html_svg/01-html_basics/01-hello_world.py").read_text()
+    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/00-html_svg/01-html_basics/01-hello_world.py").read_text()
     stub = (tmp_path / "pages/03-controllers/01-logic/03-named_logic_aux.js").read_text()
     assert stub == f'export * from "{prefix}/pages/03-controllers/01-logic/03-named_logic.js";\n'
     assert assets["/pages/03-controllers/01-logic/03-named_logic.js"]["type"] == "text/javascript; charset=utf-8"
@@ -125,3 +125,33 @@ def test_gallery_options(tmp_path):
     assert served["assets"]["/gallery/dist/gallery.js"]["type"] == "application/javascript"
     defaults = parser.parse_args(["gallery"])
     assert (defaults.host, defaults.port, defaults.mount, defaults.catalog) == ("127.0.0.1", 8080, "", [])
+
+
+def test_tools_navigation_keeps_playground_and_ide_together(tmp_path):
+    from gramlot_examples import navigation_directory
+    from gramlot_py_server.gallery import stage_tools
+    catalog = stage_tools(tmp_path)
+    root = navigation_directory(catalogs=[catalog])
+    assert [n.attr["directory"] for n in root.nodes].count("07-tools") == 1
+    tools = navigation_directory("07-tools", catalogs=[catalog])
+    assert tools.get_node("e13").attr["url"] == "pages/07-tools/01-live_source"
+    assert tools.get_node("02-directory_tree").attr["title"] == "Browse a directory on disk"
+    assert tools.get_node("index").attr["title"] == "IDE: edit sample documents"
+    assert navigation_directory("00-html_svg", catalogs=[catalog]).get_node("e13") is None
+    routes = build_gallery([catalog])["routes"]
+    assert routes["e13"]["url"] == tools.get_node("e13").attr["url"]
+
+
+def test_directory_tool_is_read_only_and_bounded_to_samples(tmp_path):
+    from gramlot.server import GramlotFileServer
+    from gramlot_py_server.gallery import stage_tools
+    _, source = stage_tools(tmp_path, remote_edit=True)
+    page = GramlotFileServer(source / "07-tools").resolve_page("02-directory_tree")()
+    root = str(tmp_path / ".gallery-documents")
+    assert not page.remote_edit
+    assert any(n.attr["caption"] == "guides" for n in page.directory_tree(root).nodes)
+    assert [n.attr["caption"] for n in page.directory_tree(root, "guides").nodes] == ["README.md"]
+    with pytest.raises(PermissionError):
+        page.directory_tree(str(tmp_path))
+    with pytest.raises(PermissionError):
+        page.document_create(root, "unwanted.txt", "no")

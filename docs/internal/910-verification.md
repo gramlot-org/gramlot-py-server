@@ -406,3 +406,12 @@ Dependency publication receipt, 2026-10-27: Gramlot 0.3.19 is published on PyPI
 and npm by successful workflow 40593932800. The required core API is now
 available from the public registries; rerun the complete adapter release gates
 against those packages before consolidating and publishing the adapter.
+
+
+Public-registry qualification, 2026-10-27: the complete adapter matrix now
+passes against published Gramlot 0.3.19, including Python 3.11/3.12, clean
+installation of all five frameworks, the shared WebSocket fixture and the
+ordinary gallery browser checks. Three initial installs reached stale PyPI
+replicas; rerunning those jobs after propagation passed without source changes.
+The paired documentation check in GitHub also passes; refresh the external
+Read the Docs build before final consolidation.

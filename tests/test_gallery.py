@@ -155,3 +155,38 @@ def test_directory_tool_is_read_only_and_bounded_to_samples(tmp_path):
         page.directory_tree(str(tmp_path))
     with pytest.raises(PermissionError):
         page.document_create(root, "unwanted.txt", "no")
+
+
+@pytest.mark.asyncio
+async def test_staged_page_keeps_its_server_recipe(tmp_path):
+    from gramlot.server import GramlotFileServer
+    catalog = tmp_path / "catalog.json"
+    pages = tmp_path / "original"
+    (pages / "stores").mkdir(parents=True)
+    (pages / "stores/01_example.py").write_text('''from gramlot import Page as BasePage, PageStore as BaseStore
+class Page(BasePage):
+    def main(self, root):
+        root.div().dataBinder("client", "record")
+class PageStore(BaseStore):
+    def main(self, root):
+        self.data.set_item("record", "initial")
+        root.dataController(func="receive", subscribe_load=True)
+    def receive(self, node, value):
+        self.data.set_item("record", value)
+''')
+    catalog.write_text(json.dumps({"environment": "stores", "families": [{
+        "key": "stores-family", "folder": "stores", "title": "Stores", "examples": [{
+            "key": "stores-01", "folder": "01_example", "title": "Example",
+            "description": "Example", "explanation": "Example"}]}]}))
+    staged = tmp_path / "staged"
+    staged.mkdir()
+    stage(staged, [(catalog, pages)], "")
+    server = GramlotFileServer(staged, css_theme=False)
+    try:
+        opened = await server.open_page("/pages/stores/01_example", owner="alice")
+        store = server.page_store(opened.page_id, owner="alice")
+        assert store.data.get_item("record") == "initial"
+        store.publish("load", {"value": "loaded"})
+        assert store.data.get_item("record") == "loaded"
+    finally:
+        server.close_all()

@@ -118,8 +118,21 @@ of `gramlot-examples`:
   exports it, and nothing when the module has no `Logic`. The adapter serves
   that file as JavaScript.
 
+  `galleryScript` under the prefix; `index_aux.js` loads its gallery Logic;
+- `<route.url>.py`: the example page, which preserves its optional PageStore
+  and appends `<prefix>/gallery/dist/frame.js` for the gallery theme;
+- `<route.url>.css`: the stylesheet of the example, when it has one;
+- `<route.url>_aux.js`: `export {Logic} from "<prefix>/pages/<family>/<file>.js";`,
+  the logic module of the example. The adapter serves that file as
+  JavaScript.
+
 The gallery sends no Content Security Policy: the examples use inline code. The
 temporary folder is removed when the server stops.
+
+On the PageStore development branch, Uvicorn also accepts `--websocket` to
+enable the shared page channel for the gallery and its lesson frames. It is
+off by default and is not exposed by the other adapters. Add the experimental
+PageStore catalogue with the existing `--catalog CATALOG PAGES` option.
 
 <a id="gp-020-015"></a>
 

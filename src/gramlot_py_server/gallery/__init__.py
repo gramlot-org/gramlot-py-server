@@ -51,7 +51,9 @@ def subclass_module(original: Path, name: str, body: str) -> str:
         "import importlib.util\n\n"
         f"spec = importlib.util.spec_from_file_location({name!r}, {str(original)!r})\n"
         "module = importlib.util.module_from_spec(spec)\n"
-        "spec.loader.exec_module(module)\n\n\n"
+        "spec.loader.exec_module(module)\n"
+        "if 'PageStore' in vars(module):\n"
+        "    PageStore = module.PageStore\n\n\n"
         f"class Page(module.Page):\n{body}"
     )
 
@@ -175,6 +177,8 @@ def add_gallery(verbs, environment: str, serve) -> None:
     parser.add_argument("--catalog", nargs=2, action="append", default=[], metavar=("CATALOG", "PAGES"),
                         help="add the families of a catalog.json and its pages folder; repeatable")
     parser.add_argument("--serverless-download", help="URL of an offline gallery ZIP served by the deployment")
+    if environment == "uvicorn":
+        parser.add_argument("--websocket", action="store_true", help="enable the shared PageStore channel")
     parser.add_argument("--remote-edit", action="store_true", help="allow saving in the disposable IDE sample workspace")
     parser.set_defaults(run=lambda options: run_gallery(environment, serve, options))
 
@@ -189,7 +193,8 @@ def run_gallery(environment: str, serve, options) -> int:
         assets = stage(Path(folder), catalogs, prefix, options.serverless_download, remote_edit=options.remote_edit)
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
-            serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets)
+            serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,
+                  **({"websocket": options.websocket} if environment == "uvicorn" else {}))
         except ModuleNotFoundError as error:
             if error.name != "uvicorn":
                 raise

@@ -82,6 +82,8 @@ jobs:
           echo "PLAYWRIGHT_ENTRY=$RUNNER_TEMP/playwright/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
       - name: Adapters under /py
         run: node scripts/verify_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+      - name: Shared PageStore WebSocket, RPC and family publications
+        run: node scripts/verify_page_store.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
       - name: Gallery of every environment
         run: node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
 

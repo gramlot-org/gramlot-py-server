@@ -400,3 +400,9 @@ Bag JS 0.11.1 is published on npm/JSR; no local dependency patch is required.
 The owner authorizes publication and automatic hosted-gallery updates with
 "Sì, pubblica e aggiorna le gallery". Registry CI must run after the required
 core release is available. Only Uvicorn has WebSocket support in this release.
+
+
+Dependency publication receipt, 2026-10-27: Gramlot 0.3.19 is published on PyPI
+and npm by successful workflow 40593932800. The required core API is now
+available from the public registries; rerun the complete adapter release gates
+against those packages before consolidating and publishing the adapter.

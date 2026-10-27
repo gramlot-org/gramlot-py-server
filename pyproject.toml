@@ -11,10 +11,10 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "Genropy Team", email = "info@softwell.it"}]
-dependencies = ["gramlot>=0.3.0"]
+dependencies = ["gramlot>=0.3.0", "genro-tytx"]
 
 [project.optional-dependencies]
-uvicorn = ["uvicorn>=0.30"]
+uvicorn = ["uvicorn>=0.30", "websockets"]
 fastapi = ["fastapi>=0.115"]
 flask = ["flask>=3.1,<4"]
 django = ["Django>=5.2,<6.2", "asgiref>=3.8.1,<4"]

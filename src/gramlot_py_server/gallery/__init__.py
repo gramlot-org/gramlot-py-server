@@ -4,8 +4,8 @@
 The environment serves the gallery with its own adapter (GE-010 section 025 of
 ``gramlot-examples``). A temporary pages folder holds one page per route:
 ``index.py``, the gallery page with the catalogues and its URLs under the mount
-path, and for each example ``<key>.py``, which appends ``frame.js``, its
-stylesheet ``<key>.css`` and ``<key>_aux.js``, which re-exports ``Logic`` from
+path, and for each example ``<route.url>.py``, which appends ``frame.js``, its
+stylesheet ``<route.url>.css`` and ``<route.url>_aux.js``, which re-exports ``Logic`` from
 the URL of the logic module. The adapter serves the ``assets`` of
 ``build_gallery`` under the same mount path, each logic module as JavaScript.
 
@@ -45,12 +45,14 @@ def environment_catalogs(environment: str) -> list[tuple[Path, Path]]:
 
 
 def subclass_module(original: Path, name: str, body: str) -> str:
-    """The source of a page module that loads ``original`` and subclasses its ``Page``."""
+    """Load the original Page and its optional PageStore, then subclass Page for the gallery."""
     return (
         "import importlib.util\n\n"
         f"spec = importlib.util.spec_from_file_location({name!r}, {str(original)!r})\n"
         "module = importlib.util.module_from_spec(spec)\n"
-        "spec.loader.exec_module(module)\n\n\n"
+        "spec.loader.exec_module(module)\n\n"
+        "if 'PageStore' in vars(module):\n"
+        "    PageStore = module.PageStore\n\n\n"
         f"class Page(module.Page):\n{body}"
     )
 
@@ -70,9 +72,12 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
         f"    logoUrl = {prefix + '/assets/branding/gramlot-logo-dark.svg'!r}\n"
         f"    galleryScript = {prefix + '/gallery/dist/gallery.js'!r}\n"
     )))
+    (folder / "index_aux.js").write_text(f"export {{Logic}} from {json.dumps(prefix + '/gallery/dist/gallery.js')};\n")
     for key, route in routes.items():
         if key == "index":
             continue
+        key = route["url"]
+        (folder / f"{key}.py").parent.mkdir(parents=True, exist_ok=True)
         (folder / f"{key}.py").write_text(subclass_module(route["page"], f"gramlot_gallery_{key}", (
             "    def main(self, root):\n"
             "        super().main(root)\n"
@@ -98,6 +103,8 @@ def add_gallery(verbs, environment: str, serve) -> None:
     parser.add_argument("--catalog", nargs=2, action="append", default=[], metavar=("CATALOG", "PAGES"),
                         help="add the families of a catalog.json and its pages folder; repeatable")
     parser.add_argument("--serverless-download", help="URL of an offline gallery ZIP served by the deployment")
+    if environment == "uvicorn":
+        parser.add_argument("--websocket", action="store_true", help="enable the experimental shared PageStore channel")
     parser.set_defaults(run=lambda options: run_gallery(environment, serve, options))
 
 
@@ -112,7 +119,8 @@ def run_gallery(environment: str, serve, options) -> int:
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
             serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,
-                  collections=examples_package().build_gallery()["collections"])
+                  collections=examples_package().build_gallery()["collections"],
+                  **({"websocket": options.websocket} if environment == "uvicorn" else {}))
         except ModuleNotFoundError as error:
             if error.name != "uvicorn":
                 raise

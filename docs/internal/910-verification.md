@@ -63,6 +63,9 @@ identities, then builds `docs` and `docs_llm` with Sphinx and `-W`.
 
 Block ID: **GP-910-010**.
 
+> Historical record — the dated PoC checkpoints below precede current-base
+> qualification. The final qualification is recorded at the end of this section.
+
 Local PageStore PoC, 2026-10-27, on the isolated codex/websocket-page-stores
 branch: the owner authorizes Uvicorn-first work against the local core branch.
 Application(..., websocket=True) enables the separate store channel;
@@ -385,3 +388,15 @@ Logs: /private/tmp/gramlot-reverse-metadata-core.log,
 /private/tmp/gramlot-reverse-metadata-browser.log.
 Implemented and verified; owner acceptance is separate. Earlier general HTTP
 baseline issues remain outside this bounded change.
+
+
+Current-base release qualification, 2026-10-27: all 191 adapter tests pass with
+the integrated core; the old HTTP/CSS/route baseline failures are resolved by
+alignment with the current shared adapter. The gallery staging test preserves
+the separate PageStore class. The full Chromium/WebKit WebSocket fixture and
+PageStore gallery pass from clean installed candidate wheels. All five adapters
+and their ordinary galleries pass browser checks. Both documentation views build.
+Bag JS 0.11.1 is published on npm/JSR; no local dependency patch is required.
+The owner authorizes publication and automatic hosted-gallery updates with
+"Sì, pubblica e aggiorna le gallery". Registry CI must run after the required
+core release is available. Only Uvicorn has WebSocket support in this release.

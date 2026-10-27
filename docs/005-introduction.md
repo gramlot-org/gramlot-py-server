@@ -6,6 +6,15 @@ Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs_llm/005-introduction.md).
 
+Start with [the command](020-command.md) to run a gallery or create a project,
+then [the Uvicorn tutorial](105-tutorial.md), or the guide for your existing web
+framework. Use [configuration](110-configuration.md) and
+[deployment](115-deployment.md) after the first page works.
+
+For HTML, components and binding, follow the
+[core learning route](https://gramlot.readthedocs.io/en/latest/docs/public/025-try.html).
+This manual explains hosting; it does not repeat the widget reference.
+
 <a id="gp-005-005"></a>
 
 ## 005 · What this package does

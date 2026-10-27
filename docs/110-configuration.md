@@ -180,8 +180,7 @@ advertise a manifest. The default icon path and launch/scope URLs include the
 mount prefix. Manifest content is public metadata.
 
 The gallery command supplies its icon asset automatically. Other applications
-can extend core `IndexPage` for the same navigation, iframe tabs and customizable
-footer: [authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-110).
+can extend core `IndexPage` for the same navigation, iframe tabs and configurable frame regions: [authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-110).
 Use HTTPS or localhost to install; the server must remain running afterward.
 Safari on macOS Sonoma or later uses File → Add to Dock. No offline cache is added.
 

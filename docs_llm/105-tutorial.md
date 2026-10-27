@@ -12,6 +12,12 @@ them with the installed `gramlot` core: it checks the bootstrap documents, the
 companions, the Content Security Policy header and the Source of `main`. It
 does not run a browser.
 
+This tutorial follows the host's runnable fixture, including its named Logic
+formula and explicit initial `dataSetter`. To learn the smallest field-and-binding
+example first, use [Your first page](https://gramlot.readthedocs.io/en/latest/docs/public/018-quickstart.html).
+In an application, use `default` for interface preferences and loaded Data for
+records; a setter is not required for every field.
+
 <a id="gp-105-005"></a>
 
 ## 005 · Install

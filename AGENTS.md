@@ -7,14 +7,21 @@ before changing this repository. The Gramlot constitution is authoritative.
 The repository publishes one PyPI package, `gramlot-py-server`, with one adapter
 module per framework in `src/gramlot_py_server/`: `uvicorn.py`, `django.py`,
 `flask.py`, `fastapi.py` and `kajenn.py`. Each module imports only its own
-framework, which arrives with the extra of the same name.
+framework, which arrives with the extra of the same name. `base.py` holds the
+HTTP rules the five share (methods and `Allow`, `Cache-Control`, the owner
+cookie, the status codes, shutdown) on top of the core server API
+(`decode_body`, `call`, `close`, `companion_file`, `theme_file`,
+`open_page`): an adapter only builds its routes and translates its framework
+request into `base.Request` and `base.Reply` into its response. A rule common
+to the five changes in `base.py`, with `tests/test_base.py` and the check of
+each adapter.
 
 ## Rules common to every adapter
 
 - The repository owns HTTP routing, payload parsing, response mapping and
   request identity for each framework. It does not own Gramlot Source, Data
   Bags, `GramlotServer` or the browser runtime.
-- Depend on the released core only: `gramlot>=0.2.14` from PyPI. The `core-main`
+- Depend on the released core only: `gramlot>=0.3.6` from PyPI. The `core-main`
   CI job, which installs the core from `main`, is the only exception. Never
   copy the core into this repository.
 - Every adapter keeps the same contract: the core `GramlotFileServer` with root-relative
@@ -25,9 +32,10 @@ framework, which arrives with the extra of the same name.
   the core themes at `/themes/…`, the `assets` option, the owner cookie `gramlot_owner`,
   `POST /gramlot/rpc` passing the body text to `GramlotServer.call`, `POST /gramlot/close`
   and the `content_security_policy` option with `{nonce}`. A change to one adapter's
-  contract is made in all five, with its tests. The server protocol GC-230 of
-  the core prevails: `tests/<framework>/test_<framework>_conformance.py` runs
-  the core `check_protocol` on each adapter started with its `serve`.
+  contract is made in all five, with its tests. The server protocol GC-101 of
+  the core (public, derived from the internal GC-230) prevails:
+  `tests/<framework>/test_<framework>_conformance.py` runs the core
+  `check_protocol` on each adapter started with its `serve`.
 - Never ship a substitute runtime. Fail if an accepted integration is unavailable.
 - No database adapters in this release; they come in the next cycle under
   `gramlot_py_server/db/<engine>.py`.

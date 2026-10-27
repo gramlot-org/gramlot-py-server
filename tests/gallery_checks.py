@@ -1,19 +1,19 @@
 """Checks shared by the gallery tests of every adapter."""
 import re
 
-from gramlot_py_server.gallery import environment_catalogs, stage
+from gramlot_py_server.gallery import environment_catalogs, examples_package, stage
 
 # URL below the mount path, start of its media type.
 EXPECTED = [
     ("/", "text/html"),
-    ("/e01", "text/html"),
-    ("/c03_aux.js", "text/javascript"),
-    ("/pages/controllers/03_named_logic.js", "text/javascript"),
+    ("/pages/00-html_svg/01-html_basics/01-hello_world", "text/html"),
+    ("/pages/03-controllers/01-logic/03-named_logic_aux.js", "text/javascript"),
+    ("/pages/03-controllers/01-logic/03-named_logic.js", "text/javascript"),
     ("/gallery/dist/gallery.js", "application/javascript"),
     ("/gallery/dist/frame.js", "application/javascript"),
     ("/gallery/gallery.css", "text/css"),
     ("/themes/gramlot-base/theme.css", "text/css"),
-    ("/assets/branding/gramlot-logo-dark.svg", "image/svg+xml"),
+    ("/assets/branding/svg/gramlot-horizontal-primary.svg", "image/svg+xml"),
 ]
 
 
@@ -22,6 +22,11 @@ def staged(tmp_path, environment, prefix="/py"):
     folder = tmp_path / "gallery"
     folder.mkdir()
     return folder, stage(folder, environment_catalogs(environment), prefix)
+
+
+def gallery_collections():
+    """The component collections of the gallery, as the gallery command passes them to the adapter."""
+    return examples_package().build_gallery()["collections"]
 
 
 def expected(environment, prefix="/py"):
@@ -34,7 +39,8 @@ def page_id(document):
 
 
 def check_index_main(source, prefix="/py"):
-    """The Source of the gallery page carries the logo and the script under the mount path."""
-    assert f"{prefix}/assets/branding/gramlot-logo-dark.svg" in source
-    assert f"{prefix}/gallery/dist/gallery.js" in source
+    """The Source carries the mounted logo and invokes the staged Logic lifecycle."""
+    assert f"{prefix}/assets/branding/svg/gramlot-horizontal-primary.svg" in source
+    assert "galleryInitialize" in source
+    assert "galleryMount" in source
     assert "Quick start" not in source

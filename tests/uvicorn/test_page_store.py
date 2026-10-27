@@ -47,8 +47,8 @@ async def test_store_publishes_back_to_child_after_acceptance(separate_socket):
             else:
                 await send(dict(op="attach", pageId=target))
                 await roundtrip()
-    assert not app.server._page_channels
-    app.server.close_all()
+    assert not app.gramlot_server._page_channels
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -81,8 +81,8 @@ async def test_publish_defaults_to_sender_and_reaches_same_owner_store_on_anothe
                 await send(rpc("barrier", value="still alive"))
                 assert from_tytx((await receive())["text"])["id"] == "barrier"
                 owner = client.cookies["gramlot_owner"]
-                assert app.server.page_store(primary, owner=owner).data.get_item("order.quantity") == "4"
-    app.server.close_all()
+                assert app.gramlot_server.page_store(primary, owner=owner).data.get_item("order.quantity") == "4"
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -100,9 +100,9 @@ async def test_child_publish_retains_sender_identity_and_uses_its_own_store_by_d
             messages = [from_tytx((await receive())["text"]) for _ in range(3)]
             assert all(message["pageId"] == child for message in messages)
             owner = client.cookies["gramlot_owner"]
-            assert app.server.page_store(primary, owner=owner).data.get_item("order.quantity") == "2"
-            assert app.server.page_store(child, owner=owner).data.get_item("order.quantity") == "7"
-    app.server.close_all()
+            assert app.gramlot_server.page_store(primary, owner=owner).data.get_item("order.quantity") == "2"
+            assert app.gramlot_server.page_store(child, owner=owner).data.get_item("order.quantity") == "7"
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -117,9 +117,9 @@ async def test_publication_rejection_preserves_stores_binders_and_rpc(invalid, s
         if invalid == "foreign":
             client.cookies.clear()
         target, _ = await open_page(client)
-        destination = app.server.page_store(target, owner=client.cookies["gramlot_owner"])
+        destination = app.gramlot_server.page_store(target, owner=client.cookies["gramlot_owner"])
         if invalid == "closed":
-            app.server.close_page(target, owner=owner)
+            app.gramlot_server.close_page(target, owner=owner)
         sender = child if sender_is_child else primary
         async with channel(app, cookie, primary) as (_, send, receive):
             await send(dict(op="attach", pageId=child))
@@ -149,7 +149,7 @@ async def test_publication_rejection_preserves_stores_binders_and_rpc(invalid, s
             assert (response["id"], response["pageId"], response["value"]) == ("pending", sender, "alive")
             assert destination.data.get_item("order.quantity") == "2"
             for page in (primary, child):
-                assert app.server.page_store(page, owner=owner).data.get_item("order.quantity") == "2"
+                assert app.gramlot_server.page_store(page, owner=owner).data.get_item("order.quantity") == "2"
                 await send(dict(op="change", pageId=page, binderId="a", path="quantity",
                                 evt="upd_value", value="3", attr={}))
                 changes = [from_tytx((await receive())["text"]) for _ in range(2)]
@@ -161,7 +161,7 @@ async def test_publication_rejection_preserves_stores_binders_and_rpc(invalid, s
                 assert all(m["pageId"] == page for m in changes)
                 await send(dict(rpc("after", value="still alive"), pageId=page))
                 assert from_tytx((await receive())["text"])["value"] == "still alive"
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -175,7 +175,7 @@ async def test_publication_sends_acceptance_before_entering_subscribers():
             await release.wait()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         primary, cookie = await open_page(client)
-        store = app.server.page_store(primary, owner=client.cookies["gramlot_owner"])
+        store = app.gramlot_server.page_store(primary, owner=client.cookies["gramlot_owner"])
         async with channel(app, cookie, primary, send_hook=hold_acceptance) as (_, send, receive):
             await send(dict(op="subscribe", binderId="a", path="order"))
             await receive()
@@ -189,7 +189,7 @@ async def test_publication_sends_acceptance_before_entering_subscribers():
                 release.set()
             changes = [from_tytx((await receive())["text"]) for _ in range(3)]
             assert [m["path"] for m in changes] == ["quantity", "total", "status"]
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -201,8 +201,8 @@ async def test_publication_cannot_forge_an_unattached_sender():
         async with channel(app, cookie, primary) as (_, send, receive):
             await send(dict(op="publish", id="forged", pageId=target, topic="set_quantity", payload={"quantity": "99"}))
             assert (await receive())["code"] == 1008
-        assert app.server.page_store(target, owner=client.cookies["gramlot_owner"]).data.get_item("order.quantity") == "2"
-    app.server.close_all()
+        assert app.gramlot_server.page_store(target, owner=client.cookies["gramlot_owner"]).data.get_item("order.quantity") == "2"
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -232,7 +232,7 @@ async def test_rpc_source_errors_and_reverse_completion_share_the_binder_channel
                 assert message["id"] == call_id and message["error"]["code"] == code
             await send(rpc("after-errors", value=42))
             assert from_tytx((await receive())["text"])["value"] == 42
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -255,7 +255,7 @@ async def test_rpc_identity_and_cancellation_are_scoped_to_the_attached_page():
             await send(dict(op="detach", pageId=child))
             await send(rpc("after-detach", "delayed_echo", value="alive", delay=0.15))
             assert from_tytx((await receive())["text"])["id"] == "after-detach"
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -271,7 +271,7 @@ async def test_malformed_rpc_closes_the_channel(bad):
         async with channel(app, cookie, primary) as (_, send, receive):
             await send(bad)
             assert (await receive())["code"] == 1008
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -286,8 +286,8 @@ async def test_rpc_cannot_target_an_unattached_or_foreign_page():
             async with channel(app, cookie, primary) as (_, send, receive):
                 await send(dict(rpc("impersonation", value=1), pageId=other))
                 assert (await receive())["code"] == 1008
-            assert other in app.server._pages
-    app.server.close_all()
+            assert other in app.gramlot_server._pages
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -300,7 +300,7 @@ async def test_disconnect_cancels_inflight_dispatch_and_releases_pages(monkeypat
             await asyncio.Event().wait()
         finally:
             cancelled.set()
-    monkeypatch.setattr(app.server, "call", waiting_call)
+    monkeypatch.setattr(app.gramlot_server, "call", waiting_call)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         primary, cookie = await open_page(client)
         async with channel(app, cookie, primary) as (_, send, receive):
@@ -308,8 +308,8 @@ async def test_disconnect_cancels_inflight_dispatch_and_releases_pages(monkeypat
             await asyncio.wait_for(started.wait(), 2)
         assert cancelled.is_set()
         assert not app._store_channels
-        assert primary not in app.server._pages
-    app.server.close_all()
+        assert primary not in app.gramlot_server._pages
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -324,7 +324,7 @@ async def test_rpc_duplicate_ids_and_capacity_close_without_leaking_tasks(monkey
             await asyncio.Event().wait()
         finally:
             running.remove(call_id)
-    monkeypatch.setattr(app.server, "call", waiting_call)
+    monkeypatch.setattr(app.gramlot_server, "call", waiting_call)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         primary, cookie = await open_page(client)
         async with channel(app, cookie, primary) as (_, send, receive):
@@ -333,7 +333,7 @@ async def test_rpc_duplicate_ids_and_capacity_close_without_leaking_tasks(monkey
             assert (await receive())["code"] == 1008
         assert not running
         assert not app._store_channels
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @asynccontextmanager
@@ -391,9 +391,9 @@ async def test_snapshots_changes_controller_http_and_cleanup():
             assert from_tytx(rpc.text)["value"] == "HTTP"
             await send(dict(op="unsubscribe", binderId="b"))
             await send(dict(op="change", binderId="a", path="status", evt="del", value=None, attr={}))
-        assert page_id not in app.server._pages
-        assert page_id not in app.server._page_stores
-    app.server.close_all()
+        assert page_id not in app.gramlot_server._pages
+        assert page_id not in app.gramlot_server._page_stores
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -414,16 +414,16 @@ async def test_shared_socket_isolates_pages_and_detaches_only_the_child():
             messages = [from_tytx((await receive())["text"]) for _ in range(2)]
             assert [(m["pageId"], m["path"]) for m in messages] == [(child, "total"), (child, "status")]
             owner = client.cookies["gramlot_owner"]
-            assert app.server.page_store(primary, owner=owner).data.get_item("order.quantity") == "2"
+            assert app.gramlot_server.page_store(primary, owner=owner).data.get_item("order.quantity") == "2"
             await send(dict(op="detach", pageId=child))
             await send(dict(op="change", binderId="same-id", path="quantity", evt="upd_value", value="3", attr={}))
             assert from_tytx((await receive())["text"])["pageId"] == primary
             await receive()
-            assert child not in app.server._pages
+            assert child not in app.gramlot_server._pages
             assert child not in app._store_channels
         assert not app._store_channels
-        assert not app.server._page_stores
-    app.server.close_all()
+        assert not app.gramlot_server._page_stores
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -438,8 +438,8 @@ async def test_shared_socket_rejects_foreign_owner_and_unattached_pages(operatio
         async with channel(app, cookie, primary) as (_, send, receive):
             await send(dict(op=operation, pageId=other, binderId="a", path="order"))
             assert (await receive())["code"] == 1008
-        assert other in app.server._pages
-    app.server.close_all()
+        assert other in app.gramlot_server._pages
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -458,8 +458,8 @@ async def test_child_http_close_racing_detach_preserves_the_primary():
             await send(dict(op="detach", pageId=child))
             await send(dict(op="subscribe", binderId="primary", path="order"))
             assert from_tytx((await receive())["text"])["op"] == "snapshot"
-            assert primary in app.server._pages
-    app.server.close_all()
+            assert primary in app.gramlot_server._pages
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -476,7 +476,7 @@ async def test_page_cannot_join_two_sockets():
                 assert (await other_receive())["code"] == 1008
             await send(dict(op="subscribe", binderId="a", path="order"))
             assert from_tytx((await receive())["text"])["pageId"] == primary
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -492,9 +492,9 @@ async def test_primary_disconnect_closes_every_attached_store():
                 await receive()
             assert set(app._store_channels) == {primary, child}
         assert not app._store_channels
-        assert not app.server._pages
-        assert not app.server._page_stores
-    app.server.close_all()
+        assert not app.gramlot_server._pages
+        assert not app.gramlot_server._page_stores
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -505,8 +505,8 @@ async def test_origin_and_owner_are_checked_before_accept(origin, cookie_mode):
         page_id, cookie = await open_page(client)
         async with channel(app, cookie if cookie_mode == "owner" else "", page_id, origin=origin) as (opened, _, _):
             assert opened == {"type": "websocket.close", "code": 1008}
-        assert page_id in app.server._pages
-    app.server.close_all()
+        assert page_id in app.gramlot_server._pages
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -514,14 +514,14 @@ async def test_unknown_binder_cannot_mutate_the_store():
     app = create_application(PAGES, websocket=True)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         page_id, cookie = await open_page(client)
-        store = app.server.page_store(page_id, owner=client.cookies["gramlot_owner"])
+        store = app.gramlot_server.page_store(page_id, owner=client.cookies["gramlot_owner"])
         async with channel(app, cookie, page_id) as (opened, send, receive):
             assert opened["type"] == "websocket.accept"
             await send(dict(op="change", binderId="unknown", path="quantity",
                             evt="upd_value", value="99", attr={}))
             assert (await receive())["code"] == 1008
         assert store.data.get_item("order.quantity") == "2"
-    app.server.close_all()
+    app.gramlot_server.close_all()
 
 
 @pytest.mark.asyncio
@@ -533,5 +533,5 @@ async def test_mount_and_page_id_are_checked():
             assert opened["code"] == 1008
         async with channel(app, cookie, "unknown", prefix="/py") as (opened, _, _):
             assert opened["code"] == 1008
-    app.server.close_all()
+    app.gramlot_server.close_all()
 

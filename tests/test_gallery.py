@@ -1,5 +1,7 @@
 """The staging of the gallery and the catalogues of the five environments."""
 import json
+import shutil
+import subprocess
 import sys
 
 import pytest
@@ -32,25 +34,65 @@ def test_environment_gallery_contains_common_examples_without_quick_start(enviro
 def test_stage_writes_one_page_per_route(tmp_path, prefix):
     assets = stage(tmp_path, environment_catalogs("uvicorn"), prefix)
     index = (tmp_path / "index.py").read_text()
-    assert f"logoUrl = '{prefix}/assets/branding/gramlot-logo-dark.svg'" in index
-    assert f"galleryScript = '{prefix}/gallery/dist/gallery.js'" in index
-    assert "catalogs = []" in index
-    assert (tmp_path / "index_aux.js").read_text() == f'export {{Logic}} from "{prefix}/gallery/dist/gallery.js";\n'
+    assert f"logoUrl = '{prefix}/assets/branding/svg/gramlot-horizontal-primary.svg'" in index
+    assert f'{prefix}/gallery/dist/gallery.js' in (tmp_path / "index_aux.js").read_text()
+    assert "07-tools" in (tmp_path / ".gallery-tools/catalog.json").read_text()
+    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/00-html_svg/01-html_basics/01-hello_world.py").read_text()
+    stub = (tmp_path / "pages/03-controllers/01-logic/03-named_logic_aux.js").read_text()
+    assert stub == f'export * from "{prefix}/pages/03-controllers/01-logic/03-named_logic.js";\n'
+    assert assets["/pages/03-controllers/01-logic/03-named_logic.js"]["type"] == "text/javascript; charset=utf-8"
+    assert not (tmp_path / "uvicorn-01.py").exists()
+    assert not (tmp_path / "uvicorn-01_aux.js").exists()
+    assert assets["/pages/03-controllers/01-logic/03-named_logic.py"]["type"] == "text/plain"
     routes = build_gallery(environment_catalogs("uvicorn"))["routes"]
-    first = tmp_path / (routes["e01"]["url"] + ".py")
-    assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in first.read_text()
-    assert not (tmp_path / "e01.py").exists()
     for key, route in routes.items():
-        if key == "index":
-            continue
-        key = route["url"]
+        key = "index" if key == "index" else route["url"]
         assert (tmp_path / f"{key}.py").is_file()
+        assert (tmp_path / f"{key}_data.tytx").is_file() == (route["data"] is not None)
+        if route["data"] is not None:
+            assert (tmp_path / f"{key}_data.tytx").read_bytes() == route["data"].read_bytes()
         assert (tmp_path / f"{key}.css").is_file() == (route["stylesheet"] is not None)
-        assert (tmp_path / f"{key}_aux.js").is_file() == (route["logic"] is not None)
-        if route["logic"] is not None:
-            url = next(url for url, asset in assets.items() if asset["file"] == route["logic"])
-            assert assets[url]["type"] == "text/javascript; charset=utf-8"
-            assert (tmp_path / f"{key}_aux.js").read_text() == f'export {{Logic}} from "{prefix}{url}";\n'
+        assert (tmp_path / f"{key}_aux.js").is_file() == (key == "index" or route["logic"] is not None)
+
+
+def logic_catalog(tmp_path):
+    """A catalogue of two examples: ``extra-01`` with a JS module without ``Logic``, ``extra-02`` with one."""
+    folder = tmp_path / "pages" / "logic"
+    folder.mkdir(parents=True)
+    for name in ("01_plain", "02_logic"):
+        (folder / f"{name}.py").write_text("from gramlot import Page as BasePage\n\n\nclass Page(BasePage):\n    pass\n")
+    (folder / "01_plain.js").write_text("export const note = 'a page module without Logic';\n")
+    (folder / "02_logic.js").write_text("export class Logic {\n    twice(value) { return value * 2; }\n}\n")
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(json.dumps({"environment": "extra", "families": [{"key": "logic", "folder": "logic", "title": "Logic", "examples": [
+        {"key": f"extra-0{number}", "title": name, "folder": name, "description": name, "explanation": name}
+        for number, name in ((1, "01_plain"), (2, "02_logic"))]}]}))
+    return [(catalog, tmp_path / "pages")]
+
+
+def test_stage_accepts_logic_modules_with_and_without_logic(tmp_path):
+    pages = tmp_path / "staged"
+    pages.mkdir()
+    assets = stage(pages, logic_catalog(tmp_path), "/py")
+    for key, name in (("extra-01", "01_plain"), ("extra-02", "02_logic")):
+        assert (pages / f"pages/logic/{name}_aux.js").read_text() == f'export * from "/py/pages/logic/{name}.js";\n'
+        assert assets[f"/pages/logic/{name}.js"]["type"] == "text/javascript; charset=utf-8"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs node to import the staged modules")
+def test_staged_companions_import_with_and_without_logic(tmp_path):
+    (tmp_path / "package.json").write_text('{"type": "module"}')
+    pages = tmp_path / "staged"
+    pages.mkdir()
+    stage(pages, logic_catalog(tmp_path), tmp_path.as_uri())
+    script = (
+        f"const plain = await import({(pages / 'pages/logic/01_plain_aux.js').as_uri()!r});\n"
+        f"const logic = await import({(pages / 'pages/logic/02_logic_aux.js').as_uri()!r});\n"
+        "console.log(JSON.stringify([plain.Logic === undefined, typeof logic.Logic, new logic.Logic().twice(4)]));\n"
+    )
+    result = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == [True, "function", 8]
 
 
 def test_gallery_without_gramlot_examples_names_the_extra(monkeypatch):
@@ -74,17 +116,45 @@ def test_gallery_options(tmp_path):
     from gramlot_py_server.gallery import add_gallery
 
     add_gallery(verbs, "uvicorn", serve)
-    options = parser.parse_args(["gallery", "--websocket", "--port", "9001", "--mount", "py/",
+    options = parser.parse_args(["gallery", "--port", "9001", "--mount", "py/",
                                  "--catalog", str(catalog), str(tmp_path), "--serverless-download", "/downloads/gallery.zip"])
     assert options.run(options) == 0
     assert served["host"] == "127.0.0.1" and served["port"] == 9001
     assert served["mount_path"] == "/py"
-    assert served["websocket"] is True
     assert "serverless_download_url = '/downloads/gallery.zip'" in served["index"]
     assert served["assets"]["/gallery/dist/gallery.js"]["type"] == "application/javascript"
     defaults = parser.parse_args(["gallery"])
-    assert defaults.websocket is False
     assert (defaults.host, defaults.port, defaults.mount, defaults.catalog) == ("127.0.0.1", 8080, "", [])
+
+
+def test_tools_navigation_keeps_playground_and_ide_together(tmp_path):
+    from gramlot_examples import navigation_directory
+    from gramlot_py_server.gallery import stage_tools
+    catalog = stage_tools(tmp_path)
+    root = navigation_directory(catalogs=[catalog])
+    assert [n.attr["directory"] for n in root.nodes].count("07-tools") == 1
+    tools = navigation_directory("07-tools", catalogs=[catalog])
+    assert tools.get_node("e13").attr["url"] == "pages/07-tools/01-live_source"
+    assert tools.get_node("02-directory_tree").attr["title"] == "Browse a directory on disk"
+    assert tools.get_node("index").attr["title"] == "IDE: edit sample documents"
+    assert navigation_directory("00-html_svg", catalogs=[catalog]).get_node("e13") is None
+    routes = build_gallery([catalog])["routes"]
+    assert routes["e13"]["url"] == tools.get_node("e13").attr["url"]
+
+
+def test_directory_tool_is_read_only_and_bounded_to_samples(tmp_path):
+    from gramlot.server import GramlotFileServer
+    from gramlot_py_server.gallery import stage_tools
+    _, source = stage_tools(tmp_path, remote_edit=True)
+    page = GramlotFileServer(source / "07-tools").resolve_page("02-directory_tree")()
+    root = str(tmp_path / ".gallery-documents")
+    assert not page.remote_edit
+    assert any(n.attr["caption"] == "guides" for n in page.directory_tree(root).nodes)
+    assert [n.attr["caption"] for n in page.directory_tree(root, "guides").nodes] == ["README.md"]
+    with pytest.raises(PermissionError):
+        page.directory_tree(str(tmp_path))
+    with pytest.raises(PermissionError):
+        page.document_create(root, "unwanted.txt", "no")
 
 
 @pytest.mark.asyncio

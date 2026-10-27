@@ -5,7 +5,9 @@ from importlib.resources import files
 from fastapi.testclient import TestClient
 from genro_tytx import from_tytx
 
-from gallery_checks import check_index_main, expected, page_id, staged
+from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+                        check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.fastapi import Application
 from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
@@ -60,7 +62,7 @@ def test_protocol_owner_limits_asset_and_close(tmp_path):
         assert rpc(client).status_code == 200
         assert client.post("/gramlot/close", json={"pageId": page_id}).json() == {"ok": True}
         assert rpc_outcome(rpc(client).text) == "page_expired"
-    assert app.gramlot_pages.server._pages == {}
+    assert app.gramlot_pages.gramlot_server._pages == {}
 
 
 def test_capacity_is_service_unavailable(tmp_path):
@@ -110,7 +112,9 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
     assert json.loads(runtime) == "/nested/assets/gramlot.js"
     resources = json.loads(argument)["resources"]
-    assert resources["css"] == ["/nested/themes/theme.css", "local.css", "/nested/index.css"]
+    assert resources["css"] == [
+        "/nested/themes/gramlot-base/theme.css", "/nested/themes/theme.css", "local.css", "/nested/index.css"
+    ]
     assert resources["js"] == [{"url": "/nested/index_aux.js", "group": None}]
     for url, media_type in (("/nested/themes/theme.css", "text/css"),
                             ("/nested/index.css", "text/css"),
@@ -215,7 +219,7 @@ def test_core_themes_below_the_mount_path(tmp_path):
 
 def test_gallery_under_the_mount_path(tmp_path):
     folder, assets = staged(tmp_path, "fastapi")
-    client = TestClient(Application(folder, mount_path="/py", assets=assets))
+    client = TestClient(Application(folder, mount_path="/py", assets=assets, collections=gallery_collections()))
     for url, kind in expected("fastapi"):
         response = client.get(url)
         assert response.status_code == 200, url
@@ -234,3 +238,36 @@ def test_index_html_opens_the_page_of_its_folder(tmp_path):
         assert title_of(response.text) == title, path
     for path in INDEX_HTML_MISSING:
         assert client.get("/nested" + path).status_code == 404, path
+
+
+def test_http_rules_of_the_shared_base(tmp_path):
+    folder, assets = rules_pages(tmp_path)
+    app = Application(folder, mount_path="/nested", assets=assets)
+    with TestClient(app) as client:
+        for method in REFUSED_ON_A_PAGE:
+            response = client.request(method, "/nested/")
+            check_refusal(method, response.status_code, response.headers)
+        for url in NO_STORE_URLS:
+            check_no_store(url, client.get("/nested" + url).headers)
+        check_no_cache(RUNTIME_URL, client.get("/nested" + RUNTIME_URL).headers)
+        check_no_cache(RUNTIME_URL, client.head("/nested" + RUNTIME_URL).headers)
+        for url in ("/gramlot/rpc", "/gramlot/close"):
+            response = client.get("/nested" + url)
+            check_refusal("GET", response.status_code, response.headers, "POST")
+        for url in ("/assets/gramlot.js", "/themes/gramlot-base/theme.css", "/index.css", "/extra/logo.svg"):
+            response = client.post("/nested" + url)
+            check_refusal("POST", response.status_code, response.headers, "GET, HEAD")
+            check_no_store(url, response.headers)
+        first = client.get("/nested/")
+        owner = check_owner_cookie(first.headers["set-cookie"], "/nested")
+        assert check_owner_cookie(client.get("/nested/").headers["set-cookie"], "/nested") == owner
+        redirect = client.get("/nested", follow_redirects=False)
+        assert redirect.status_code == 301
+        check_no_store("/nested", redirect.headers)
+        assert client.post("/nested", follow_redirects=False).status_code == 301
+    assert app.gramlot_pages.gramlot_server._pages == {}
+
+
+def test_the_routes_stay_out_of_the_openapi_schema(tmp_path):
+    folder, _ = rules_pages(tmp_path)
+    assert Application(folder, mount_path="/nested").openapi()["paths"] == {}

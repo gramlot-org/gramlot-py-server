@@ -96,8 +96,10 @@ pages = mount_pages(app, PAGES, mount_path="/py")
   at the same path gives the same name, and Flask raises `ValueError`.
 - The `Pages` is recorded in `app.extensions["gramlot_pages"][mount_path]`,
   for example `app.extensions["gramlot_pages"]["/py"]`.
-- `page_ttl`, `max_pages`, `content_security_policy` and `assets` have the
-  meaning of the [Uvicorn options](110-configuration.md).
+- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
+  have the meaning of the [Uvicorn options](110-configuration.md). The option
+  `css_theme` of the core server is not exposed: the base theme is
+  `gramlot-base`.
 
 `Pages(pages, **options).blueprint()` builds the blueprint without registering
 it, for an application that registers blueprints itself.
@@ -108,27 +110,30 @@ it, for an application that registers blueprints itself.
 
 Block ID: **GP-305-020**.
 
-- **Routes.** `/assets/gramlot.js` accepts `GET` and `HEAD`. `/gramlot/rpc`
-  and `/gramlot/close` accept `POST`. `/` and
-  `/<path:page_path>` serve the pages, the files of `assets` and the
-  companions with Flask's default
-  methods: `GET`, `HEAD` and `OPTIONS`.
-- **`HEAD` on a page.** A `HEAD` opens a page and sets the cookie; Flask sends
-  no body.
-- **Other methods.** Flask answers them with its own 405 page and an `Allow`
-  header. A `GET` on `/gramlot/rpc` or `/gramlot/close` matches the page
-  route, which answers 405 with `Allow: POST`.
+- **Routes.** `/` and `/<path:page_path>` take every method, with Flask's
+  automatic `OPTIONS` turned off, and serve the runtime, the pages, the core
+  themes, the files of `assets`, the companions and the protocol URLs. The
+  adapter decides the method of each URL and answers 405 with an `Allow`
+  header.
+- **`HEAD` on a page.** A page path accepts `GET` only. `HEAD` and every other
+  method answer 405 with `Allow: GET`; a `HEAD` opens no page.
+- **Other methods.** `/gramlot/rpc` and `/gramlot/close` accept `POST`, a file
+  accepts `GET` and `HEAD`; any other method answers 405 with the `Allow`
+  header of the URL.
 - **Asynchronous core.** The views are synchronous. Each call to the core
   `GramlotFileServer` runs in its own event loop through `asyncio.run`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
   `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
-  Error messages are plain text in a response with Flask's default content
-  type `text/html; charset=utf-8`.
+  Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
 - **Request body.** The protocol views pass the body to `GramlotServer.call`
   as text. The adapter fixes no size; Flask's `MAX_CONTENT_LENGTH`, when the
-  application sets it, answers 413 above it. `request.mimetype` is compared
-  with `application/json`; parameters such as `charset` are not part of it.
+  application sets it, answers 413 above it. The media type of the
+  `Content-Type` header is compared with `application/json` without regard to
+  case; parameters such as `charset` are not part of it. The core decodes the
+  body (UTF-8, a leading byte order mark removed).
+- **Shutdown.** WSGI has no shutdown signal. `Pages` forgets every open page
+  when the interpreter exits or the `Pages` is collected (`finalizer`).
 - **Errors.** An exception of the page's own code while a page opens reaches
   Flask, which answers 500. In a call through `/gramlot/rpc` it is the outcome
   `application_error` of a 200 response.
@@ -153,28 +158,34 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages`, registers
   its blueprint and records it in `app.extensions["gramlot_pages"]`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None)`:
+  content_security_policy=None, assets=None, collections=())`: a subclass of
+  `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
+  section 020):
   - `blueprint()`: a new `Blueprint` with the routes below.
-  - `server`: the core `GramlotFileServer` built on `pages` with the URLs
+  - `gramlot_server`: the core `GramlotFileServer` built on `pages` with the URLs
     `/assets/gramlot.js`, `/gramlot/rpc`, `/gramlot/close`.
   - `mount_path`: the normalized prefix (`""` or `/py`).
   - `content_security_policy`: the configured policy or `None`.
   - `assets`: the map of URLs to files, `{}` when not given.
-  - `asset`, `page`, `static`, `companion`, `rpc`, `close`, `redirect`: the
-    views.
+  - `view`, `mount_view`: the views of the blueprint and of the bare prefix;
+    `response(reply)`: the Flask response of a `base.Reply`.
+  - `finalizer`: the `weakref.finalize` that forgets every open page at exit;
+    `shutdown()` forgets them at once.
 
 | Method and path | Answer |
 | --- | --- |
-| `GET`, `HEAD /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
-| `GET`, `HEAD /<page path>/index.html`, `/index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
+| `GET /<page path>` | 200 `text/html; charset=utf-8`, the bootstrap document, with `Set-Cookie: gramlot_owner=…` and, when configured, `Content-Security-Policy`; 404 `Page not found`; 503 `Page capacity reached` |
+| `GET /<page path>/index.html`, `/index.html` | as `GET /<page path>` for the page `<page path>`, as `GET /` for the page `index` |
+| any other method on a page path, `HEAD` included | 405, `Allow: GET` |
 | `GET`, `HEAD /assets/gramlot.js` | 200 `text/javascript; charset=utf-8`, the runtime |
-| `GET /py` (the bare prefix) | 301, `Location: /py/` with the query string |
+| any method on `/py` (the bare prefix) | 301, `Location: /py/` with the query string |
 | `GET`, `HEAD /themes/<file>` | 200, the file of the core themes with the media type of its extension; a file the core does not have goes on to the rows below |
 | `GET`, `HEAD` of a URL of `assets` | 200, the file with the media type of the map |
 | `GET`, `HEAD /<file>.css`, `/<file>.js` | 200 `text/css; charset=utf-8` or `text/javascript; charset=utf-8` when the real path is below the pages folder; 404 `Not found` otherwise |
-| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md) |
+| `POST /gramlot/rpc`, `/gramlot/close` | as the [Uvicorn endpoints](120-reference.md); 405, `Allow: POST`, for other methods |
 | other methods | 405 from Flask, with `Allow`; a `GET` on `/gramlot/*` answers 405 with `Allow: POST` |
 
 Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+[Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).

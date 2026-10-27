@@ -21,6 +21,7 @@ and one extra per framework.
    010-writing-pages
    015-troubleshooting
    020-command
+   025-gallery-modules
 
 .. toctree::
    :maxdepth: 2

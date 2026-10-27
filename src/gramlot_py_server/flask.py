@@ -4,65 +4,16 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from importlib.resources import files
-from mimetypes import MimeTypes
 from pathlib import Path
-from secrets import token_urlsafe
 
 from flask import Blueprint, Flask, Response, request
-from gramlot.server import (
-    GramlotFileServer,
-    InvalidRequest,
-    PageNotFound,
-    ServerCapacity,
-    runtime_asset,
-)
 
+from gramlot_py_server import base
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
-OWNER_COOKIE = "gramlot_owner"
-OPERATION_PATHS = {"/gramlot/rpc", "/gramlot/close"}
-COMPANION_MEDIA_TYPES = {
-    ".css": "text/css; charset=utf-8",
-    ".js": "text/javascript; charset=utf-8",
-}
-# The core themes, served below the mount path as the runtime is. The built-in
-# table of MimeTypes() ignores the system files; THEME_MEDIA_TYPES adds the types it
-# lacks in some Python version: fonts and WebP in every one, Markdown before 3.12.
-THEMES = Path(str(files("gramlot").joinpath("resources", "themes")))
-MEDIA_TYPES = MimeTypes()
-THEME_MEDIA_TYPES = {
-    ".woff2": "font/woff2",
-    ".woff": "font/woff",
-    ".ttf": "font/ttf",
-    ".otf": "font/otf",
-    ".webp": "image/webp",
-    ".md": "text/markdown",
-}
 
-
-def theme_file(path: str) -> dict | None:
-    """The file of the core themes at ``path`` (``/themes/…``), as an ``assets`` entry.
-
-    Every file whose real path is below ``gramlot/resources/themes`` is served
-    with the media type of its extension; ``None`` lets the request go on.
-    """
-    if not path.startswith("/themes/"):
-        return None
-    root = THEMES.resolve()
-    real = root.joinpath(*path.removeprefix("/themes/").split("/")).resolve()
-    if not (real.is_relative_to(root) and real.is_file()):
-        return None
-    media_type = THEME_MEDIA_TYPES.get(real.suffix) or MEDIA_TYPES.guess_type(real.name)[0]
-    media_type = media_type or "application/octet-stream"
-    if media_type.startswith("text/"):
-        media_type += "; charset=utf-8"
-    return {"file": real, "type": media_type}
-
-
-class Pages:
+class Pages(base.Adapter):
     """Own a Gramlot ``GramlotFileServer`` and its WSGI route translations.
 
     The blueprint is registered at ``mount_path``, which is also passed to
@@ -70,147 +21,50 @@ class Pages:
     final slash (``/py``) answers 301 to ``/py/``: pages link each other with
     relative URLs.
 
-    GET and HEAD serve a ``.css`` or ``.js`` file whose real path is below the
-    pages folder: the companions of ``GramlotFileServer`` (stylesheet, page module or
-    ``_aux.js`` with the page ``Logic``) and ``Page.css`` files placed there.
-    Every other file of the folder is not served.
-
-    ``<path>/index.html`` opens the page ``<path>`` and ``/index.html`` the index,
-    as a static host does.
-
-    GET and HEAD serve every file below the themes folder of the core at
-    ``/themes/…``, with the media type of its extension; a path the core does
-    not have goes on to ``assets``, the companions and the pages.
-
-    ``assets`` maps URLs below the mount path to files served by GET and HEAD,
-    each ``{"file": path, "type": media type}``, as ``build_gallery`` of
-    ``gramlot-examples`` returns them.
-
-    ``content_security_policy`` is the application's policy, sent as the
-    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
-    replaced by the nonce that ``open_page`` puts on the bootstrap script.
+    WSGI has no shutdown signal: the registered pages are forgotten when the
+    interpreter exits or the ``Pages`` is collected (``close_at_exit``).
+    The HTTP rules, the same in every adapter, are those of ``gramlot_py_server.base``.
     """
 
-    def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
-                 max_pages: int = 1000, content_security_policy: str | None = None,
-                 assets: dict | None = None, collections=()) -> None:
-        self.mount_path = "/" + mount_path.strip("/") if mount_path.strip("/") else ""
-        self.content_security_policy = content_security_policy
-        self.assets = dict(assets or {})
-        self.server = GramlotFileServer(
-            pages,
-            runtime_url="/assets/gramlot.js",
-            rpc_url="/gramlot/rpc",
-            close_url="/gramlot/close",
-            page_ttl=page_ttl,
-            max_pages=max_pages, collections=collections,
-        )
+    def __init__(self, pages: str | Path, **options) -> None:
+        super().__init__(pages, **options)
+        self.finalizer = self.close_at_exit()
 
     def blueprint(self) -> Blueprint:
+        """The blueprint of the pages: every method of every URL reaches ``view``, which answers 405."""
         name = "gramlot_pages_" + (self.mount_path.strip("/") or "root").replace("/", "_")
         blueprint = Blueprint(name, __name__, url_prefix=self.mount_path or None)
-        blueprint.add_url_rule("/assets/gramlot.js", "asset", self.asset, methods=["GET", "HEAD"])
-        blueprint.add_url_rule("/gramlot/rpc", "rpc", self.rpc, methods=["POST"])
-        blueprint.add_url_rule("/gramlot/close", "close", self.close, methods=["POST"])
+        methods = list(self.METHODS)
         if self.mount_path:
-            blueprint.add_url_rule("", "mount", self.redirect, strict_slashes=False)
-        blueprint.add_url_rule("/", "index", self.page, defaults={"page_path": ""})
-        blueprint.add_url_rule("/<path:page_path>", "page", self.page)
+            blueprint.add_url_rule("", "mount", self.mount_view, methods=methods,
+                                   provide_automatic_options=False, strict_slashes=False)
+        blueprint.add_url_rule("/", "index", self.view, methods=methods,
+                               provide_automatic_options=False, defaults={"page_path": ""})
+        blueprint.add_url_rule("/<path:page_path>", "page", self.view, methods=methods,
+                               provide_automatic_options=False)
         return blueprint
 
-    def redirect(self) -> Response:
-        query = request.query_string.decode("latin-1")
-        location = self.mount_path + "/" + (f"?{query}" if query else "")
-        return Response(status=301, headers={"Location": location})
+    def mount_view(self) -> Response:
+        """The bare mount prefix."""
+        return self.response(self.redirect(request.query_string.decode("latin-1")))
 
-    def asset(self) -> Response:
-        body = b"" if request.method == "HEAD" else runtime_asset().read_bytes()
-        return Response(body, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
+    def view(self, page_path: str = "") -> Response:
+        """Every URL below the mount prefix."""
+        return self.response(asyncio.run(self.handle(base.Request(
+            method=request.method,
+            path="/" + page_path,
+            body=base.stored(request.get_data(cache=False)),
+            query=request.query_string.decode("latin-1"),
+            content_type=request.headers.get("Content-Type", ""),
+            owner=request.cookies.get(self.OWNER_COOKIE),
+        ))))
 
-    def page(self, page_path="") -> Response:
-        if page_path == "app.webmanifest":
-            try:
-                manifest = asyncio.run(self.server.page_manifest(prefix=self.mount_path))
-            except PageNotFound:
-                return Response("Not found", status=404)
-            return Response("" if request.method == "HEAD" else json.dumps(manifest),
-                            content_type="application/manifest+json", headers={"Cache-Control": "no-store"})
-        if "/" + page_path in OPERATION_PATHS:
-            # The operation rules accept POST only; without this the GET falls through to the pages.
-            return Response(status=405, headers={"Allow": "POST"})
-        asset = theme_file("/" + page_path) or self.assets.get("/" + page_path)
-        if asset is not None:
-            return self.static(asset)
-        suffix = next((suffix for suffix in COMPANION_MEDIA_TYPES if page_path.endswith(suffix)), None)
-        if suffix is not None:
-            return self.companion(page_path, suffix)
-        # As on a static host, <path>/index.html is the page <path> and /index.html the index.
-        if ("/" + page_path).endswith("/index.html"):
-            page_path = page_path.removesuffix("index.html")
-        owner = request.cookies.get(OWNER_COOKIE) or token_urlsafe(24)
-        try:
-            opened = asyncio.run(self.server.open_page(page_path, owner=owner, prefix=self.mount_path))
-        except PageNotFound:
-            return Response("Page not found", status=404)
-        except ServerCapacity:
-            return Response("Page capacity reached", status=503)
-        headers = {"Cache-Control": "no-store"}
-        if self.content_security_policy is not None:
-            headers["Content-Security-Policy"] = self.content_security_policy.replace("{nonce}", opened.nonce)
-        response = Response(opened.html, mimetype="text/html", headers=headers)
-        response.set_cookie(
-            OWNER_COOKIE,
-            owner,
-            path=self.mount_path or "/",
-            httponly=True,
-            samesite="Lax",
-        )
+    @staticmethod
+    def response(reply: base.Reply) -> Response:
+        """The Flask response of a ``Reply``."""
+        response = Response(reply.body, status=reply.status, content_type=reply.content_type)
+        response.headers.update(reply.headers)
         return response
-
-    def static(self, asset) -> Response:
-        """Serve one file of ``assets`` with its media type."""
-        body = b"" if request.method == "HEAD" else Path(asset["file"]).read_bytes()
-        return Response(body, content_type=asset["type"], headers={"Cache-Control": "no-store"})
-
-    def companion(self, page_path: str, suffix: str) -> Response:
-        """Serve the file of ``page_path`` when its real path is below the pages folder."""
-        root = self.server.pages_dir.resolve()
-        real = root.joinpath(*page_path.strip("/").split("/")).resolve()
-        if not (real.is_relative_to(root) and real.is_file()):
-            return Response("Not found", status=404)
-        body = b"" if request.method == "HEAD" else real.read_bytes()
-        return Response(body, content_type=COMPANION_MEDIA_TYPES[suffix],
-                        headers={"Cache-Control": "no-store"})
-
-    def rpc(self) -> Response:
-        return self._operation("rpc")
-
-    def close(self) -> Response:
-        return self._operation("close")
-
-    def _operation(self, operation: str) -> Response:
-        if request.mimetype != "application/json":
-            return Response("Expected application/json", status=415)
-        try:
-            text = request.get_data(cache=False).decode()
-        except UnicodeDecodeError:
-            return Response("Request body is not UTF-8", status=400)
-        owner = request.cookies.get(OWNER_COOKIE)
-        if operation == "rpc":
-            try:
-                result = asyncio.run(self.server.call(text, owner=owner))
-            except InvalidRequest:
-                return Response("Invalid envelope", status=400)
-        else:
-            try:
-                payload = json.loads(text)
-                if not isinstance(payload, dict) or not isinstance(payload.get("pageId"), str):
-                    raise ValueError("Missing pageId")
-            except ValueError:
-                return Response("Invalid JSON request", status=400)
-            self.server.close_page(payload["pageId"], owner=owner)
-            result = json.dumps({"ok": True})
-        return Response(result, mimetype="application/json", headers={"Cache-Control": "no-store"})
 
 
 def mount_pages(app, pages: str | Path, **options) -> Pages:

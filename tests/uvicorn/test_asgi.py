@@ -6,8 +6,9 @@ import httpx
 import pytest
 from genro_tytx import from_tytx
 
-from gramlot_py_server import uvicorn as uvicorn_module
-from gallery_checks import check_index_main, expected, page_id, staged
+from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+                        check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
 from gramlot_py_server.uvicorn import Application, create_application
@@ -110,7 +111,7 @@ async def test_mount_path_prefixes_root_relative_urls_once(tmp_path):
     assert config["rpcUrl"] == "/py/gramlot/rpc"
     assert config["closeUrl"] == "/py/gramlot/close"
     assert argument["resources"]["css"] == [
-        "/py/theme.css", "local.css", "https://cdn.example/remote.css"
+        "/py/themes/gramlot-base/theme.css", "/py/theme.css", "local.css", "https://cdn.example/remote.css"
     ]
     assert "<link" not in document
     assert "/py/py/" not in document
@@ -181,7 +182,8 @@ async def test_companions_and_page_css_below_the_pages_folder(tmp_path):
         _, _, argument = bootstrap((await client.get("/py/")).text)
         resources = argument["resources"]
         assert resources["css"] == [
-            "/py/themes/theme.css", "local.css", "https://cdn.example/remote.css", "/py/index.css"
+            "/py/themes/gramlot-base/theme.css", "/py/themes/theme.css", "local.css",
+            "https://cdn.example/remote.css", "/py/index.css"
         ]
         assert resources["js"] == [{"url": "/py/index_aux.js", "group": None}]
         for url, media_type in (("/py/themes/theme.css", "text/css"),
@@ -296,27 +298,10 @@ async def test_core_themes_below_the_mount_path(tmp_path):
     assert await raw_get(app, "/py/themes/../../outside.css") == 404
 
 
-def test_theme_media_types_and_real_path(tmp_path, monkeypatch):
-    themes = tmp_path / "themes"
-    (themes / "set").mkdir(parents=True)
-    for name in ("font.woff2", "logo.svg", "data.bin", "style.css", "photo.webp", "notes.md"):
-        (themes / "set" / name).write_bytes(b"x")
-    (tmp_path / "outside.css").write_text("secret")
-    (themes / "set" / "escape.css").symlink_to(tmp_path / "outside.css")
-    monkeypatch.setattr(uvicorn_module, "THEMES", themes)
-    types = {name: uvicorn_module.theme_file(f"/themes/set/{name}")["type"]
-             for name in ("font.woff2", "logo.svg", "data.bin", "style.css", "photo.webp", "notes.md")}
-    assert types == {"font.woff2": "font/woff2", "logo.svg": "image/svg+xml",
-                     "data.bin": "application/octet-stream", "style.css": "text/css; charset=utf-8",
-                     "photo.webp": "image/webp", "notes.md": "text/markdown; charset=utf-8"}
-    for path in ("/themes/set/escape.css", "/themes/set", "/themes/missing.css", "/other/set/style.css"):
-        assert uvicorn_module.theme_file(path) is None
-
-
 @pytest.mark.asyncio
 async def test_gallery_under_the_mount_path(tmp_path):
     folder, assets = staged(tmp_path, "uvicorn")
-    app = create_application(folder, mount_path="/py", assets=assets)
+    app = create_application(folder, mount_path="/py", assets=assets, collections=gallery_collections())
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         for url, kind in expected("uvicorn"):
@@ -340,3 +325,80 @@ async def test_index_html_opens_the_page_of_its_folder(tmp_path):
             assert title_of(response.text) == title, path
         for path in INDEX_HTML_MISSING:
             assert (await client.get("/py" + path)).status_code == 404, path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mount", ["", "/py"])
+async def test_http_rules_of_the_shared_base(tmp_path, mount):
+    folder, assets = rules_pages(tmp_path)
+    app = create_application(folder, mount_path=mount, assets=assets)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for method in REFUSED_ON_A_PAGE:
+            response = await client.request(method, mount + "/")
+            check_refusal(method, response.status_code, response.headers)
+        for url in NO_STORE_URLS:
+            check_no_store(url, (await client.get(mount + url)).headers)
+        check_no_cache(RUNTIME_URL, (await client.get(mount + RUNTIME_URL)).headers)
+        check_no_cache(RUNTIME_URL, (await client.head(mount + RUNTIME_URL)).headers)
+        for url in ("/gramlot/rpc", "/gramlot/close"):
+            response = await client.get(mount + url)
+            check_refusal("GET", response.status_code, response.headers, "POST")
+        for url in ("/assets/gramlot.js", "/themes/gramlot-base/theme.css", "/index.css", "/extra/logo.svg"):
+            response = await client.post(mount + url)
+            check_refusal("POST", response.status_code, response.headers, "GET, HEAD")
+            check_no_store(url, response.headers)
+        first = await client.get(mount + "/")
+        owner = check_owner_cookie(first.headers["set-cookie"], mount or "/")
+        second = await client.get(mount + "/")
+        assert check_owner_cookie(second.headers["set-cookie"], mount or "/") == owner
+        if mount:
+            redirect = await client.get(mount)
+            assert redirect.status_code == 301
+            check_no_store(mount, redirect.headers)
+
+
+@pytest.mark.asyncio
+async def test_the_path_of_the_scope_is_decoded_once(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+    (tmp_path / "a%20b.css").write_text("h1 { color: red; }")
+    (tmp_path / "a b.css").write_text("h1 { color: blue; }")
+    app = create_application(tmp_path)
+    # The server has decoded the request path /a%2520b.css into the scope: a second decoding would serve "a b.css".
+    messages = []
+
+    async def receive():
+        return {"type": "http.request", "body": b""}
+
+    async def send(message):
+        messages.append(message)
+
+    await app({"type": "http", "method": "GET", "path": "/a%20b.css", "headers": []}, receive, send)
+    assert messages[0]["status"] == 200
+    assert messages[1]["body"] == b"h1 { color: red; }"
+
+
+@pytest.mark.asyncio
+async def test_the_lifespan_shutdown_forgets_every_page(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+    app = create_application(tmp_path)
+    events = [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
+    sent = []
+
+    async def receive():
+        return events.pop(0)
+
+    async def send(message):
+        sent.append(message["type"])
+        if message["type"] == "lifespan.startup.complete":
+            await client_opens_a_page()
+
+    async def client_opens_a_page():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            assert (await client.get("/")).status_code == 200
+        assert len(app.gramlot_server._pages) == 1
+
+    await app({"type": "lifespan"}, receive, send)
+    assert sent == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
+    assert app.gramlot_server._pages == {}

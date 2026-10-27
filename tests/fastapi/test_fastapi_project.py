@@ -6,7 +6,7 @@ from rpc_checks import RPC_HEADERS, envelope, rpc_source
 
 def test_new_project_serves_the_page_and_its_logic(new_project, capsys, source_tags, page_id):
     folder, module = new_project("fastapi", "app.py")
-    check_files(folder, "app.py", "gramlot-py-server[fastapi,uvicorn]>=0.2.3", "uvicorn app:app",
+    check_files(folder, "app.py", "gramlot-py-server[fastapi,uvicorn]>=0.2.11", "uvicorn app:app",
                 capsys.readouterr().out)
     with TestClient(module.app) as client:
         document = client.get("/")

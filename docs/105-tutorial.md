@@ -12,6 +12,12 @@ them with the installed `gramlot` core: it checks the bootstrap documents, the
 companions, the Content Security Policy header and the Source of `main`. It
 does not run a browser.
 
+This tutorial follows the host's runnable fixture, including its named Logic
+formula and explicit initial `dataSetter`. To learn the smallest field-and-binding
+example first, use [Your first page](https://gramlot.readthedocs.io/en/latest/docs/public/018-quickstart.html).
+In an application, use `default` for interface preferences and loaded Data for
+records; a setter is not required for every field.
+
 <a id="gp-105-005"></a>
 
 ## 005 · Install
@@ -123,8 +129,9 @@ Block ID: **GP-105-025**.
 .greeting p { color: #2a6; }
 ```
 
-The bootstrap writes a `<link>` to `/greeting.css` before it imports the
-page module.
+The bootstrap loads the base theme `/themes/gramlot-base/theme.css`, which
+the core server adds to every page, and then `/greeting.css`, before it imports
+the page module.
 
 <a id="gp-105-030"></a>
 
@@ -168,6 +175,7 @@ opening of `/greeting` makes these requests:
 | --- | --- |
 | `GET /greeting` | the browser: the bootstrap document |
 | `GET /assets/gramlot.js` | the bootstrap script: the runtime |
+| `GET /themes/gramlot-base/theme.css` | `PageBootstrap`: the base theme |
 | `GET /greeting.css` | `PageBootstrap`: the stylesheet |
 | `GET /greeting.js` | `PageBootstrap`: the page module |
 | `POST /gramlot/rpc` | `PageBootstrap`: the envelope that asks the Source of `main` |
@@ -190,10 +198,11 @@ the server while you type.
 
 Next: [Writing pages for these hosts](010-writing-pages.md).
 
-**Learning path.** Follow the [shared release-by-release example sequence](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015) after this
-environment's setup. Revisit examples when a later release simplifies the code;
-prerequisite links support that chronology. The gallery is a source viewer, not a file editor. Edit a
-separate project; Python Page runs on the server; its JavaScript Logic runs in the browser. Reload/reopen after saving; development reload is
-not automatic hot reload. The sequence explains inline and named Logic in their
-release context; use named Logic for reusable behavior. Inline examples require the
-documented CSP profile. Common examples do not cover every advanced case.
+**Learning path.** After this environment's setup, follow
+[Learn by topic](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015)
+of the core. The gallery is a source viewer, not a file editor: edit a separate
+project. The Python `Page` runs on the server; its JavaScript `Logic` runs in the
+browser. Reload or reopen the page after saving; development reload is not
+automatic hot reload. Use named `Logic` for reusable behavior; inline examples
+need the permissive Content Security Policy profile. The common examples do not
+cover every advanced case.

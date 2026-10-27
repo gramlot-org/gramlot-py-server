@@ -43,8 +43,8 @@ nothing.
 
 Every project also has:
 
-- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.3`, and
-  `gramlot-py-server[fastapi,uvicorn]>=0.2.3` for FastAPI, which needs a server;
+- `requirements.txt`: `gramlot-py-server[<environment>]>=0.2.11`, and
+  `gramlot-py-server[fastapi,uvicorn]>=0.2.11` for FastAPI, which needs a server;
 - `pages/index.py`: the page, whose formula names the method `greeting`;
 - `pages/index.js`: the page module, which exports `class Logic` with
   `greeting`. It runs in the browser.
@@ -93,14 +93,15 @@ gramlot django gallery
 | `--port PORT` | `8080` | the port the server listens on |
 | `--mount PATH` | none | the prefix of every URL, for example `/py` |
 | `--catalog CATALOG PAGES` | none | adds the families of a `catalog.json` and its pages folder; repeatable |
+| `--serverless-download URL` | none | the URL of an offline gallery ZIP that the deployment serves; the gallery shows a footer link to it (section 030) |
 
-The gallery lists the common families of `gramlot-examples` (`e01`–`e13`,
-`b01`–`b11`, and the controller lessons supplied by the installed examples package). Setup quick starts remain in this server documentation
-and in the projects created by `gramlot <environment> new`; they are not gallery
-sections or routes. Explicit `--catalog` extensions remain supported. Without
-`--mount` the gallery is the site root, `/`. With `--mount /py` the command
-prints `http://127.0.0.1:8080/py/`, `/py` answers 301 to `/py/`, and `/`
-answers 404: there is no redirect to the prefix.
+The gallery lists the families of the `catalog.json` of `gramlot-examples`, as
+the installed examples package defines them. Setup quick starts remain in this
+server documentation and in the projects created by `gramlot <environment> new`;
+they are not gallery sections or routes. Explicit `--catalog` extensions remain
+supported. Without `--mount` the gallery is the site root, `/`. With
+`--mount /py` the command prints `http://127.0.0.1:8080/py/`, `/py` answers 301
+to `/py/`, and `/` answers 404: there is no redirect to the prefix.
 
 The command stages one page per route in a temporary folder and serves it with
 the `assets` of `build_gallery`, as described in
@@ -108,6 +109,15 @@ the `assets` of `build_gallery`, as described in
 of `gramlot-examples`:
 
 - `index.py`: the gallery page, with the catalogues and with `logoUrl` and
+  `galleryScript` under the prefix;
+- `<key>.py`: the example page, which appends `<prefix>/gallery/dist/frame.js`
+  so the example follows the theme of the gallery;
+- `<key>.css`: the stylesheet of the example, when it has one;
+- `<key>_aux.js`: `export * from "<prefix>/pages/<family>/<file>.js";`,
+  the logic module of the example. It re-exports `Logic` when the module
+  exports it, and nothing when the module has no `Logic`. The adapter serves
+  that file as JavaScript.
+
   `galleryScript` under the prefix; `index_aux.js` loads its gallery Logic;
 - `<route.url>.py`: the example page, which preserves its optional PageStore
   and appends `<prefix>/gallery/dist/frame.js` for the gallery theme;
@@ -169,14 +179,6 @@ adapter adds a verb of its own in its `commands` without changing the others.
 add the two verbs of this package; `add_gallery` takes the function `serve` of
 the adapter, which runs the server of the framework.
 
-**Learning path.** Follow the [shared release-by-release example sequence](https://github.com/gramlot-org/gramlot/blob/main/docs/public/025-try.md#gc-025-015) after this
-environment's setup. Revisit examples when a later release simplifies the code;
-prerequisite links support that chronology. The gallery is a source viewer, not a file editor. Edit a
-separate project; Python Page runs on the server; its JavaScript Logic runs in the browser. Reload/reopen after saving; development reload is
-not automatic hot reload. The sequence explains inline and named Logic in their
-release context; use named Logic for reusable behavior. Inline examples require the
-documented CSP profile. Common examples do not cover every advanced case.
-
 <a id="gp-020-025"></a>
 
 ## 025 · Update a packaged Python gallery
@@ -233,3 +235,40 @@ output directory, and tell users to unzip it and open `index.html`. Both hosted
 galleries may serve the same artifact: Python server execution is not embedded in
 the download; the serverless gallery uses the JavaScript equivalents and browser
 Workers. Its named endpoints execute locally, without a Python or Node server.
+
+<a id="gp-020-035"></a>
+## 035 · IDE sample workspace and Remote Edit
+
+Block ID: **GP-020-035**.
+
+Every Python `gallery` command adds **Tools and IDE**. This category combines
+**Live Source playground**, **Browse a directory on disk** and the IDE.
+The directory tree uses `file_system_tree` and `FileSystemLogic` with the host
+filesystem endpoints, loads subfolders on expansion, and exposes only the
+disposable sample documents. It is read-only, including when IDE saves are enabled.
+
+Open its IDE page to edit
+Python, JSON, HTML, Markdown or Typst sample documents. The host automatically opens
+a temporary copy of the package's sample directory; other server directories are
+not accessible. The copy excludes `__pycache__`, dot-prefixed entries and compiled
+Python files (`.pyc` and `.pyo`), including inside subdirectories. Ordinary
+document folders are preserved. Opening a Python document never executes it.
+
+By default, changes stay in the browser draft. Undo, Redo and Revert remain
+available, but Save is disabled and the host rejects document writes. To allow
+explicit saving **inside the temporary sample workspace**, start a local gallery:
+
+```console
+gramlot uvicorn gallery --remote-edit
+```
+
+The same flag is available for Django, Flask, FastAPI and Kajenn. It is a server
+startup option, not a client preference or an authentication mechanism. Leave it
+off on the public demo. Restarting the gallery resets the sample workspace even
+when saving was enabled. The flag does not enable editing gallery source pages.
+
+The reusable `gramlot_py_server.ide.stage_ide(pages, roots=[...], remote_edit=False)`
+stages the IDE using Page.gramlots and the standard bootstrap. `FileSystemPageMixin`
+owns directory/read/save/create RPCs, with explicit roots, symlink/traversal rejection,
+UTF-8 text limits, revision checks and Python syntax validation on save. These
+endpoints do not provide Python execution or native compiler requests.

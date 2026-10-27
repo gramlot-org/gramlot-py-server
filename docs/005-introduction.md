@@ -6,6 +6,15 @@ Derived from a guide of the archived gramlot-uvicorn repository.
 
 [Paired view](../docs_llm/005-introduction.md).
 
+Start with [the command](020-command.md) to run a gallery or create a project,
+then [the Uvicorn tutorial](105-tutorial.md), or the guide for your existing web
+framework. Use [configuration](110-configuration.md) and
+[deployment](115-deployment.md) after the first page works.
+
+For HTML, components and binding, follow the
+[core learning route](https://gramlot.readthedocs.io/en/latest/docs/public/025-try.html).
+This manual explains hosting; it does not repeat the widget reference.
+
 <a id="gp-005-005"></a>
 
 ## 005 · What this package does
@@ -35,13 +44,20 @@ browser runtime does both. The package does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does) and
 does not talk to a database.
 
+What an adapter answers is the public
+[server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
+of the core: Part A is the contract that `GramlotServer` implements, Part B is
+the HTTP rules that an adapter implements. The five adapters write those rules
+once, in `gramlot_py_server.base` (section 035); each adapter module adds its
+routes and the translation between its framework and that base.
+
 <a id="gp-005-010"></a>
 
 ## 010 · Extras and modules
 
 Block ID: **GP-005-010**.
 
-Python 3.11 or later. The package declares `gramlot>=0.2.17`. Each adapter comes
+Python 3.11 or later. The package declares `gramlot>=0.3.6`. Each adapter comes
 with the extra of the same name, which installs its framework:
 
 | Extra | Module | Names | Guide |
@@ -85,9 +101,11 @@ five adapters answer the same paths:
 2. **Bootstrap.** The module script imports the runtime from
    `/assets/gramlot.js`. It runs `PageBootstrap` with the page ID, the URLs
    `rpcUrl` and `closeUrl`, the `capabilities` of the server (none in these
-   adapters except Kajenn, which announces `auth`) and the resources of the page: the
-   `Page.css` URLs, the companion stylesheet `hello.css` and the module that
-   holds the page logic: `hello.js` beside the page file, else `hello_aux.js`.
+   adapters except Kajenn, which announces `auth`), the `nameSyntax` that the
+   core server declares and the resources of the page: the base theme
+   `/themes/gramlot-base/theme.css`, the `Page.css` URLs, the companion
+   stylesheet `hello.css` and the module that holds the page logic, if there is
+   one: `hello.js` beside the page file, else `hello_aux.js`.
    An import map before the script maps `@gramlot/gramlot/page` to the runtime
    URL, so the page module imports the runtime already loaded.
 3. **Main.** The runtime posts the envelope
@@ -101,13 +119,15 @@ five adapters answer the same paths:
    `source` names a fragment, `data` an endpoint (`@endpoint`, called by
    `dataRpc`). A refused or failed call is an outcome in the response,
    `{"id", "contentType", "error": {"code", "name", "message"}}`, with HTTP 200.
-   Declare Source fragments with `@source` and mount them with `remote`;
-use `dataRpc` for endpoint values and `dataRemote` for lazy Data. See the
-[shared authoring guide](https://github.com/gramlot-org/gramlot/blob/main/docs/public/095-writing-pages.md#gc-095-100).
+   Declare Source fragments with `@source` and mount them with `remote`; use
+   `dataRpc` for endpoint values and `dataRemote` for lazy Data. See
+   [Calling the server](https://github.com/gramlot-org/gramlot/blob/main/docs/public/098-server-calls.md#gc-095-100)
+   and [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105).
 5. **Close.** When the browser disposes the page, or leaves it without keeping
    it in the back/forward cache, the runtime posts `{"pageId": …}` to
-   `/gramlot/close`. The adapter forgets the page. A page that is never closed
-   expires after `page_ttl` seconds.
+   `/gramlot/close`. The adapter forgets the page. A page that no call names for
+   `page_ttl` seconds expires: every call to a page that has not expired starts
+   the period again.
 
 <a id="gp-005-020"></a>
 
@@ -156,9 +176,13 @@ Block ID: **GP-005-025**.
 - **Core themes.** `GET` and `HEAD` of `/themes/…` answer every file whose
   real path is below the themes folder of the core package
   (`gramlot/resources/themes`), with the media type of its extension, as the
-  runtime: `Page.css = ["/themes/gramlot-base/theme.css"]` works without other
-  settings. A path the core does not have goes on to the assets, the
+  runtime. A path the core does not have goes on to the assets, the
   companions and the pages.
+- **Base theme.** The core server puts the base theme `gramlot-base` first in the
+  CSS of every page: a page needs no theme line in `Page.css`. A page replaces
+  it with `css_theme = "<name>"` or loads none with `css_theme = False`. The
+  adapters do not expose the option `css_theme` of `GramlotServer` (the base
+  theme of the server): it is `gramlot-base` for every page of an adapter.
 - **Assets.** The option `assets` maps URLs below the prefix to files:
   `{"/gallery/dist/gallery.js": {"file": path, "type": "application/javascript"}}`,
   the form that `build_gallery` of `gramlot-examples` returns. `GET` and `HEAD`
@@ -169,12 +193,25 @@ Block ID: **GP-005-025**.
   another cookie answers the outcome `page_expired`, and `close` forgets only a
   page of the same cookie. The cookie identifies a browser. It is not
   authentication.
+- **Methods.** A page path accepts `GET` only: `HEAD` and every other method
+  answer 405. A file (runtime, theme, asset, companion) accepts `GET` and `HEAD`.
+  The protocol URLs accept `POST`. Every 405 carries an `Allow` header that
+  lists the accepted methods and the body `Method not allowed`; the five
+  adapters answer the same way.
+- **Headers.** Every response carries `Cache-Control: no-store`, except the
+  runtime, which carries `Cache-Control: no-cache`.
 - **Protocol requests.** `/gramlot/rpc` and `/gramlot/close` accept `POST` with
-  `Content-Type: application/json`. The adapters fix no body size; a web server
-  in front may set one.
+  `Content-Type: application/json`. The core reads the body as UTF-8 and removes
+  a leading byte order mark. The adapters fix no body size; a web server in
+  front may set one.
+- **Shutdown.** Every adapter forgets the open pages when its framework stops:
+  the ASGI `lifespan.shutdown` (Uvicorn), the FastAPI `shutdown` handler, the
+  Kajenn `on_shutdown`. Django and Flask have no shutdown signal: they forget
+  the pages when the interpreter exits.
 - **Lifetime and capacity.** `page_ttl` (seconds, default `1800`) and
-  `max_pages` (default `1000`) are passed to `GramlotFileServer`. A page that is not
-  closed expires after `page_ttl`. The opening after `max_pages` open pages
+  `max_pages` (default `1000`) are passed to `GramlotFileServer`. A page that no
+  call names for `page_ttl` seconds expires; each call to a page that has not
+  expired starts the period again. The opening after `max_pages` open pages
   answers 503. A value that is not finite and positive raises `ValueError` when
   the adapter is created.
 - **Content Security Policy.** `content_security_policy` is sent as the
@@ -196,3 +233,19 @@ published on PyPI: `gramlot-uvicorn`, `gramlot-django`, `gramlot-flask`,
 `gramlot-fastapi` and `gramlot-kajenn`. They are archived. Their class and
 function names are not aliases in this package: use the names of the table in
 section 010.
+
+<a id="gp-005-035"></a>
+
+## 035 · The shared base
+
+Block ID: **GP-005-035**.
+
+The module `gramlot_py_server.base` holds what the five adapters have in
+common. Its class `Adapter` builds the core `GramlotFileServer` (the attribute
+`gramlot_server`) and answers one request in the terms of the
+[server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html),
+Part B. The class `Request` and the class `Reply` are those terms: the adapter
+turns the request of its framework into a `Request`, awaits `Adapter.handle` and
+turns the `Reply` into a response of its framework. The names are in the
+[Uvicorn reference](120-reference.md); the adapter guides list what each
+adapter adds.

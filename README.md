@@ -33,7 +33,7 @@ serves the page companions (`.css` and `.js`), the themes of the core, an
 optional map of assets and the browser runtime, with a mount prefix and a
 Content Security Policy of your choice. It does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does)
-and it does not talk to a database.
+and keeps database operations in the host and application.
 
 What an adapter answers over HTTP is the [server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)
 of the core, Part B. The five adapters share one base, `gramlot_py_server.base`,
@@ -53,7 +53,13 @@ endpoints as genro-routes `RouterNode`s with the other plugins belongs to
 genro-kajenn. The other adapters announce no capability: an endpoint with an
 `auth` rule answers `not_authenticated`.
 
-The current release is 0.3.19, on PyPI as `gramlot-py-server`.
+Uvicorn and Kajenn optionally serve the shared PageStore WebSocket for binders,
+RPC and publications across a complete Gramlot window family. Kajenn additionally
+provides `db(name)` and `async_db(name)` on Page and PageStore through its configured
+kajenn-db handlers. See [Kajenn database access and the SQLite gallery](docs/505-kajenn.md#gp-505-040)
+for setup, transaction control and the documented async cancellation limitation.
+
+The current release is 0.3.20, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 

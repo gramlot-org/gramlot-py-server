@@ -478,7 +478,54 @@ configuration and migration requirements.
 
 **Development qualification limitation:** Kajenn 0.7.0's pool can finish an await
 on cancellation while its worker is still running. Async database cleanup may
-then race that worker. The issue is reproduced and must be resolved in Kajenn;
+then race that worker. The issue is reproduced and tracked in [Kajenn #89](https://github.com/kajenn-org/kajenn/issues/89); it must be resolved in Kajenn;
 this branch does not claim safe cancellation of an in-flight async database I/O.
 This increment requires the matching unreleased core database API; it is not a
 claim that the preceding published core already provides these accessors.
+
+
+<a id="gp-505-045"></a>
+
+## 045 · Customer gallery with Asqueel and SQLite
+
+Block ID: **GP-505-045**.
+
+The optional `gramlot_examples.trials.kajenn_db` catalogue contains customer
+read/save pages and their separate PageStore classes. The host runner lives here:
+
+```sh
+python scripts/serve_kajenn_db_gallery.py --database /absolute/path/demo/customers.sqlite --port 8768
+```
+
+Install the matching development core, adapter and examples, with this adapter's
+`kajenn,gallery` extras and `kajenn-db[asqueel]`. The increment is not yet published.
+Open `http://127.0.0.1:8768/py/` and expand **Kajenn and Asqueel**. Use a dedicated
+demonstration database. A new file is migrated and seeded with customers 1 and 2;
+an existing file is preserved and must already match the model. Runtime database
+access uses `self.db()` and the native Asqueel handler. Controllers explicitly
+commit successful reads/writes and roll back failed operations.
+
+The first lesson loads on a bound key change and saves through a subscribed
+controller. Status and error are Bag data; a publication acknowledgement only
+confirms acceptance. Missing IDs preserve the previous record and loaded ID;
+failed saves preserve the draft. Try an empty name or the other customer's email
+to check validation and SQLite's unique constraint. Reload reads stored data.
+
+The second lesson has direct/nested iframes and connected descendant windows.
+Each keeps an independent PageStore draft. Save in one, then reload in another:
+SQLite supplies the committed record. The last successful save wins; there is
+no automatic cross-draft synchronization or conflict detection. All descendants
+share the primary gallery's physical WebSocket and close with their parent.
+The synchronous controllers do not exercise Kajenn #89's async cancellation case.
+
+Run the browser qualification with:
+
+```sh
+node scripts/verify_kajenn_db_gallery.mjs /absolute/path/python /absolute/path/playwright/index.mjs chromium webkit
+```
+
+It uses temporary SQLite files and verifies reads, commits, lookup/validation errors,
+rollback and recovery, family routing and one physical WebSocket. The optional
+`tests/kajenn/test_kajenn_db_gallery.py` checks persistence across startup; it needs
+the matching examples catalogue and Asqueel installed. These checks qualify this
+local development increment and do not constitute a release or deployment.

@@ -454,3 +454,43 @@ tests without publication. No workaround was added for this upstream async issue
 Async I/O cancellation is not claimed qualified until it is resolved. This
 increment depends on the matching core changes and is not yet published or
 consolidated into the public reference.
+
+
+Upstream report, 2026-10-28: owner says "fai un issue non so se su kajenn o
+kajen db". Filed [Kajenn #89](https://github.com/kajenn-org/kajenn/issues/89),
+"WorkPool cancellation can let call cleanup run before executor work finishes".
+The event-controlled reproduction on Kajenn 0.7.0 confirms a cancelled await
+completes while its worker has not finished; the same pool implementation is
+present on upstream main. The report separates that observation from the
+potential database-cleanup race; no corruption or data loss was demonstrated.
+The remaining upstream work is tracked by this issue. No Kajenn source change
+or publication was authorized or performed as part of filing it.
+
+
+Kajenn/Asqueel gallery verification, 2026-10-28: implemented the owner-authorized
+optional customer catalogue in gramlot-examples and its native Kajenn runner in
+gramlot-py-server. A dedicated SQLite file is migrated/seeded only when new;
+subsequent startup preserves committed changes and deletions. Separate Page and
+PageStore classes use existing dataBinder and subscribed controllers. Key changes
+load records; saves explicitly commit or roll back, with loaded ID, status and
+error in Data. Independent page drafts read other windows' commits on reload;
+the last successful save wins. No cross-draft sync or conflict detection is implied.
+
+Verified real reads/saves, missing keys, empty-name validation, duplicate-email
+rollback and recovery in Chromium and WebKit. Direct/nested iframes, connected
+windows and their descendants share exactly one physical primary WebSocket;
+closing a connected parent closes its descendant window. The persistence test
+verifies startup does not reseed or overwrite existing data. All 244 adapter tests
+pass; examples pass 62 Python tests and 178 subtests, with one existing skip.
+Both adapter manuals build; examples documentation validates 111 lessons,
+5 paired guides and local links/anchors. Logs: /private/tmp/kajenn-sqlite-gallery-browser.log,
+/private/tmp/kajenn-gallery-adapter-tests.log, /private/tmp/kajenn-gallery-examples-tests.log,
+/private/tmp/kajenn-gallery-adapter-docs.log, /private/tmp/kajenn-gallery-examples-docs.log.
+
+Local preview: http://127.0.0.1:8768/py/ with demonstration data at
+/private/tmp/gramlot-kajenn-demo/customers.sqlite. The optional catalogue requires
+the matching development versions, including the unreleased core database API.
+Implemented and locally verified; owner review remains distinct from acceptance.
+No release, deployment or upstream Kajenn source edit was performed. Kajenn #89
+remains the separate async-cancellation dependency; these synchronous controllers
+do not exercise or resolve it.

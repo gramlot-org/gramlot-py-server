@@ -1,19 +1,19 @@
-/** Real browser -> Uvicorn -> PageStore -> browser, sharing one socket with RPC.
- * Usage: node scripts/verify_page_store.mjs PYTHON PLAYWRIGHT_ENTRY [ENGINE ...]
+/** Real browser -> native adapter -> PageStore -> browser, sharing one socket with RPC.
+ * Usage: node scripts/verify_page_store.mjs ENVIRONMENT PYTHON PLAYWRIGHT_ENTRY [ENGINE ...]
  */
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {createServer} from 'node:net';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const [python, entry, ...engines] = process.argv.slice(2);
+const [environment, python, entry, ...engines] = process.argv.slice(2);
 if (!entry) throw new Error('Expected Python and Playwright entry paths');
 const playwright = await import(pathToFileURL(entry));
 const reserve = createServer();
 await new Promise(resolve => reserve.listen(0, '127.0.0.1', resolve));
 const port = reserve.address().port;
 await new Promise(resolve => reserve.close(resolve));
-const child = spawn(python, [fileURLToPath(new URL('serve_page_store.py', import.meta.url)), String(port)],
+const child = spawn(python, [fileURLToPath(new URL('serve_page_store.py', import.meta.url)), environment, String(port)],
     {stdio: ['ignore', 'pipe', 'pipe']});
 let output = '';
 child.stdout.on('data', chunk => { output += chunk; });

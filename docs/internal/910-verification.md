@@ -415,3 +415,42 @@ ordinary gallery browser checks. Three initial installs reached stale PyPI
 replicas; rerunning those jobs after propagation passed without source changes.
 The paired documentation check in GitHub also passes; refresh the external
 Read the Docs build before final consolidation.
+
+
+Kajenn implementation checkpoint, 2026-10-28: the adapter uses Kajenn's native
+serve_websocket/WebSocket and connection registry, with handshake authentication
+passed to Gramlot RPC. Uvicorn and Kajenn share one _StoreChannel implementation;
+the existing owner/origin policy, family routing, snapshots, binders, RPC
+cancellation and bidirectional publication metadata are preserved. Both galleries
+accept the opt-in --websocket switch. No browser protocol change was needed.
+
+Owner-confirmed db(name)/async_db(name) are implemented on Page and PageStore,
+with a backend-neutral host reference and protected _invoke seam in core.
+Kajenn registers one call per WebSocket operation, uses its native worker pool
+for sync page/controller code and releases sync database handles on that same
+thread. An application operation gate serializes live-Bag mutation and HTTP
+closure; asynchronous Page methods release it while awaiting. Repeated sync
+cancellation drains the worker before releasing the gate or call resources.
+No ORM translation, database-name alias or automatic commit was added.
+
+Verification against registry Kajenn 0.7.0 and kajenn-db 0.1.0: core 317 tests and
+397 subtests pass, with one existing expected failure, using supported Node 22;
+adapter 243 tests pass. Twelve real SQLite checks cover Asqueel, SQLAlchemy and
+Django, HTTP/WS access, named databases, binder-triggered and subscribed
+controllers, explicit commits, rollback, async access/refusal, closing during
+sync work and repeated cancellation. Django async_db remains explicitly refused
+by its handler; synchronous access/release thread identity is verified. Shared
+channel tests pass in both adapters. Chromium/WebKit pass the complete Kajenn
+family fixture; Chromium passes the extracted Uvicorn channel. Both adapter
+manuals build. Logs: /private/tmp/kajenn-complete-adapter-tests.log,
+/private/tmp/gramlot-kajenn-core-full.log, /private/tmp/kajenn-database-browser.log,
+/private/tmp/uvicorn-shared-channel-browser.log, /private/tmp/kajenn-complete-docs.log.
+
+Remaining upstream issue: /private/tmp/check-kajenn-cancel.py reproduces that
+Kajenn 0.7.0 WorkPool.run finishes its cancelled await while the executor work is
+still active. Native async database cleanup can consequently race in-flight I/O.
+The owner has been asked to authorize a bounded Kajenn pool correction and its
+tests without publication. No workaround was added for this upstream async issue.
+Async I/O cancellation is not claimed qualified until it is resolved. This
+increment depends on the matching core changes and is not yet published or
+consolidated into the public reference.

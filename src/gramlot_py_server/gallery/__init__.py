@@ -177,7 +177,7 @@ def add_gallery(verbs, environment: str, serve) -> None:
     parser.add_argument("--catalog", nargs=2, action="append", default=[], metavar=("CATALOG", "PAGES"),
                         help="add the families of a catalog.json and its pages folder; repeatable")
     parser.add_argument("--serverless-download", help="URL of an offline gallery ZIP served by the deployment")
-    if environment == "uvicorn":
+    if environment in {"uvicorn", "kajenn"}:
         parser.add_argument("--websocket", action="store_true", help="enable the shared PageStore channel")
     parser.add_argument("--remote-edit", action="store_true", help="allow saving in the disposable IDE sample workspace")
     parser.set_defaults(run=lambda options: run_gallery(environment, serve, options))
@@ -194,7 +194,7 @@ def run_gallery(environment: str, serve, options) -> int:
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
             serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,
-                  **({"websocket": options.websocket} if environment == "uvicorn" else {}))
+                  **({"websocket": options.websocket} if environment in {"uvicorn", "kajenn"} else {}))
         except ModuleNotFoundError as error:
             if error.name != "uvicorn":
                 raise

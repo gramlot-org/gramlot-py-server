@@ -77,7 +77,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: python -m pip install "gramlot>=0.3.6" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery]"
+      - run: python -m pip install "gramlot>=0.3.6" -e ".[uvicorn,django,flask,fastapi,kajenn,gallery]" "kajenn-db[asqueel]"
       - name: Install Playwright Chromium
         run: |
           npm install --prefix "$RUNNER_TEMP/playwright" --no-fund --no-audit playwright
@@ -89,6 +89,8 @@ jobs:
         run: |
           node scripts/verify_page_store.mjs uvicorn "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
           node scripts/verify_page_store.mjs kajenn "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
+      - name: Kajenn Asqueel SQLite customer gallery
+        run: node scripts/verify_kajenn_db_gallery.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
       - name: Gallery of every environment
         run: node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTRY" chromium
 

@@ -480,8 +480,7 @@ configuration and migration requirements.
 on cancellation while its worker is still running. Async database cleanup may
 then race that worker. The issue is reproduced and tracked in [Kajenn #89](https://github.com/kajenn-org/kajenn/issues/89); it must be resolved in Kajenn;
 this branch does not claim safe cancellation of an in-flight async database I/O.
-This increment requires the matching unreleased core database API; it is not a
-claim that the preceding published core already provides these accessors.
+This integration requires a core release with the host database API.
 
 
 <a id="gp-505-045"></a>
@@ -497,9 +496,8 @@ read/save pages and their separate PageStore classes. The host runner lives here
 python scripts/serve_kajenn_db_gallery.py --database /absolute/path/demo/customers.sqlite --port 8768
 ```
 
-Install the matching development core, adapter and examples, with this adapter's
-`kajenn,gallery` extras and `kajenn-db[asqueel]`. The increment is not yet published.
-Open `http://127.0.0.1:8768/py/` and expand **Kajenn and Asqueel**. Use a dedicated
+Install the matching core, adapter and examples, with this adapter's
+`kajenn,gallery` extras and `kajenn-db[asqueel]`. Open `http://127.0.0.1:8768/py/` and expand **Kajenn and Asqueel**. Use a dedicated
 demonstration database. A new file is migrated and seeded with customers 1 and 2;
 an existing file is preserved and must already match the model. Runtime database
 access uses `self.db()` and the native Asqueel handler. Controllers explicitly

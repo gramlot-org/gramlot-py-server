@@ -1,0 +1,11 @@
+{
+  "verified_on": "2026-10-29",
+  "database": "test_invoice_pg",
+  "native_source": "asqueel/examples/test_invoice_pg",
+  "sha256": {
+    "catalog.json": "cb5ee1c5cb75e3e9de565d1016f0d77f8e21c49eed5e69857cdf09ad0a8563a2",
+    "adm.py": "bc932eaf9875e65c1816d656f5b731dd410d89c889a816d99f36a202e5ce8963",
+    "invc.py": "0f402dcf7f0bb706299e38c95c0e6119294e0c6da5be01ef9941650a5539550d",
+    "sys.py": "af06772ef37714a234958809f105b7d3cd0a788c3e499942707bfa8547e3cdf9"
+  }
+}

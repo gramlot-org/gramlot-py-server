@@ -1,0 +1,534 @@
+[
+  {
+    "model": "adm.access_group",
+    "table": "adm.adm_access_group",
+    "columns": 7,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.api_token",
+    "table": "adm.adm_api_token",
+    "columns": 17,
+    "foreign_keys": 2,
+    "indexes": 7
+  },
+  {
+    "model": "adm.api_token_tag",
+    "table": "adm.adm_api_token_tag",
+    "columns": 7,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "adm.audit",
+    "table": "adm.adm_audit",
+    "columns": 12,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.authorization",
+    "table": "adm.adm_authorization",
+    "columns": 12,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "adm.backup",
+    "table": "adm.adm_backup",
+    "columns": 9,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.ckstyle",
+    "table": "adm.adm_ckstyle",
+    "columns": 10,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.connection",
+    "table": "adm.adm_connection",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 1
+  },
+  {
+    "model": "adm.counter",
+    "table": "adm.adm_counter",
+    "columns": 14,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "adm.day",
+    "table": "adm.adm_day",
+    "columns": 3,
+    "foreign_keys": 0,
+    "indexes": 0
+  },
+  {
+    "model": "adm.group",
+    "table": "adm.adm_group",
+    "columns": 11,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "adm.group_helpdoc",
+    "table": "adm.adm_group_helpdoc",
+    "columns": 8,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "adm.helpdoc",
+    "table": "adm.adm_helpdoc",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.htag",
+    "table": "adm.adm_htag",
+    "columns": 22,
+    "foreign_keys": 1,
+    "indexes": 7
+  },
+  {
+    "model": "adm.htmltemplate",
+    "table": "adm.adm_htmltemplate",
+    "columns": 14,
+    "foreign_keys": 3,
+    "indexes": 6
+  },
+  {
+    "model": "adm.htmltemplate_atc",
+    "table": "adm.adm_htmltemplate_atc",
+    "columns": 16,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "adm.install_checklist",
+    "table": "adm.adm_install_checklist",
+    "columns": 11,
+    "foreign_keys": 0,
+    "indexes": 1
+  },
+  {
+    "model": "adm.language",
+    "table": "adm.adm_language",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "adm.letterhead_type",
+    "table": "adm.adm_letterhead_type",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.menu",
+    "table": "adm.adm_menu",
+    "columns": 18,
+    "foreign_keys": 2,
+    "indexes": 6
+  },
+  {
+    "model": "adm.menu_page",
+    "table": "adm.adm_menu_page",
+    "columns": 10,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.notification",
+    "table": "adm.adm_notification",
+    "columns": 18,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "adm.pkginfo",
+    "table": "adm.adm_pkginfo",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.preference",
+    "table": "adm.adm_preference",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.record_tag",
+    "table": "adm.adm_record_tag",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.sent_email",
+    "table": "adm.adm_sent_email",
+    "columns": 10,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.served_page",
+    "table": "adm.adm_served_page",
+    "columns": 6,
+    "foreign_keys": 1,
+    "indexes": 1
+  },
+  {
+    "model": "adm.shortcut",
+    "table": "adm.adm_shortcut",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "adm.tblinfo",
+    "table": "adm.adm_tblinfo",
+    "columns": 7,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "adm.tblinfo_item",
+    "table": "adm.adm_tblinfo_item",
+    "columns": 10,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "adm.user",
+    "table": "adm.adm_user",
+    "columns": 29,
+    "foreign_keys": 2,
+    "indexes": 7
+  },
+  {
+    "model": "adm.user_access_group",
+    "table": "adm.adm_user_access_group",
+    "columns": 7,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "adm.user_config",
+    "table": "adm.adm_user_config",
+    "columns": 10,
+    "foreign_keys": 3,
+    "indexes": 7
+  },
+  {
+    "model": "adm.user_group",
+    "table": "adm.adm_user_group",
+    "columns": 7,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "adm.user_notification",
+    "table": "adm.adm_user_notification",
+    "columns": 9,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "adm.user_setting",
+    "table": "adm.adm_user_setting",
+    "columns": 8,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "adm.user_tag",
+    "table": "adm.adm_user_tag",
+    "columns": 8,
+    "foreign_keys": 3,
+    "indexes": 6
+  },
+  {
+    "model": "adm.userobject",
+    "table": "adm.adm_userobject",
+    "columns": 20,
+    "foreign_keys": 0,
+    "indexes": 10
+  },
+  {
+    "model": "adm.week",
+    "table": "adm.adm_week",
+    "columns": 1,
+    "foreign_keys": 0,
+    "indexes": 0
+  },
+  {
+    "model": "adm.xgroup",
+    "table": "adm.adm_xgroup",
+    "columns": 7,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "invc.customer",
+    "table": "invc.invc_customer",
+    "columns": 20,
+    "foreign_keys": 3,
+    "indexes": 7
+  },
+  {
+    "model": "invc.customer_type",
+    "table": "invc.invc_customer_type",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "invc.discount_tier",
+    "table": "invc.invc_discount_tier",
+    "columns": 10,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "invc.invoice",
+    "table": "invc.invc_invoice",
+    "columns": 12,
+    "foreign_keys": 1,
+    "indexes": 5
+  },
+  {
+    "model": "invc.invoice_note",
+    "table": "invc.invc_invoice_note",
+    "columns": 9,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "invc.invoice_row",
+    "table": "invc.invc_invoice_row",
+    "columns": 13,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "invc.payment_type",
+    "table": "invc.invc_payment_type",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "invc.postcode",
+    "table": "invc.invc_postcode",
+    "columns": 10,
+    "foreign_keys": 1,
+    "indexes": 5
+  },
+  {
+    "model": "invc.price_year",
+    "table": "invc.invc_price_year",
+    "columns": 9,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "invc.price_year_note",
+    "table": "invc.invc_price_year_note",
+    "columns": 9,
+    "foreign_keys": 1,
+    "indexes": 5
+  },
+  {
+    "model": "invc.product",
+    "table": "invc.invc_product",
+    "columns": 13,
+    "foreign_keys": 2,
+    "indexes": 5
+  },
+  {
+    "model": "invc.product_group",
+    "table": "invc.invc_product_group",
+    "columns": 17,
+    "foreign_keys": 1,
+    "indexes": 5
+  },
+  {
+    "model": "invc.product_type",
+    "table": "invc.invc_product_type",
+    "columns": 19,
+    "foreign_keys": 1,
+    "indexes": 5
+  },
+  {
+    "model": "invc.region",
+    "table": "invc.invc_region",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "invc.staff",
+    "table": "invc.invc_staff",
+    "columns": 12,
+    "foreign_keys": 3,
+    "indexes": 6
+  },
+  {
+    "model": "invc.staff_role",
+    "table": "invc.invc_staff_role",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "invc.state",
+    "table": "invc.invc_state",
+    "columns": 7,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "invc.user",
+    "table": "invc.invc_user",
+    "columns": 6,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "invc.vat_type",
+    "table": "invc.invc_vat_type",
+    "columns": 7,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "sys.batch_log",
+    "table": "sys.sys_batch_log",
+    "columns": 12,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "sys.calendar",
+    "table": "sys.sys_calendar",
+    "columns": 1,
+    "foreign_keys": 0,
+    "indexes": 0
+  },
+  {
+    "model": "sys.dataretention",
+    "table": "sys.sys_dataretention",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "sys.dbchange",
+    "table": "sys.sys_dbchange",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 1
+  },
+  {
+    "model": "sys.error",
+    "table": "sys.sys_error",
+    "columns": 20,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "sys.external_token",
+    "table": "sys.sys_external_token",
+    "columns": 13,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "sys.external_token_use",
+    "table": "sys.sys_external_token_use",
+    "columns": 4,
+    "foreign_keys": 1,
+    "indexes": 1
+  },
+  {
+    "model": "sys.externalcall_log",
+    "table": "sys.sys_externalcall_log",
+    "columns": 10,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "sys.locked_record",
+    "table": "sys.sys_locked_record",
+    "columns": 7,
+    "foreign_keys": 0,
+    "indexes": 1
+  },
+  {
+    "model": "sys.service",
+    "table": "sys.sys_service",
+    "columns": 11,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "sys.shared_object",
+    "table": "sys.sys_shared_object",
+    "columns": 9,
+    "foreign_keys": 0,
+    "indexes": 4
+  },
+  {
+    "model": "sys.shorturl",
+    "table": "sys.sys_shorturl",
+    "columns": 12,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "sys.task",
+    "table": "sys.sys_task",
+    "columns": 28,
+    "foreign_keys": 1,
+    "indexes": 6
+  },
+  {
+    "model": "sys.task_execution",
+    "table": "sys.sys_task_execution",
+    "columns": 15,
+    "foreign_keys": 1,
+    "indexes": 8
+  },
+  {
+    "model": "sys.task_result",
+    "table": "sys.sys_task_result",
+    "columns": 11,
+    "foreign_keys": 1,
+    "indexes": 4
+  },
+  {
+    "model": "sys.upgrade",
+    "table": "sys.sys_upgrade",
+    "columns": 8,
+    "foreign_keys": 0,
+    "indexes": 3
+  },
+  {
+    "model": "sys.widget",
+    "table": "sys.sys_widget",
+    "columns": 18,
+    "foreign_keys": 1,
+    "indexes": 5
+  }
+]

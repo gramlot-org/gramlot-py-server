@@ -1,0 +1,33 @@
+"""Read-only model of adm.adm_api_token; physical fields from PostgreSQL."""
+
+
+class Table:
+    def config_db(self, pkg):
+        tbl = pkg.table('api_token', name_long='!!API Token', name_plural='!!API Tokens', rowcaption='$description', pkey='id', sqlname='adm_api_token', logicalDeletionField='__del_ts', lastTS='__mod_ts')
+        tbl.column('id', dtype='C', notnull=True, size='22')
+        tbl.column('__ins_ts', dtype='DH', notnull=False)
+        tbl.column('__del_ts', dtype='DH', notnull=False)
+        tbl.column('__mod_ts', dtype='DH', notnull=False)
+        tbl.column('__ins_user', dtype='T', notnull=False)
+        tbl.column('token', dtype='C', notnull=False, name_long='!!Token', size='64')
+        tbl.column('description', dtype='T', notnull=False, name_long='!!Description')
+        tbl.column('auth_tags', dtype='T', notnull=False)
+        tbl.column('is_active', dtype='B', notnull=False, name_long='!!Active')
+        tbl.column('expires_ts', dtype='DHZ', notnull=False, name_long='!!Expires')
+        tbl.column('last_used_ts', dtype='DHZ', notnull=False, name_long='!!Last Used')
+        tbl.column('created_by', dtype='C', notnull=False, group='_', name_long='!!Created By', size='22')
+        tbl.column('notes', dtype='T', notnull=False, name_long='!!Notes')
+        tbl.column('token_hint', dtype='C', notnull=False, name_long='!!Token Hint', size='8')
+        tbl.column('group_code', dtype='A', notnull=False, name_long='!!Group', size=':15').relation('adm.group.code', foreign_key=True, constraint_name='fk_48b0bda6', onDelete_sql='NO ACTION', onUpdate_sql='CASCADE', deferrable=False, initially_deferred=False, indexed=False)
+        tbl.column('activated_ts', dtype='DHZ', notnull=False, name_long='!!Activated')
+        tbl.column('user_id', dtype='C', notnull=False, size='22').relation('adm.user.id', foreign_key=True, constraint_name='fk_adm_api_token_user_id', onDelete_sql='NO ACTION', onUpdate_sql='CASCADE', deferrable=False, initially_deferred=False, indexed=False)
+        constraints = tbl.constraints()
+        constraints.constraint('cst_5dc99649', constraint_type='UNIQUE', columns='token')
+        indexes = tbl.indexes()
+        indexes.index(name='adm_api_token___del_ts_idx', columns='__del_ts', unique=False, method='btree')
+        indexes.index(name='adm_api_token___ins_ts_idx', columns='__ins_ts', unique=False, method='btree')
+        indexes.index(name='adm_api_token___mod_ts_idx', columns='__mod_ts', unique=False, method='btree')
+        indexes.index(name='adm_api_token_created_by_idx', columns='created_by', unique=False, method='btree')
+        indexes.index(name='adm_api_token_group_code_idx', columns='group_code', unique=False, method='btree')
+        indexes.index(name='adm_api_token_token_idx', columns='token', unique=True, method='btree')
+        indexes.index(name='adm_api_token_user_id_idx', columns='user_id', unique=False, method='btree')

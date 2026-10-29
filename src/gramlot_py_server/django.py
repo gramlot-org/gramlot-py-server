@@ -3,17 +3,29 @@
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from secrets import token_urlsafe
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, iscoroutinefunction, sync_to_async
 from django.http import HttpRequest, HttpResponse
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 
 from gramlot_py_server import base
+from gramlot_py_server.collection_resources import _CollectionFileServer
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
+
+
+class _DjangoFileServer(_CollectionFileServer):
+    """Run synchronous page/ORM calls in Django's thread-sensitive context."""
+
+    async def _invoke(self, function, *args, **kwargs):
+        if iscoroutinefunction(function):
+            return await function(*args, **kwargs)
+        result = await sync_to_async(function, thread_sensitive=True)(*args, **kwargs)
+        return await result if inspect.isawaitable(result) else result
 
 
 class Pages(base.Adapter):
@@ -29,6 +41,8 @@ class Pages(base.Adapter):
     interpreter exits or the ``Pages`` is collected (``close_at_exit``).
     The HTTP rules, the same in every adapter, are those of ``gramlot_py_server.base``.
     """
+
+    server_class = _DjangoFileServer
 
     def __init__(self, pages: str | Path, **options) -> None:
         super().__init__(pages, **options)

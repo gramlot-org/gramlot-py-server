@@ -1,0 +1,31 @@
+"""Read-only model of sys.sys_error; physical fields from PostgreSQL."""
+
+
+class Table:
+    def config_db(self, pkg):
+        tbl = pkg.table('error', name_long='Debug Error', name_plural='!!Errors', caption_field='description', rowcaption='$error_type,$description', pkey='id', sqlname='sys_error', logicalDeletionField='__del_ts', lastTS='__mod_ts')
+        tbl.column('id', dtype='C', notnull=True, size='22')
+        tbl.column('__ins_ts', dtype='DH', notnull=False)
+        tbl.column('__del_ts', dtype='DH', notnull=False)
+        tbl.column('__mod_ts', dtype='DH', notnull=False)
+        tbl.column('__ins_user', dtype='T', notnull=False)
+        tbl.column('description', dtype='T', notnull=False, name_long='!!Description')
+        tbl.column('error_data', dtype='T', notnull=False, name_long='!!Traceback')
+        tbl.column('username', dtype='T', notnull=False, name_long='User')
+        tbl.column('user_ip', dtype='T', notnull=False, name_long='User ip')
+        tbl.column('user_agent', dtype='T', notnull=False, name_long='User agent')
+        tbl.column('fixed', dtype='T', notnull=False, name_long='Fixed')
+        tbl.column('notes', dtype='T', notnull=False, name_long='Notes')
+        tbl.column('error_type', dtype='T', notnull=False, name_long='!!Error type')
+        tbl.column('error_code', dtype='T', notnull=False, name_long='!!Error code')
+        tbl.column('request_uri', dtype='T', notnull=False, name_long='!!Request URI')
+        tbl.column('request_host', dtype='T', notnull=False, name_long='!!Request Host')
+        tbl.column('rpc_method', dtype='T', notnull=False, name_long='!!RPC Method')
+        tbl.column('rpc_kwargs', dtype='T', notnull=False, name_long='!!RPC kwargs')
+        tbl.column('page_id', dtype='C', notnull=False, name_long='!!Page ID', size='22')
+        tbl.column('current_domain', dtype='T', notnull=False, name_long='!!Current domain')
+        indexes = tbl.indexes()
+        indexes.index(name='idx_58eb8684', columns='__ins_ts', unique=False, method='btree')
+        indexes.index(name='idx_63e2ac67', columns='__mod_ts', unique=False, method='btree')
+        indexes.index(name='idx_6766f2c5', columns='__del_ts', unique=False, method='btree')
+        indexes.index(name='idx_bb513c1f', columns='error_code', unique=False, method='btree')

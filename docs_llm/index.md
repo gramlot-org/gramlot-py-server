@@ -13,6 +13,7 @@ This package serves a folder of Python `Page` modules from the web framework of 
 015-troubleshooting
 020-command
 025-gallery-modules
+035-invoice-galleries
 ```
 
 ```{toctree}

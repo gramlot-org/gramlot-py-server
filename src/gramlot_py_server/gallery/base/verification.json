@@ -1,0 +1,215 @@
+{
+  "date": "2026-10-29",
+  "copies": {
+    "asqueel": {
+      "source_read_only": "on",
+      "tables": {
+        "state": {
+          "source_rows": 8,
+          "copy_rows": 8,
+          "all_values_equal": true
+        },
+        "customer": {
+          "source_rows": 3200,
+          "copy_rows": 3200,
+          "all_values_equal": true
+        },
+        "invoice": {
+          "source_rows": 256,
+          "copy_rows": 256,
+          "all_values_equal": true
+        },
+        "product": {
+          "source_rows": 1695,
+          "copy_rows": 1695,
+          "all_values_equal": true
+        },
+        "invoice_row": {
+          "source_rows": 806,
+          "copy_rows": 806,
+          "all_values_equal": true
+        }
+      },
+      "relations": {
+        "customer.state": {
+          "orphans": 0
+        },
+        "invoice.customer_id": {
+          "orphans": 0
+        },
+        "invoice_row.product_id": {
+          "orphans": 0
+        },
+        "invoice_row.invoice_id": {
+          "orphans": 0
+        }
+      },
+      "database": "gramlot_base_asqueel"
+    },
+    "sqlalchemy": {
+      "source_read_only": "on",
+      "tables": {
+        "state": {
+          "source_rows": 8,
+          "copy_rows": 8,
+          "all_values_equal": true
+        },
+        "customer": {
+          "source_rows": 3200,
+          "copy_rows": 3200,
+          "all_values_equal": true
+        },
+        "invoice": {
+          "source_rows": 256,
+          "copy_rows": 256,
+          "all_values_equal": true
+        },
+        "product": {
+          "source_rows": 1695,
+          "copy_rows": 1695,
+          "all_values_equal": true
+        },
+        "invoice_row": {
+          "source_rows": 806,
+          "copy_rows": 806,
+          "all_values_equal": true
+        }
+      },
+      "relations": {
+        "customer.state": {
+          "orphans": 0
+        },
+        "invoice.customer_id": {
+          "orphans": 0
+        },
+        "invoice_row.product_id": {
+          "orphans": 0
+        },
+        "invoice_row.invoice_id": {
+          "orphans": 0
+        }
+      },
+      "database": "gramlot_base_sqlalchemy"
+    },
+    "django": {
+      "source_read_only": "on",
+      "tables": {
+        "state": {
+          "source_rows": 8,
+          "copy_rows": 8,
+          "all_values_equal": true
+        },
+        "customer": {
+          "source_rows": 3200,
+          "copy_rows": 3200,
+          "all_values_equal": true
+        },
+        "invoice": {
+          "source_rows": 256,
+          "copy_rows": 256,
+          "all_values_equal": true
+        },
+        "product": {
+          "source_rows": 1695,
+          "copy_rows": 1695,
+          "all_values_equal": true
+        },
+        "invoice_row": {
+          "source_rows": 806,
+          "copy_rows": 806,
+          "all_values_equal": true
+        }
+      },
+      "relations": {
+        "customer.state": {
+          "orphans": 0
+        },
+        "invoice.customer_id": {
+          "orphans": 0
+        },
+        "invoice_row.product_id": {
+          "orphans": 0
+        },
+        "invoice_row.invoice_id": {
+          "orphans": 0
+        }
+      },
+      "database": "gramlot_base_django"
+    }
+  },
+  "native_models": {
+    "asqueel": {
+      "backend": "asqueel",
+      "native_model_rows": {
+        "state": 8,
+        "customer": 3200,
+        "invoice": 256,
+        "product": 1695,
+        "invoice_row": 806
+      },
+      "selector_cases": 17,
+      "status": "passed",
+      "state_name_rows": 3200,
+      "customers_without_state": 0
+    },
+    "sqlalchemy": {
+      "backend": "sqlalchemy",
+      "native_model_rows": {
+        "state": 8,
+        "customer": 3200,
+        "invoice": 256,
+        "product": 1695,
+        "invoice_row": 806
+      },
+      "selector_cases": 17,
+      "status": "passed",
+      "state_name_rows": 3200,
+      "customers_without_state": 0
+    },
+    "django": {
+      "backend": "django",
+      "native_model_rows": {
+        "state": 8,
+        "customer": 3200,
+        "invoice": 256,
+        "product": 1695,
+        "invoice_row": 806
+      },
+      "selector_cases": 17,
+      "status": "passed",
+      "state_name_rows": 3200,
+      "customers_without_state": 0
+    }
+  },
+  "browser": {
+    "Asqueel": "search, template, selected fields, free text, explicit combo selection passed",
+    "SQLAlchemy": "search, template, selected fields, free text, explicit combo selection passed",
+    "Django": "search, template, selected fields, free text and explicit combo selection passed",
+    "common_gallery_indexes": "Asqueel/Kajenn, SQLAlchemy/Uvicorn and Django passed",
+    "visual": "Desktop gallery and narrow 566px Base page inspected; no claim of a browser/device matrix"
+  },
+  "regression_tests": {
+    "python": 64,
+    "javascript": 46
+  },
+  "state_name_follow_up": {
+    "date": "2026-10-29",
+    "browser": {
+      "Asqueel": "full state name in suggestions and selected output passed",
+      "SQLAlchemy": "full state name in suggestions and selected output passed",
+      "Django": "full state name in suggestions and selected output passed"
+    },
+    "nullable_relation_fixtures": "SQLAlchemy and Django passed; one Django query verified",
+    "javascript": "unchanged; previous 43-test result not rerun for this increment",
+    "docs": "integration identity checker and both Sphinx views passed"
+  },
+  "direct_aux_columns": {
+    "date": "2026-10-29",
+    "asqueel_request": "@state.name",
+    "native_result_field": "_state_name",
+    "model_alias_required": false,
+    "native_rows_per_provider": 3200,
+    "browser": "Base and Application direct relation; Base clear; SQLAlchemy and Django simple projections passed",
+    "docs": "both adapters: identity checks and both Sphinx builds passed"
+  }
+}

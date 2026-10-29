@@ -22,6 +22,7 @@ and one extra per framework.
    015-troubleshooting
    020-command
    025-gallery-modules
+   035-invoice-galleries
 
 .. toctree::
    :maxdepth: 2

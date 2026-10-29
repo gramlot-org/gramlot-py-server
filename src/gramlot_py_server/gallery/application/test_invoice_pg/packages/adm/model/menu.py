@@ -1,0 +1,33 @@
+"""Read-only model of adm.adm_menu; physical fields from PostgreSQL."""
+
+
+class Table:
+    def config_db(self, pkg):
+        tbl = pkg.table('menu', name_long='!!Menu Directory', name_plural='!!Menu Directories', rowcaption='$hierarchical_label', caption_field='hierarchical_label', pkey='id', sqlname='adm_menu', logicalDeletionField='__del_ts', lastTS='__mod_ts')
+        tbl.column('id', dtype='C', notnull=True, size='22')
+        tbl.column('__ins_ts', dtype='DH', notnull=False)
+        tbl.column('__del_ts', dtype='DH', notnull=False)
+        tbl.column('__mod_ts', dtype='DH', notnull=False)
+        tbl.column('parent_id', dtype='C', notnull=False, size='22').relation('adm.menu.id', foreign_key=True, constraint_name='fk_095a908d', onDelete_sql='NO ACTION', onUpdate_sql='CASCADE', deferrable=True, initially_deferred=True, indexed=False)
+        tbl.column('label', dtype='T', notnull=False, name_long='!!Label')
+        tbl.column('hierarchical_label', dtype='T', notnull=False)
+        tbl.column('_parent_h_label', dtype='T', notnull=False)
+        tbl.column('hierarchical_pkey', dtype='T', notnull=False)
+        tbl.column('_parent_h_pkey', dtype='T', notnull=False)
+        tbl.column('_h_count', dtype='T', notnull=False)
+        tbl.column('_parent_h_count', dtype='T', notnull=False)
+        tbl.column('_row_count', dtype='L', notnull=False)
+        tbl.column('__ins_user', dtype='T', notnull=False)
+        tbl.column('tags', dtype='T', notnull=False, name_long='!!Tags')
+        tbl.column('summary', dtype='T', notnull=False, name_long='!!Summary')
+        tbl.column('ts_import', dtype='DH', notnull=False)
+        tbl.column('page_id', dtype='C', notnull=False, size='22').relation('adm.menu_page.id', foreign_key=True, constraint_name='fk_e5bd1a79', onDelete_sql='NO ACTION', onUpdate_sql='CASCADE', deferrable=False, initially_deferred=False, indexed=False)
+        constraints = tbl.constraints()
+        constraints.constraint('cst_a473e78c', constraint_type='UNIQUE', columns='hierarchical_pkey')
+        indexes = tbl.indexes()
+        indexes.index(name='adm_menu___del_ts_idx', columns='__del_ts', unique=False, method='btree')
+        indexes.index(name='adm_menu___ins_ts_idx', columns='__ins_ts', unique=False, method='btree')
+        indexes.index(name='adm_menu___mod_ts_idx', columns='__mod_ts', unique=False, method='btree')
+        indexes.index(name='adm_menu_hierarchical_pkey_idx', columns='hierarchical_pkey', unique=True, method='btree')
+        indexes.index(name='adm_menu_page_id_idx', columns='page_id', unique=False, method='btree')
+        indexes.index(name='adm_menu_parent_id_idx', columns='parent_id', unique=False, method='btree')

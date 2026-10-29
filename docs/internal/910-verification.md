@@ -415,3 +415,106 @@ ordinary gallery browser checks. Three initial installs reached stale PyPI
 replicas; rerunning those jobs after propagation passed without source changes.
 The paired documentation check in GitHub also passes; refresh the external
 Read the Docs build before final consolidation.
+
+
+Kajenn implementation checkpoint, 2026-10-28: the adapter uses Kajenn's native
+serve_websocket/WebSocket and connection registry, with handshake authentication
+passed to Gramlot RPC. Uvicorn and Kajenn share one _StoreChannel implementation;
+the existing owner/origin policy, family routing, snapshots, binders, RPC
+cancellation and bidirectional publication metadata are preserved. Both galleries
+accept the opt-in --websocket switch. No browser protocol change was needed.
+
+Owner-confirmed db(name)/async_db(name) are implemented on Page and PageStore,
+with a backend-neutral host reference and protected _invoke seam in core.
+Kajenn registers one call per WebSocket operation, uses its native worker pool
+for sync page/controller code and releases sync database handles on that same
+thread. An application operation gate serializes live-Bag mutation and HTTP
+closure; asynchronous Page methods release it while awaiting. Repeated sync
+cancellation drains the worker before releasing the gate or call resources.
+No ORM translation, database-name alias or automatic commit was added.
+
+Verification against registry Kajenn 0.7.0 and kajenn-db 0.1.0: core 317 tests and
+397 subtests pass, with one existing expected failure, using supported Node 22;
+adapter 243 tests pass. Twelve real SQLite checks cover Asqueel, SQLAlchemy and
+Django, HTTP/WS access, named databases, binder-triggered and subscribed
+controllers, explicit commits, rollback, async access/refusal, closing during
+sync work and repeated cancellation. Django async_db remains explicitly refused
+by its handler; synchronous access/release thread identity is verified. Shared
+channel tests pass in both adapters. Chromium/WebKit pass the complete Kajenn
+family fixture; Chromium passes the extracted Uvicorn channel. Both adapter
+manuals build. Logs: /private/tmp/kajenn-complete-adapter-tests.log,
+/private/tmp/gramlot-kajenn-core-full.log, /private/tmp/kajenn-database-browser.log,
+/private/tmp/uvicorn-shared-channel-browser.log, /private/tmp/kajenn-complete-docs.log.
+
+Remaining upstream issue: /private/tmp/check-kajenn-cancel.py reproduces that
+Kajenn 0.7.0 WorkPool.run finishes its cancelled await while the executor work is
+still active. Native async database cleanup can consequently race in-flight I/O.
+The owner has been asked to authorize a bounded Kajenn pool correction and its
+tests without publication. No workaround was added for this upstream async issue.
+Async I/O cancellation is not claimed qualified until it is resolved. This
+increment depends on the matching core changes and is not yet published or
+consolidated into the public reference.
+
+
+Upstream report, 2026-10-28: owner says "fai un issue non so se su kajenn o
+kajen db". Filed [Kajenn #89](https://github.com/kajenn-org/kajenn/issues/89),
+"WorkPool cancellation can let call cleanup run before executor work finishes".
+The event-controlled reproduction on Kajenn 0.7.0 confirms a cancelled await
+completes while its worker has not finished; the same pool implementation is
+present on upstream main. The report separates that observation from the
+potential database-cleanup race; no corruption or data loss was demonstrated.
+The remaining upstream work is tracked by this issue. No Kajenn source change
+or publication was authorized or performed as part of filing it.
+
+
+Kajenn/Asqueel gallery verification, 2026-10-28: implemented the owner-authorized
+optional customer catalogue in gramlot-examples and its native Kajenn runner in
+gramlot-py-server. A dedicated SQLite file is migrated/seeded only when new;
+subsequent startup preserves committed changes and deletions. Separate Page and
+PageStore classes use existing dataBinder and subscribed controllers. Key changes
+load records; saves explicitly commit or roll back, with loaded ID, status and
+error in Data. Independent page drafts read other windows' commits on reload;
+the last successful save wins. No cross-draft sync or conflict detection is implied.
+
+Verified real reads/saves, missing keys, empty-name validation, duplicate-email
+rollback and recovery in Chromium and WebKit. Direct/nested iframes, connected
+windows and their descendants share exactly one physical primary WebSocket;
+closing a connected parent closes its descendant window. The persistence test
+verifies startup does not reseed or overwrite existing data. All 244 adapter tests
+pass; examples pass 62 Python tests and 178 subtests, with one existing skip.
+Both adapter manuals build; examples documentation validates 111 lessons,
+5 paired guides and local links/anchors. Logs: /private/tmp/kajenn-sqlite-gallery-browser.log,
+/private/tmp/kajenn-gallery-adapter-tests.log, /private/tmp/kajenn-gallery-examples-tests.log,
+/private/tmp/kajenn-gallery-adapter-docs.log, /private/tmp/kajenn-gallery-examples-docs.log.
+
+Local preview: http://127.0.0.1:8768/py/ with demonstration data at
+/private/tmp/gramlot-kajenn-demo/customers.sqlite. The optional catalogue requires
+the matching development versions, including the unreleased core database API.
+Implemented and locally verified; owner review remains distinct from acceptance.
+No release, deployment or upstream Kajenn source edit was performed. Kajenn #89
+remains the separate async-cancellation dependency; these synchronous controllers
+do not exercise or resolve it.
+
+
+<a id="gp-910-020"></a>
+## 020 · Unified local consolidation base — 2026-10-29
+
+Block ID: **GP-910-020**.
+
+The owner-approved local base combines the upstream Kajenn PageStore/WebSocket
+and database integration with the Base Asqueel dependent selectors. Invoice is
+excluded. Against the integrated core (forms, selectors, prepared collections and
+Grid), the full Python server suite passes: 307 tests, including optional Kajenn
+database paths. The source environment must include all three repositories on
+PYTHONPATH; an older installed adapter is not this checkpoint.
+
+The local preview at http://127.0.0.1:61505/ composes the existing gallery staging
+and Kajenn Application APIs. It exposes the common catalogue including Grid,
+Base and Asqueel selectors, PageStore/WebSocket and Kajenn database lessons.
+Remote Edit is disabled. The Base PostgreSQL connection remains read-only;
+the Kajenn database demonstration uses its separate local SQLite fixture.
+
+This checkpoint does not publish packages or deploy the preview. Public release
+still requires final consumer/package checks and the client-condition/server
+constraint security review. Runner receipts: /private/tmp/gramlot-release-integration-20261029/;
+integration verification: /private/tmp/gramlot-grid-integration-20261029/.

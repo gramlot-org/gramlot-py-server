@@ -161,3 +161,35 @@ class Page(DatabaseSelectors, BasePage):
             response = await stranger.post("/gramlot/rpc", headers=RPC_HEADERS,
                 content=envelope(page_id, "dbSelect", {"dbtable": "customers", "_id": 0}, content_type="data"))
             assert "error" in response.json()
+
+
+def test_legacy_condition_lookup_and_both_weak_forms(provider):
+    db, _ = provider
+    def query(**kw):
+        return db.select(dbtable='customers', condition='$city=:city', city='Torino', **kw)
+    assert [r['id'] for r in query(_querystring='')['rows']] == [0]
+    invalid=query(_id=3)
+    assert invalid['rows'][0]['name']=='Elena Bianchi'
+    assert invalid['errors']=='Current value does not fit condition.'
+    assert 'errors' not in query(_id=0)
+    assert query(_id=99)['rows']==[]
+    assert query(_id=9)['rows']==[]  # server active policy also applies to recovery
+    assert query(_querystring='Elena')['rows']==[]
+    assert query(_querystring='Elena',weakCondition=True)['rows'][0]['id']==3
+    assert 'errors' not in query(_id=3,weakCondition=True)
+    # A string weak condition is relaxed, never the original condition.
+    result=query(_querystring='',weakCondition='$name=:name',name='Nobody')
+    assert [r['id'] for r in result['rows']]==[0]
+    assert query(_querystring='Elena',weakCondition='$name=:name',name='Nobody')['rows']==[]
+    assert query(_querystring='Bruno',weakCondition=True)['rows']==[]
+
+
+def test_condition_binding_and_retry_does_not_fill_partial_results(provider):
+    db, _ = provider
+    result=db.select(dbtable='customers',_querystring='',condition='$city=:city',city='Torino',weakCondition=True)
+    assert [r['id'] for r in result['rows']]==[0]
+    assert db.select(dbtable='customers',_querystring='',condition='$city=:city',city="' OR 1=1 --")['rows']==[]
+    with pytest.raises(ValueError,match='server-owned'):
+        db.select(dbtable='customers',_querystring='',condition='$city=:city',city='Torino',enabled=0)
+    with pytest.raises(ValueError,match='server-owned'):
+        db.select(dbtable='customers',_querystring='',condition='$city=:city',city='Torino',selector_id=9)

@@ -42,7 +42,7 @@ of Python `Page` modules and serves it through the core `GramlotFileServer`:
 The adapters do not render HTML from the Source and do not run page logic. The
 browser runtime does both. The package does not serve JavaScript pages
 ([gramlot-js-server](https://github.com/gramlot-org/gramlot-js-server) does) and
-does not talk to a database.
+delegates database access to the host and application.
 
 What an adapter answers is the public
 [server protocol](https://gramlot.readthedocs.io/en/latest/docs/public/101-server-protocol.html)

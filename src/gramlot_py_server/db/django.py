@@ -64,7 +64,9 @@ class DjangoSelect:
 
     def select(self, *, dbtable, _querystring=_MISSING, _id=_MISSING,
                columns=None, hiddenColumns=None, auxColumns=None, order_by=None, limit=10,
-               ignoreCase=True, **filters):
+               ignoreCase=True, condition=None, weakCondition=False, **filters):
+        if condition is not None or weakCondition is not False:
+            raise ValueError("condition and weakCondition are Asqueel-only capabilities")
         if dbtable not in self.tables:
             raise ValueError('Unknown selection table')
         if (_querystring is _MISSING) == (_id is _MISSING):

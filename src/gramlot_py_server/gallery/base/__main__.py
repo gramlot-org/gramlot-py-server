@@ -18,6 +18,8 @@ def main():
     service.database=service.create_database(args.backend)
     examples=Path(str(files('gramlot_examples')))
     catalogs=[(examples/'base/catalog.json',examples/'base/pages')]
+    if args.backend == 'asqueel':
+        catalogs.append((examples/'base/asqueel-catalog.json', examples/'base/pages'))
     with TemporaryDirectory(prefix='gramlot-base-') as directory:
         folder=Path(directory)
         assets=stage(folder,catalogs,'')
@@ -25,6 +27,9 @@ def main():
         index.write_text(index.read_text()+"    title = 'Base gallery'\n")
         page=folder/'pages/80-database/01-customers.py'
         page.write_text(page.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
+        if args.backend == 'asqueel':
+            dependent = folder/'pages/81-asqueel/01-state_customers.py'
+            dependent.write_text(dependent.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
         if args.backend != 'asqueel':
             page.write_text(page.read_text()+"\nPage.selector_parameters = {'auxColumns': 'state_name', 'selected_state_name': '.state_name'}\n")
         if args.backend=='django':

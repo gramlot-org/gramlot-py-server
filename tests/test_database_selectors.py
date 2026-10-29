@@ -83,3 +83,14 @@ def test_registered_descending_order_and_invalid_order_configuration(provider):
         db.register("no_search", table, identifier="id", caption="name", search=())
     with pytest.raises(ValueError, match="Ordering field"):
         db.select(dbtable="people", _querystring="", order_by="")
+
+@pytest.mark.parametrize('parameters', [
+    {'condition': '$country=:country', 'country': 'IT'},
+    {'weakCondition': True}, {'weakCondition': '$country=:country', 'country': 'IT'},
+])
+def test_legacy_conditions_are_explicitly_asqueel_only(provider, parameters):
+    from gramlot_py_server.db.django import DjangoSelect
+    db, _ = provider
+    for selection in (db, DjangoSelect()):
+        with pytest.raises(ValueError, match='Asqueel-only'):
+            selection.select(dbtable='people', _querystring='', **parameters)

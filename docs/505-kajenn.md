@@ -21,7 +21,7 @@ Block ID: **GP-505-005**.
 python -m pip install "gramlot-py-server[kajenn]"
 ```
 
-The extra `kajenn` installs `kajenn>=0.4.1`, which provides the command
+The extra `kajenn` installs `kajenn>=0.6.0`, which provides the command
 `kajenn`.
 
 <a id="gp-505-010"></a>
@@ -315,3 +315,215 @@ authentication capability does not supply it. Continue with the lessons on
 `remote` and `dataRemote` in the examples manual and with
 [Remote content and lazy Data](https://github.com/gramlot-org/gramlot/blob/main/docs/public/099-remote-content.md#gc-095-105),
 which states the form of the method name and the request rule.
+
+
+<a id="gp-505-035"></a>
+
+## 035 · Shared WebSocket and PageStore
+
+Block ID: **GP-505-035**.
+
+Set `websocket=True` on the Kajenn application declaration to enable the Gramlot
+channel. Kajenn routes the connection through `serve_websocket`; the adapter uses
+Kajenn's `WebSocket` for accept, text messages, refusal and close. It registers
+and releases the connection in Kajenn's native WebSocket registry. The payloads
+remain Gramlot's TYTX envelopes, not Kajenn WSX envelopes.
+
+```python
+class Site(DefaultConfiguration):
+    def applications_section(self, cfg):
+        cfg.applications().application(
+            code="pages", mount="pages", app_class=Application,
+            pages=PAGES, websocket=True,
+        ).request(body="raw")
+```
+
+The primary page opens `/pages/gramlot/store?pageId=...`; its Gramlot iframe and
+popup descendants share that socket through the existing window protocol. Every
+page retains its own ID, PageStore and binder subscriptions. The channel carries
+initial snapshots, changes, RPC with cancellation, and topic publications in both
+directions. A refused publication returns an error for that message; it does not
+close the connection. Acceptance precedes subscriber execution.
+
+Kajenn authenticates the handshake using its configured authentication service;
+that identity is passed to Gramlot RPC authorization. The Gramlot owner cookie,
+same-origin handshake and ownership checks remain mandatory. Connection identity
+is resolved at the handshake, as in Kajenn's own WebSocket service. An owner cookie
+alone does not authenticate a user. Kajenn's required application handshake cookie,
+when configured, must also be present.
+
+The WebSocket option is off by default. For the optional PageStore catalogue:
+
+```sh
+gramlot kajenn gallery --mount /py --websocket --catalog /path/to/catalog.json /path/to/pages
+```
+
+Use the catalogue and pages from `gramlot_examples/trials/page_store` in the
+installed examples package. The ordinary gallery catalogue is unchanged. The
+same channel contract is tested on Uvicorn and Kajenn; real-browser tests cover
+nested iframe/popup routing, publication metadata and recursive closure. Stores
+remain process-local and are closed when their primary connection is lost;
+this integration does not add persistence or reconnect/replay.
+
+
+<a id="gp-505-040"></a>
+
+## 040 · Databases supplied by Kajenn
+
+Block ID: **GP-505-040**.
+
+Page and PageStore expose `db(name=None)` and `async_db(name=None)`. The adapter
+passes these calls to its Kajenn application, using Kajenn's default-database
+selection and named databases unchanged. The result is the backend's own object;
+Gramlot adds no ORM, query translation, automatic commit or database selector.
+An unconfigured database raises Kajenn's error. Hosts without database access
+raise an explicit error from these methods.
+
+Install the backend separately from the host:
+
+```sh
+python -m pip install "gramlot-py-server[kajenn]" "kajenn-db[asqueel]"
+# Other available handlers:
+python -m pip install "kajenn-db[sqlalchemy]"
+python -m pip install "kajenn-db[django]"
+```
+
+Declare it with Kajenn's configuration grammar:
+
+```python
+from kajenn_db.asqueel import AsqueelDbHandler
+
+class Site(DefaultConfiguration):
+    def applications_section(self, cfg):
+        cfg.databases(handler_class=AsqueelDbHandler).database(
+            code="default", source="shop.xml",
+        )
+        cfg.applications().application(
+            code="pages", mount="pages", app_class=Application,
+            pages=PAGES, websocket=True,
+        ).request(body="raw")
+```
+
+`shop.xml` is an existing Asqueel model/configuration; migration remains a host
+administration operation. With `SqlAlchemyDbHandler`, declare `url` instead of
+`source`. With `DjangoDbHandler`, configure Django in the process and declare its
+`alias`. Multiple named databases may use different handler classes; select one
+with `self.db("name")` or `self.async_db("name")`.
+
+A synchronous PageStore controller can load a record when a binder changes its key:
+
+```python
+from genro_bag import Bag
+from gramlot import Page as BasePage, PageStore as BasePageStore
+
+class Page(BasePage):
+    def main(self, root):
+        root.dataBinder("customer", "customer")
+        root.input(value="^customer.pkey")
+        root.div("^customer.status")
+        root.div("^customer.record.name")
+
+class PageStore(BasePageStore):
+    def main(self, root):
+        self.data.set_item("customer", Bag({"record": Bag(), "status": "unset"}))
+        root.dataController(func="load_customer", pkey="^customer.pkey")
+
+    def load_customer(self, node, pkey):
+        if pkey is None or pkey == "":
+            return
+        self.data.set_item("customer.status", "loading")
+        try:
+            row = self.db().table("app.customer").query(
+                where="$id=:pkey", pkey=pkey,
+            ).fetchRecord()
+        except LookupError as error:
+            self.data.set_item("customer.error", str(error))
+            self.data.set_item("customer.status", "error")
+            return
+        self.data.set_item("customer.record", Bag(dict(row.items())))
+        self.data.set_item("customer.error", "")
+        self.data.set_item("customer.status", "loaded")
+```
+
+Use the names declared by the application's model. The result and status are
+Data; the binder sends their changes to the client. A subscribed controller may
+perform the same operation after a publish. For an asynchronous Page endpoint,
+use `db = self.async_db()` and await the backend's I/O methods, for example
+`await db.table("app.customer").query(where="$id=:pkey", pkey=pkey).fetchRecord()`
+with Asqueel. Convert its named row to a Bag before returning it. PageStore's
+recipe execution remains synchronous; exposing `async_db` does not activate
+asynchronous dataController recipes.
+
+Each HTTP request or WebSocket operation has a Kajenn call context. Repeated
+access to a named database within that operation reuses its session. Synchronous
+page methods and store controllers execute on Kajenn's pool, and release their
+databases on the same worker thread. Do not retain a connection or cursor in a
+PageStore or return it to the client. Commit writes explicitly; rollback and
+close follow the backend's transaction semantics. In particular, Django defaults
+to autocommit: a caller requiring rollback must open an explicit transaction.
+
+Synchronous operations are serialized within this application to protect its
+live Bags. Asynchronous Page methods release that gate while awaiting, so their
+RPCs can complete independently. A cancelled synchronous worker is drained before
+its resources are released; cancellation does not interrupt Python threads or
+undo a database commit.
+
+Qualification uses actual SQLite databases with all three handlers. Asqueel
+and SQLAlchemy have tested asynchronous views. Django's handler rejects
+`async_db`; its synchronous Page/PageStore path is tested with access and cleanup
+on the same thread. SQLAlchemy and Django remain probes in kajenn-db; this
+integration does not imply every backend capability or every database engine is
+qualified. Asqueel, PostgreSQL or other SQLAlchemy engines retain their own driver,
+configuration and migration requirements.
+
+**Development qualification limitation:** Kajenn 0.7.0's pool can finish an await
+on cancellation while its worker is still running. Async database cleanup may
+then race that worker. The issue is reproduced and tracked in [Kajenn #89](https://github.com/kajenn-org/kajenn/issues/89); it must be resolved in Kajenn;
+this branch does not claim safe cancellation of an in-flight async database I/O.
+This integration requires a core release with the host database API.
+
+
+<a id="gp-505-045"></a>
+
+## 045 · Customer gallery with Asqueel and SQLite
+
+Block ID: **GP-505-045**.
+
+The optional `gramlot_examples.trials.kajenn_db` catalogue contains customer
+read/save pages and their separate PageStore classes. The host runner lives here:
+
+```sh
+python scripts/serve_kajenn_db_gallery.py --database /absolute/path/demo/customers.sqlite --port 8768
+```
+
+Install the matching core, adapter and examples, with this adapter's
+`kajenn,gallery` extras and `kajenn-db[asqueel]`. Open `http://127.0.0.1:8768/py/` and expand **Kajenn and Asqueel**. Use a dedicated
+demonstration database. A new file is migrated and seeded with customers 1 and 2;
+an existing file is preserved and must already match the model. Runtime database
+access uses `self.db()` and the native Asqueel handler. Controllers explicitly
+commit successful reads/writes and roll back failed operations.
+
+The first lesson loads on a bound key change and saves through a subscribed
+controller. Status and error are Bag data; a publication acknowledgement only
+confirms acceptance. Missing IDs preserve the previous record and loaded ID;
+failed saves preserve the draft. Try an empty name or the other customer's email
+to check validation and SQLite's unique constraint. Reload reads stored data.
+
+The second lesson has direct/nested iframes and connected descendant windows.
+Each keeps an independent PageStore draft. Save in one, then reload in another:
+SQLite supplies the committed record. The last successful save wins; there is
+no automatic cross-draft synchronization or conflict detection. All descendants
+share the primary gallery's physical WebSocket and close with their parent.
+The synchronous controllers do not exercise Kajenn #89's async cancellation case.
+
+Run the browser qualification with:
+
+```sh
+node scripts/verify_kajenn_db_gallery.mjs /absolute/path/python /absolute/path/playwright/index.mjs chromium webkit
+```
+
+It uses temporary SQLite files and verifies reads, commits, lookup/validation errors,
+rollback and recovery, family routing and one physical WebSocket. The optional
+`tests/kajenn/test_kajenn_db_gallery.py` checks persistence across startup; it needs
+the matching examples catalogue and Asqueel installed. These checks qualify this
+local development increment and do not constitute a release or deployment.

@@ -92,7 +92,7 @@ class AsqueelSelect:
 
     def select(self, *, dbtable, _querystring=_MISSING, _id=_MISSING,
                columns=None, hiddenColumns=None, auxColumns=None, order_by=None, limit=10,
-               ignoreCase=True, **filters):
+               ignoreCase=True, condition=None, weakCondition=False, **filters):
         if dbtable not in self.tables:
             raise ValueError("Unknown selection table")
         if (_querystring is _MISSING) == (_id is _MISSING):
@@ -108,12 +108,23 @@ class AsqueelSelect:
         ordering = _names(order_by) if order_by is not None else definition.order_by
         if not ordering or not set(field.removeprefix("-") for field in ordering).issubset(definition.columns):
             raise ValueError("Ordering field is not exposed by this selection")
-        if not set(filters).issubset(definition.filters):
-            raise ValueError("Unknown selection filter")
+        if condition is not None and (not isinstance(condition, str) or not condition.strip()):
+            raise TypeError("condition must be a nonempty Asqueel expression")
+        if type(weakCondition) is not bool and (not isinstance(weakCondition, str) or not weakCondition.strip()):
+            raise TypeError("weakCondition must be boolean or an Asqueel expression")
+        # As in legacy dbSelect, a weak condition accompanies an explicit condition.
+        if condition is None:
+            weakCondition = False
+            if not set(filters).issubset(definition.filters):
+                raise ValueError("Unknown selection filter")
+        if any(name.startswith('selector_') or name in definition.sqlparams for name in filters):
+            raise ValueError("Selection parameters cannot replace server-owned bindings")
         predicates = [definition.where] if definition.where else []
         parameters = dict(definition.sqlparams)
         for index, (field, value) in enumerate(filters.items()):
-            if value is None:
+            if condition is not None:
+                parameters[field] = value
+            elif value is None:
                 predicates.append(f"${field} IS NULL")
             else:
                 name = f"selector_filter_{index}"
@@ -150,8 +161,11 @@ class AsqueelSelect:
             if not set(projected).issubset(projections):
                 raise ValueError("Requested field is not exposed by this selection")
 
-            def fetch(search=None):
-                conditions = [*predicates, *([search] if search else [])]
+            hard = condition if weakCondition is not True else None
+            soft = weakCondition if isinstance(weakCondition, str) else condition if weakCondition is True else None
+            errors = None
+            def fetch(search=None, *, eligibility=()):
+                conditions = [*predicates, *[item for item in eligibility if item], *([search] if search else [])]
                 result = table.query(
                     columns=",".join(projections[field] for field in projected),
                     where=" AND ".join(f"({item})" for item in conditions) or None,
@@ -161,25 +175,35 @@ class AsqueelSelect:
                 ).fetch()
                 return [{field: row[field] for field in projected} for row in result]
 
-            if _id is not _MISSING or _querystring == "":
-                rows = fetch()
+            if _id is not _MISSING:
+                rows = fetch(eligibility=(hard,))
+                if not rows and hard:
+                    rows = fetch()
+                    if rows:
+                        errors = "Current value does not fit condition."
             else:
                 parameters["selector_query"] = _querystring
                 needle = "LOWER(:selector_query)" if ignoreCase else ":selector_query"
                 expressions = [f"COALESCE(CAST(${field} AS TEXT),'')" for field in definition.search]
                 if ignoreCase:
                     expressions = [f"LOWER({expression})" for expression in expressions]
-                # Literal operations: %, _, quotes and backslashes are never patterns.
                 prefix = " OR ".join(f"SUBSTR({expr},1,LENGTH({needle})) = {needle}" for expr in expressions)
-                rows = fetch(prefix)
-                if not rows:
-                    contains = " OR ".join(f"REPLACE({expr},{needle},'') <> {expr}" for expr in expressions)
-                    rows = fetch(contains)
+                contains = " OR ".join(f"REPLACE({expr},{needle},'') <> {expr}" for expr in expressions)
+                def search(eligibility):
+                    if _querystring == "":
+                        return fetch(eligibility=eligibility)
+                    return (fetch(prefix, eligibility=eligibility)
+                            or fetch(contains, eligibility=eligibility))
+                rows = search((hard, soft))
+                if not rows and soft:
+                    rows = search((hard,))
         for row in rows:
             _identity(row[definition.identifier], definition.identity_type)
             if not isinstance(row[definition.caption], str):
                 raise TypeError("Selection caption must be text")
         result = {"rows": rows, "identifier": definition.identifier, "caption": definition.caption}
+        if errors:
+            result['errors'] = errors
         if auxColumns is not None:
             display = list(dict.fromkeys((definition.caption, *(_names(columns) if columns else ()), *visible)))
             result.update(columns=display, headers=[headers[field] for field in display])

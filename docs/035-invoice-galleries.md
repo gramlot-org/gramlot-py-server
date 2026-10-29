@@ -136,3 +136,22 @@ literal record text inside sanitized HTML; placeholders in attributes are refuse
 Template presentation takes precedence over the auxiliary-column layout. Selected
 fields and template fields are requested automatically. dbComboBox keeps free text
 until explicit suggestion navigation/selection; dbSelect stores a record identity.
+
+
+<a id="gp-035-060"></a>
+## 060 · State-dependent selectors (local trial)
+
+Block ID: **GP-035-060**.
+
+The Asqueel Base runner registers states (code/name) alongside customers and adds
+base/asqueel-catalog.json. Its State and customer lesson uses direct legacy
+condition and condition_* bindings, with an optional weakCondition preference.
+The other runners retain the shared catalog and reject these Asqueel-only options.
+Values are bound through native Asqueel sqlparams; server-owned parameters and
+selector_ bindings cannot be replaced. Hard-ineligible identity recovery keeps the
+registered server predicate and returns the caption with the legacy errors text.
+This local trial does not establish authorization for arbitrary client expressions;
+public endpoint security review remains separate from normal-flow qualification.
+
+Provider regressions and the read-only PostgreSQL/browser State → Customer trial
+passed on 2026-10-29. No public deployment or candidate artifact replacement.

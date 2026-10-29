@@ -33,8 +33,10 @@ def create_database(backend):
             if session.execute('SHOW transaction_read_only').fetchone()[0] != 'on':
                 raise RuntimeError('Read-only connection required')
         atexit.register(shared.close)
-        return AsqueelSelect(shared).register('customers', 'invc.customer', identifier='id',
+        selectors = AsqueelSelect(shared).register('customers', 'invc.customer', identifier='id',
             caption='account_name', columns=('suburb','state'), order_by=('account_name','id'))
+        return selectors.register('states', 'invc.state', identifier='code', caption='name',
+                                  columns=('code',), order_by=('name',))
     if backend == 'sqlalchemy':
         from sqlalchemy import create_engine, text, select
         from gramlot_py_server.db.sqlalchemy import SQLAlchemySelect

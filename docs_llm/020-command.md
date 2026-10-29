@@ -129,7 +129,7 @@ of `gramlot-examples`:
 The gallery sends no Content Security Policy: the examples use inline code. The
 temporary folder is removed when the server stops.
 
-On the PageStore development branch, Uvicorn also accepts `--websocket` to
+Uvicorn and Kajenn also accept `--websocket` to
 enable the shared page channel for the gallery and its lesson frames. It is
 off by default and is not exposed by the other adapters. Add the experimental
 PageStore catalogue with the existing `--catalog CATALOG PAGES` option.

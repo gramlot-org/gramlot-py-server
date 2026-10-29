@@ -79,7 +79,7 @@ class Application(base.Adapter, RoutedApplication):
         self.gramlot_server._database_access = self
         self._operation_lock = asyncio.Lock()
         self._execution = ContextVar("gramlot_kajenn_execution", default=None)
-        self._store_channel = _StoreChannel(self.gramlot_server, self._store_request)
+        self._store_channel = _StoreChannel(self.gramlot_server, self.gramlot_server._invoke, self._store_request)
         self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
         if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
             raise ValueError("mount must be a single lowercase URL segment or empty")

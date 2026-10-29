@@ -518,3 +518,29 @@ This checkpoint does not publish packages or deploy the preview. Public release
 still requires final consumer/package checks and the client-condition/server
 constraint security review. Runner receipts: /private/tmp/gramlot-release-integration-20261029/;
 integration verification: /private/tmp/gramlot-grid-integration-20261029/.
+<a id="gp-910-070"></a>
+## 070 · Processing updates during synchronous recipes — 2026-10-29
+
+Block ID: **GP-910-070**.
+
+Bounded connected work approved by the owner: Data binder requests must reach
+the PageStore recipe, and state written during processing must reach the client
+before the recipe returns. No wire operation is added. The shared channel has an
+independent outgoing writer with serialized socket sends, preserving publication
+acceptance before subscriber entry. Uvicorn runs synchronous store operations
+serially off the event loop and drains cancelled workers before cleanup. Kajenn
+keeps its existing operation and database execution policy.
+
+Shared channel tests cover both hosts, including gated processing over binder
+change and publication, feedback delivery before releasing the worker, ordered
+final updates, ownership, RPC, cancellation and cleanup. A Uvicorn-specific test
+checks worker draining before the next mutation. Protocol conformance passed
+on both hosts. The isolated development environment also checks local core chat
+integration; package requirements and installed dependency sources are unchanged.
+No release or deployment is implied by these local verification results.
+
+Local common-base confirmation: the full 312-test adapter suite passes against
+the integrated core, including the five feedback/cleanup regressions. The chat
+catalogue works inside the Kajenn gallery iframe at port 61505. Original
+chat-feedback-adapter work is preserved; Invoice and public deployment are out
+of this integration scope.

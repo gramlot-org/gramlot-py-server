@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -62,8 +64,28 @@ class Application(base.Adapter):
 
     def __init__(self, pages: str | Path, *, websocket: bool = False, **options: Any) -> None:
         super().__init__(pages, **options)
-        self._store_channel = _StoreChannel(self.gramlot_server)
+        self._store_mutations = asyncio.Lock()
+        self._store_channel = _StoreChannel(self.gramlot_server, self._invoke_store)
         self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
+
+    async def _invoke_store(self, function, *args, **kwargs):
+        """Run synchronous store recipes off-loop, serially across this host's sockets."""
+        async with self._store_mutations:
+            worker = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+            try:
+                return await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                # Drain a non-interruptible Python worker before closing its Bags.
+                while not worker.done():
+                    try:
+                        await asyncio.shield(worker)
+                    except asyncio.CancelledError:
+                        continue
+                    except Exception:
+                        break
+                if not worker.cancelled():
+                    worker.exception()
+                raise
 
     async def __call__(self, scope, receive, send) -> None:
         if scope.get("type") == "websocket":

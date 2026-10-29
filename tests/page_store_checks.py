@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import json
 import re
+import threading
 import httpx
 import pytest
 from genro_tytx import from_tytx, to_tytx
@@ -47,6 +48,50 @@ async def open_page(client, prefix=""):
 
 
 class PageStoreChecks:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("operation", ["change", "publish"])
+    async def test_feedback_reaches_peer_before_synchronous_recipe_finishes(self, tmp_path, operation):
+        (tmp_path / "index.py").write_text("""from gramlot import Page as BasePage, PageStore as BaseStore
+from genro_bag import Bag
+class Page(BasePage):
+    def main(self, root): root.div('Progress')
+class PageStore(BaseStore):
+    def main(self, root):
+        root.dataSetter('work', Bag(dict(request='', feedback='', result='')))
+        root.dataController(func='process', request='^work.request')
+        root.dataController(func='process', subscribe_process=True)
+    def process(self, node, request):
+        self.data.set_item('work.feedback', 'Working')
+        if not self.release.wait(3): raise RuntimeError('Test did not release processing')
+        self.data.set_item('work.feedback', 'Finishing')
+        self.data.set_item('work.result', request)
+        self.data.set_item('work.feedback', '')
+""")
+        app = self.create_application(tmp_path, websocket=True)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page_id, cookie = await open_page(client)
+            store = app.gramlot_server.page_store(page_id, owner=client.cookies['gramlot_owner'])
+            store.release = threading.Event()
+            async with channel(app, cookie, page_id) as (_, send, receive):
+                await send(dict(op='subscribe', binderId='progress', path='work'))
+                await receive()
+                if operation == 'change':
+                    await send(dict(op='change', binderId='progress', path='request',
+                                    evt='upd_value', value='answer', attr={}))
+                else:
+                    await send(dict(op='publish', id='work', topic='process', payload={'request':'answer'}))
+                    assert from_tytx((await receive())['text'])['value'] == 'ok'
+                try:
+                    update = from_tytx((await receive())['text'])
+                    assert (update['path'], update['value']) == ('feedback', 'Working')
+                    assert store.data.get_item('work.result') == ''
+                finally:
+                    store.release.set()
+                updates = [from_tytx((await receive())['text']) for _ in range(3)]
+                assert [(m['path'], m['value']) for m in updates] == [
+                    ('feedback', 'Finishing'), ('result', 'answer'), ('feedback', '')]
+        app.gramlot_server.close_all()
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("separate_socket", [False, True])
     async def test_store_publishes_back_to_child_after_acceptance(self, separate_socket):

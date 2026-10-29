@@ -12,9 +12,10 @@ from gramlot.server import PageExpired
 
 
 class _StoreChannel:
-    def __init__(self, server, request_context=nullcontext):
+    def __init__(self, server, invoke, request_context=nullcontext):
         self.gramlot_server = server
         self.request_context = request_context
+        self.invoke = invoke
         self._store_channels = {}
 
     async def serve(self, socket, scope, *, owner, path, disconnect_error, identity=None):
@@ -45,15 +46,17 @@ class _StoreChannel:
         calls = {}
         self._store_channels[page_id] = pages
 
-        def detach(target):
+        async def detach(target):
             for (call_page, _), task in calls.items():
                 if call_page == target:
                     task.cancel()
             target_store, binders = pages.pop(target)
-            for binder in binders:
-                target_store.unsubscribe(binder)
+            def close():
+                for binder in binders:
+                    target_store.unsubscribe(binder)
+                self.gramlot_server.close_page(target, owner=owner)
+            await self.invoke(close)
             self._store_channels.pop(target, None)
-            self.gramlot_server.close_page(target, owner=owner)
 
         async def enqueue(wire):
             outgoing.put_nowait(wire)
@@ -76,16 +79,29 @@ class _StoreChannel:
                 outgoing.put_nowait(to_tytx(dict(op="closed", pageId=target)))
                 return None
 
-        incoming = pending = None
+        send_lock = asyncio.Lock()
+
+        async def send_text(wire):
+            async with send_lock:
+                await socket.send_text(wire)
+
+        async def write_updates():
+            # Drain frozen deltas while the reader awaits application processing.
+            while True:
+                wire = await outgoing.get()
+                if from_tytx(wire)["pageId"] in pages:
+                    await send_text(wire)
+
+        incoming = writer = None
         try:
             async with self.request_context():
                 self.gramlot_server.connect_page_channel(page_id, lambda wire: deliver(wire, page_id), owner=owner)
                 await socket.accept()
             incoming = asyncio.create_task(socket.receive_text())
-            pending = asyncio.create_task(outgoing.get())
+            writer = asyncio.create_task(write_updates())
             while True:
                 completed, _ = await asyncio.wait(
-                    (incoming, pending, *calls.values()), timeout=self.gramlot_server.page_ttl,
+                    (incoming, writer, *calls.values()), timeout=self.gramlot_server.page_ttl,
                     return_when=asyncio.FIRST_COMPLETED)
                 if not completed:
                     async with self.request_context():
@@ -100,11 +116,8 @@ class _StoreChannel:
                         wire = task.result()
                         if key[0] in pages:
                             deliver(wire, key[0])
-                if pending in completed:
-                    wire = pending.result()
-                    if from_tytx(wire)["pageId"] in pages:
-                        await socket.send_text(wire)
-                    pending = asyncio.create_task(outgoing.get())
+                if writer in completed:
+                    writer.result()
                 if incoming not in completed:
                     continue
                 text = incoming.result()
@@ -129,7 +142,7 @@ class _StoreChannel:
                     if operation == "detach":
                         if target == page_id:
                             raise ValueError("Cannot detach the primary page")
-                        detach(target)
+                        await detach(target)
                         incoming = asyncio.create_task(socket.receive_text())
                         continue
                     store = live_store(target)
@@ -142,10 +155,10 @@ class _StoreChannel:
                             raise ValueError("Invalid or duplicate publication ID")
                         wire, dispatch = self.gramlot_server.prepare_publish(text, owner=owner)
                         # Send acceptance before entering application code, not merely enqueue it.
-                        await socket.send_text(to_tytx(dict(from_tytx(wire), pageId=target)))
+                        await send_text(to_tytx(dict(from_tytx(wire), pageId=target)))
                         if dispatch is not None:
                             try:
-                                await self.gramlot_server._invoke(dispatch)
+                                await self.invoke(dispatch)
                             except asyncio.QueueFull:
                                 raise
                             except Exception:
@@ -175,15 +188,15 @@ class _StoreChannel:
                     if not isinstance(binder_id, str) or not binder_id:
                         raise ValueError("Missing binder ID")
                     if operation == "subscribe":
-                        await self.gramlot_server._invoke(store.subscribe, binder_id, message["path"], lambda wire, target=target: deliver(wire, target))
+                        await self.invoke(store.subscribe, binder_id, message["path"], lambda wire, target=target: deliver(wire, target))
                         binders.add(binder_id)
                     elif binder_id not in binders:
                         raise ValueError("Unknown subscription")
                     elif operation == "unsubscribe":
-                        store.unsubscribe(binder_id)
+                        await self.invoke(store.unsubscribe, binder_id)
                         binders.remove(binder_id)
                     elif operation == "change":
-                        await self.gramlot_server._invoke(store.change, binder_id, message)
+                        await self.invoke(store.change, binder_id, message)
                     else:
                         raise ValueError("Unknown store operation")
                     incoming = asyncio.create_task(socket.receive_text())
@@ -195,7 +208,7 @@ class _StoreChannel:
             await socket.close(1011)
             raise
         finally:
-            tasks = [task for task in (incoming, pending, *calls.values()) if task is not None]
+            tasks = [task for task in (incoming, writer, *calls.values()) if task is not None]
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -203,7 +216,7 @@ class _StoreChannel:
             # Preserve the PoC lifetime: socket loss closes every attached page.
             async with self.request_context():
                 for target in list(pages):
-                    detach(target)
+                    await detach(target)
 
     async def _call(self, text, *, owner, identity):
         async with self.request_context():

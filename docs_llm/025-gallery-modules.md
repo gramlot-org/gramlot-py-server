@@ -1,6 +1,6 @@
 # Hosting a separate gallery module
 
-Document ID: **GP-025**. Updated: **2026-10-25**.
+Document ID: **GP-025**. Updated: **2026-10-29**.
 
 Block ID: **GP-025-005**.
 <a id="gp-025-005"></a>
@@ -59,3 +59,34 @@ uses the verified local wheel set and allowlisted module artifact, without a
 registry release. Its demo IDE remains read-only at the server boundary. Further
 deployments still require explicit authorization. Native hardware,
 public TLS and Universal Link association require their own acceptance checks.
+
+Block ID: **GP-025-020**.
+<a id="gp-025-020"></a>
+## 020 · Common local release preview — 2026-10-29
+
+Use the checked-out core, examples and server together in the Python environment.
+Prepare the public mobile artifact with the examples repository's
+`deploy/galleries/prepare-mobile.py`; build its provider against the same core
+DeviceFrameHost first. The existing Base/Asqueel service database and the Kajenn
+SQLite demonstration prerequisites are the same as the database preview.
+
+From this repository:
+
+```sh
+python scripts/serve_release_gallery.py \
+  --database /tmp/gramlot-preview.sqlite \
+  --modules /path/to/prepared-modules \
+  --port 61508
+```
+
+`--modules` points to the parent of `mobile_application/`; omit it for the ordinary
+common preview. The runner uses existing `stage` and `stage_module` contracts,
+reads the external catalogue once, mounts its resources at `/mobile-application/`
+and registers the same eligible entries with the gallery. It retains Base,
+Asqueel selectors, PageStore/WebSocket and chat. Invoice is excluded. Remote Edit
+is disabled, including the synthetic-document IDE.
+
+HTTP loopback is sufficient for ordinary browser checks. Native module activation
+still requires the same-origin HTTPS frontend and the Capacitor app; this runner
+does not bypass that check or install certificates. Production push and top-level
+shortcut prerequisites are not supplied. There is no automatic deployment.

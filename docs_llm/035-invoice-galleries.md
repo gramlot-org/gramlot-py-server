@@ -1,4 +1,4 @@
-# 035 · Database galleries
+# 035 · Base database gallery
 
 Document ID: **GP-035**.
 
@@ -9,10 +9,10 @@ Document ID: **GP-035**.
 
 Block ID: **GP-035-005**.
 
-Base and Application pages, catalogs and the Base dataset specification belong to
+Base pages, catalog and dataset specification belong to
 gramlot-examples. This package supplies native Asqueel, SQLAlchemy and Django
 providers, models and launchers. Core supplies the selector widgets and endpoint
-contract; it does not import an ORM. Both galleries use the current shared HTTP
+contract; it does not import an ORM. The Base gallery uses the current shared HTTP
 adapters and gallery staging, including collection caching and PageStore exports.
 Only the collections declared by each page are activated.
 
@@ -79,17 +79,15 @@ Run each command in its own terminal in the installed environment:
 python -m gramlot_py_server.gallery.base --backend asqueel --port 61401
 python -m gramlot_py_server.gallery.base --backend sqlalchemy --port 61402
 python -m gramlot_py_server.gallery.base --backend django --port 61403
-python -m gramlot_py_server.gallery.application --port 61404
 ```
 
 Open the corresponding localhost port. Base adds its customer lesson to the
-ordinary gallery. Application shows the Invoice branch. Both open the lesson
+ordinary gallery. Open the lesson
 in the existing gallery shell with Example, Explanation and Code tabs.
 The launchers bind to loopback; Remote Edit is disabled. They do not deploy a site.
 
 Base uses Kajenn/Asqueel, Uvicorn/SQLAlchemy or Django/Django ORM respectively.
-Application uses Kajenn/Asqueel against the original read-only test_invoice_pg.
-It needs no PYTHONPATH override to another checkout.
+No PYTHONPATH override to another checkout is needed.
 
 <a id="gp-035-025"></a>
 ## 025 · Coverage and limits
@@ -101,19 +99,13 @@ The three Base copies contain 8 states, 3,200 customers, 256 invoices,
 and four relations, all three native models and 17 selector cases per provider.
 They also compare every customer/state projection against an independent LEFT JOIN.
 
-Application includes 76 physical tables and 808 physical columns. Customer has
-20 physical and 19 virtual fields. This is a selector exercise, not an Invoice
-management system. Other tables have physical coverage, not complete business
-logic. customer_score uses the documented equivalent SQL expression; the original
-catalog and equivalent-index inventory explain the model's limits. Do not run
-schema alignment or migrations from this query-oriented model.
+The Application/Invoice launcher and complete application model are excluded
+from this candidate by the owner's 2026-10-29 scope correction. They remain on
+`codex/invoice-local-preserved-20261029` for later work. The existing source database
+is only used to prepare or verify the dedicated Base copies; its complete model
+is not required by this release.
 
-```sh
-python -m gramlot_py_server.gallery.application.test_invoice_pg.verify
-```
-
-Verification reads the database and prints aggregate results without modifying
-installed package files. Unit/adapter tests, real database checks and browser
+Unit/adapter tests, real database checks and browser
 checks are distinct evidence; none alone constitutes full legacy parity.
 
 <a id="gp-035-030"></a>

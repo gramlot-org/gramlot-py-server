@@ -124,3 +124,8 @@ for annotations in ({'name':F('state__name')}, {'state__name':F('state__name')})
         raise AssertionError('Invalid annotation alias accepted')
 """], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_local_candidate_excludes_application_launcher_and_model():
+    from importlib.resources import files
+    assert not (files('gramlot_py_server') / 'gallery' / 'application').is_dir()

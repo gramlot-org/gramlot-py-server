@@ -59,7 +59,7 @@ provides `db(name)` and `async_db(name)` on Page and PageStore through its confi
 kajenn-db handlers. See [Kajenn database access and the SQLite gallery](docs/505-kajenn.md#gp-505-040)
 for setup, transaction control and the documented async cancellation limitation.
 
-The current release is 0.3.20, on PyPI as `gramlot-py-server`.
+The current release is 0.3.24, on PyPI as `gramlot-py-server`.
 
 ## Quick start
 

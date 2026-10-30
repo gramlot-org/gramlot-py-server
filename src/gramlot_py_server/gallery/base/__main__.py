@@ -28,8 +28,9 @@ def main():
         page=folder/'pages/80-database/01-customers.py'
         page.write_text(page.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
         if args.backend == 'asqueel':
-            dependent = folder/'pages/81-asqueel/01-state_customers.py'
-            dependent.write_text(dependent.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
+            for path in ('81-asqueel/01-state_customers', '82-grid-database/01-customers', '82-grid-database/02-invoice_rows'):
+                dependent = folder/f'pages/{path}.py'
+                dependent.write_text(dependent.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
         if args.backend != 'asqueel':
             page.write_text(page.read_text()+"\nPage.selector_parameters = {'auxColumns': 'state_name', 'selected_state_name': '.state_name'}\n")
         if args.backend=='django':
@@ -41,7 +42,7 @@ def main():
             call_command('runserver',f'127.0.0.1:{args.port}',use_reloader=False)
         else:
             if args.backend=='asqueel':
-                from gramlot_py_server.kajenn import serve
+                from .selection_trial import serve
             else:
                 from gramlot_py_server.uvicorn import serve
             print(f'Base gallery · {args.backend}: http://127.0.0.1:{args.port}/',flush=True)

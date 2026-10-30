@@ -42,7 +42,7 @@ It is not a core dependency or a claim of equivalent behavior across all engines
 
 Block ID: **GP-035-015**.
 
-The source test_invoice_pg remains database-enforced read-only. Base retains all
+The Base source test_invoice_pg_xl remains database-enforced read-only. Base retains all
 rows but only 21 physical columns across state, customer, invoice, product and
 invoice_row. Its fixed specification is gramlot_examples/base/model.json.
 
@@ -94,8 +94,8 @@ No PYTHONPATH override to another checkout is needed.
 
 Block ID: **GP-035-025**.
 
-The three Base copies contain 8 states, 3,200 customers, 256 invoices,
-1,695 products and 806 invoice rows. Local integration checks compare all values
+The three Base copies contain 8 states, 3,200 customers, 60,179 invoices,
+1,695 products and 410,429 invoice rows. Local integration checks compare all values
 and four relations, all three native models and 17 selector cases per provider.
 They also compare every customer/state projection against an independent LEFT JOIN.
 
@@ -155,3 +155,141 @@ public endpoint security review remains separate from normal-flow qualification.
 
 Provider regressions and the read-only PostgreSQL/browser State → Customer trial
 passed on 2026-10-29. No public deployment or candidate artifact replacement.
+
+
+<a id="gp-035-040"></a>
+## 040 · XL Base refresh — 2026-10-29
+
+Block ID: **GP-035-040**.
+
+Owner requested switching the Base source to test_invoice_pg_xl and adding a
+resident invoice-row Grid. The common specification and all three native models
+retain their 21 physical columns and relations. Existing copies were backed up
+outside repositories, then refreshed transactionally; counts, ordered value
+digests and foreign keys matched the same read-only source snapshot before commit.
+The creation command still refuses existing targets. The preserved Application
+project and original source databases are unchanged.
+
+The Asqueel gallery adds `82-grid-database/02-invoice_rows`, using native queries
+across invoice, customer and product relations. All nine limits through 100,000
+are checked by `scripts/verify_invoice_grid.py` against independent physical SQL,
+including all projected values, ordering, actual counts and timing bounds.
+Query measures joins/execution/fetch; Server includes Query plus Bag construction
+and session release. Neither includes serialization, transfer or client rendering.
+
+
+<a id="gp-035-045"></a>
+## 045 · Isolated JSON/JSONL comparison — 2026-10-29
+
+Block ID: **GP-035-045**.
+
+> Historical record: complete-response comparisons retired on 2026-10-30; JSONL is selected for resident invoice loading.
+
+The owner requested separate comparison pages and query, transfer, Bag and search
+timings. The local release runner enables them only with `--selection-trials`;
+the ordinary gallery retains its existing application and catalogues. Build the
+experimental collection in the core with `cd js && node scripts/build-selection-trial.mjs`
+and include core `build/selection-trial` in PYTHONPATH alongside the three source
+checkouts. No installation or public protocol replacement is required.
+
+`SelectionTrialApplication` adds the local POST route `/gramlot/selection-trial`,
+using ordinary page ownership, endpoint and authorization checks. TYTX encodes
+one typed record per line; the Kajenn stream batches writes around 64 KiB. Both
+comparison pages fully fetch the same read-only Asqueel query before sending.
+This tests serialization/transfer, not cursor streaming or server pagination.
+The complete-JSON comparison uses ordinary HTTP RPC; the original invoice lesson
+retains ordinary WebSocket RPC. No database is changed by these trials.
+
+Verification: 1,000 and 100,000 rows match in every attribute between both HTTP
+paths, including Dates and Decimals; abort and unowned requests are rejected.
+The runner tests cover enabled and disabled experiment staging. Browser results
+are recorded in core GC-375; they are observations, not a release performance SLA.
+
+
+<a id="gp-035-050"></a>
+## 050 · Complete WebSocket comparison — 2026-10-29
+
+Block ID: **GP-035-050**.
+
+> Historical record: complete-response comparisons retired on 2026-10-30; JSONL is selected for resident invoice loading.
+
+Owner discarded the progressive DataBinder variant after per-row collection index
+reconciliation dominated the test. Its page, component and protocol tests were
+removed; no workaround was adopted. The follow-up optional page 03-websocket-rpc
+uses ordinary dataRpc over the existing gallery WebSocket. It calls the same
+load_trial_json endpoint as the HTTP comparison, with no adapter protocol change.
+The runner only stages the additional page and injects the same read-only service.
+
+scripts/verify_selection_trial_websocket.py checks every row attribute at 1,000
+and 100,000 between ordinary HTTP and WebSocket RPC, including Dates and Decimals.
+Browser observations include gallery iframe/family routing and codec work; they
+are application-path measurements, not isolated wire-protocol benchmarks.
+
+<a id="gp-035-065"></a>
+## 065 · Asqueel cached selection — local optional experiment
+
+Block ID: **GP-035-065**.
+
+Enable `serve_release_gallery.py --selection-trials --cached-trial
+--cached-threshold 1000` with the existing database/modules/port arguments and the
+packaged `gramlot.collections.selection_trial` collection. The threshold applies to the
+actual base selection count, capped by the requested limit. Values up to 1,000
+load completely; larger ones use native cachedFetch. Filtering below the threshold
+does not change the already-created cache mode. Maximum requested limit is 500,000.
+
+The ordinary Base service remains read-only. cached_trial.create_database uses
+`gramlot_base_asqueel`, SET ROLE `gramlot_cached_trial`, statement_timeout 120s,
+and the native db.options().cachedFetch model option. Schema/catalog setup is
+explicit, never performed automatically at server startup.
+
+The owner approved this one-time local preparation (already applied on 2026-10-29):
+
+```sql
+CREATE ROLE gramlot_cached_trial NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+CREATE SCHEMA _asql_ AUTHORIZATION gramlot_cached_trial;
+GRANT USAGE ON SCHEMA invc TO gramlot_cached_trial;
+GRANT SELECT ON invc.invc_state, invc.invc_customer, invc.invc_invoice,
+    invc.invc_product, invc.invc_invoice_row TO gramlot_cached_trial;
+```
+
+Run only in the explicitly approved local database; do not repeat CREATE statements
+against existing objects or extend grants to source databases. PostgreSQL roles
+are cluster-level, though these grants apply only to the local copy. Under this
+role, `create_database(catalog_only=True)` exposes only the native cache catalog
+model. Inspect `session.migration_plan()` before `session.migrate()`; the applied
+plan created only `_asql_._asql_cached_fetch` and its owner index. No invoice
+migration ran. Effective invoice SELECT is true and INSERT/UPDATE/DELETE false.
+
+Each PageStore generates an unguessable owner; client parameters cannot select a
+cache owner or SQL column outside the fixed whitelist. Request start/count and
+limit are bounded. Native materialization/sort/search use their own committed
+sessions. Closing a PageStore calls cleanup_cached_tables(owner=that_owner).
+There is no automatic TTL after process crashes. Source changes are visible only
+after Reload; this is a snapshot experiment, not a live database store.
+
+Run local DB verification explicitly with `GRAMLOT_CACHED_TRIAL_DB=1` and
+`pytest tests/test_cached_trial.py tests/test_release_gallery.py`. The database
+integration case is skipped without this flag; pure protocol/threshold/staging
+tests require no prepared cache. Source DB is never modified. The integration
+case verifies the XL fixture's 410,429 rows, bounded windows, server search/mixed
+sort, switching to resident mode, cleanup and actual-count threshold selection.
+
+<a id="gp-035-070"></a>
+## 070 · JSONL resident invoice loading — 2026-10-30
+
+Block ID: **GP-035-070**.
+
+Owner selected JSONL for the timing lesson and floating resident invoice-row Grid.
+The local release preview always uses SelectionTrialApplication; --selection-trials
+now controls only visibility of the JSONL timing lesson, not route availability.
+The Base Asqueel launcher uses the same JSONL-capable application. The core
+package includes `gramlot.collections.selection_trial`; no extra PYTHONPATH entry
+or standalone collection build is required.
+Other Base backends do not mount this invoice lesson and retain their existing host.
+
+The complete JSON HTTP/WebSocket comparison pages and their verification script
+are retired. Historical timings remain in GC-375. verify_invoice_grid.py checks
+all nine limits against independent SQL; verify_selection_trial_http.mjs decodes
+JSONL from both the floating page and timing page at 1000/100000, compares every
+attribute and checks cancellation, ownership and old-route 404. Ordinary RPC and
+its payload handling are unaffected; no public adapter-wide wire contract changes.

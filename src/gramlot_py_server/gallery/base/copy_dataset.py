@@ -12,7 +12,7 @@ import psycopg
 from psycopg import sql
 
 BACKENDS = ('asqueel', 'sqlalchemy', 'django')
-SOURCE = 'test_invoice_pg'
+SOURCE = 'test_invoice_pg_xl'
 READ_ONLY = '-c default_transaction_read_only=on -c statement_timeout=120000'
 
 

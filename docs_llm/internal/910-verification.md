@@ -544,3 +544,79 @@ the integrated core, including the five feedback/cleanup regressions. The chat
 catalogue works inside the Kajenn gallery iframe at port 61505. Original
 chat-feedback-adapter work is preserved; Invoice and public deployment are out
 of this integration scope.
+
+
+<a id="gp-910-075"></a>
+## 075 · Resident database Grid limits — 2026-10-29
+
+Block ID: **GP-910-075**.
+
+Owner requested a real database Grid, server timing and nine selectable limits
+from 100 through 100,000. Base Asqueel and local release-gallery staging inject
+the existing read-only database service into the environment lesson
+`82-grid-database/01-customers`. No transport or core database contract changes.
+
+`scripts/verify_customer_grid.py` checks read-only PostgreSQL transactions and
+all nine declared limits against physical `invc.invc_customer` rows, comparing
+all fields and deterministic order, actual/requested counts and timing bounds.
+It rejects undeclared limits. The current table contains 3,200 rows, so limits
+of 5,000 or above return 3,200. This is not a large-table performance benchmark.
+Run with the Base environment dependencies and matching gramlot-examples installed.
+`tests/test_release_gallery.py` passes and checks page staging/service injection.
+Browser verification at 61509 confirms selector-driven RPC reload, server metrics
+and virtualized scrolling through all 3,200 rows. No release or deployment.
+
+
+<a id="gp-910-080"></a>
+## 080 · XL Base and invoice-row Grid — 2026-10-29
+
+Block ID: **GP-910-080**.
+
+Following the explicit owner request, all three Base copies now derive from
+read-only test_invoice_pg_xl. Backups precede transactional replacement; all
+selected values, counts and relations match. All three ORM/selector checks pass
+(17 selector cases each); Base/release-gallery tests pass (7 tests).
+`scripts/verify_invoice_grid.py` verifies every projected field and row order
+against independent SQL for all nine limits through 100,000. Native invoice,
+customer and product relations supply the displayed fields. Unit price and total
+retain the invoice-row Decimal values, not current product prices.
+
+Live browser loads 100,000 actual rows: observed Query 552.31ms, Server 930.23ms.
+End reaches ordinal 100,000, zero bottom gap, 20 mounted rows. Quantity/Unit price
+multicolumn sorting and whole-selection search/clear work. Search across 100,000
+rows can occupy the browser for several seconds; endpoint timing excludes this
+client work, serialization and transfer. No core/dependency changes or claim of
+instant large-selection filtering. Aggregate evidence is under xl_refresh in
+base/verification.json; earlier sections are historical pre-XL results.
+
+Final XL verification: 54 gallery/catalogue/sample tests pass. Rebuilt examples
+documentation validates 127 lessons, five paired guides and all local links;
+adapter documentation checks also pass.
+
+<a id="gp-910-085"></a>
+## 085 · Cached selection qualification — 2026-10-29
+
+Block ID: **GP-910-085**.
+
+Optional Asqueel-only page and limited cache connection implemented. Ten targeted
+tests pass (explicit local DB opt-in): native materialization, first/last window,
+search, mixed sort, cache disposal, safe sort protocol, configurable actual-count
+threshold and optional gallery staging. Browser verifies resident 1,000 and
+410,429 cached with 200 rows in the browser, End, zero-match/reset and multi-sort.
+Core full suite 1,464 passes with integration venv; targeted final 48 pass.
+Single-run materialization/first-window 829.41/981.20 ms; scroll 42.10 ms;
+Parks search server/client 119.10/374.70 ms. Not a controlled benchmark.
+No invoice writes, source DB changes, dependency edits, release or deployment.
+
+<a id="gp-910-090"></a>
+## 090 · JSONL adoption verification — 2026-10-30
+
+Block ID: **GP-910-090**.
+
+JSONL is shared by the resident invoice floating page and timing lesson. Ten
+adapter/cache/staging tests pass. Independent read-only SQL matches all returned
+attributes for 100, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000 rows; invalid
+limits reject. Real HTTP typed decoding agrees across both pages at 1000/100000;
+cancellation and unowned page requests reject; retired comparison routes are 404.
+Core targeted loader/coordinator tests: 12 pass. No database writes or migrations
+are involved in this adoption; cachedFetch integration remains unchanged.

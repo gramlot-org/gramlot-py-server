@@ -6,13 +6,14 @@ from gramlot_py_server.gallery.base.copy_dataset import database_name, specifica
 
 
 def test_copy_destinations_cannot_name_the_source():
-    for name in ('test_invoice_pg','postgres','other',None):
+    for name in ('test_invoice_pg','test_invoice_pg_xl','postgres','other',None):
         with pytest.raises(ValueError):
             database_name(name)
 
 
 def test_minimum_spec_has_no_outside_relations_or_virtual_columns():
     spec=specification()
+    assert spec['source_database'] == 'test_invoice_pg_xl'
     assert set(spec['tables'])=={'state','customer','invoice','product','invoice_row'}
     assert sum(len(t['columns']) for t in spec['tables'].values())==21
     physical={t['physical'] for t in spec['tables'].values()}

@@ -181,7 +181,8 @@ class PageStore(BaseStore):
     staged = tmp_path / "staged"
     staged.mkdir()
     stage(staged, [(catalog, pages)], "")
-    server = GramlotFileServer(staged, css_theme=False)
+    from gramlot_py_server.base import Adapter
+    server = Adapter(staged).gramlot_server
     try:
         opened = await server.open_page("/pages/stores/01_example", owner="alice")
         store = server.page_store(opened.page_id, owner="alice")

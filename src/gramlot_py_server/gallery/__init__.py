@@ -48,13 +48,17 @@ def environment_catalogs(environment: str) -> list[tuple[Path, Path]]:
 def subclass_module(original: Path, name: str, body: str) -> str:
     """The source of a page module that loads ``original`` and subclasses its ``Page``."""
     return (
-        "import importlib.util\n\n"
+        "import importlib.util\n"
+        "from gramlot import Page as GramlotPage\n"
+        "from gramlot_examples.gallery.collections import collections\n\n"
         f"spec = importlib.util.spec_from_file_location({name!r}, {str(original)!r})\n"
         "module = importlib.util.module_from_spec(spec)\n"
         "spec.loader.exec_module(module)\n"
         "if 'PageStore' in vars(module):\n"
         "    PageStore = module.PageStore\n\n\n"
-        f"class Page(module.Page):\n{body}"
+        "class EnvironmentPage(GramlotPage):\n"
+        "    gramlots = collections()\n\n"
+        f"class Page(module.Page, EnvironmentPage):\n{body}"
     )
 
 
@@ -83,11 +87,9 @@ def stage_tools(folder, *, remote_edit=False):
     (tools / "02-directory_tree.py").write_text(
         'from gramlot import Page as BasePage\n'
         'from gramlot.page import file_system_tree\n'
-        'from gramlot.collections.tree import mygramlot as tree\n'
         'from gramlot_py_server.filesystem import FileSystemPageMixin\n\n'
         'class Page(FileSystemPageMixin, BasePage):\n'
         '    title = "Browse a directory on disk"\n'
-        '    gramlots = [tree]\n'
         f'    filesystem_roots = ({str(documents)!r},)\n'
         '    def main(self, root):\n'
         '        pane = root.main(padding="16px", datapath="filesDemo")\n'

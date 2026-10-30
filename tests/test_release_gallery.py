@@ -3,17 +3,26 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+from unittest.mock import Mock
 
 import pytest
 
 SCRIPTS = Path(__file__).parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
 from serve_release_gallery import prepare_gallery
+from gramlot_py_server.gallery.base import service, cached_trial as cached_service
 
 
 @pytest.mark.parametrize("selection_trials,cached_trial", [(False,False),(True,False),(True,True)])
 def test_release_preview_mounts_mobile_without_private_pages(tmp_path, monkeypatch, selection_trials, cached_trial):
     monkeypatch.setattr(sys, 'path', list(sys.path))
+    # This test checks staging and public resource boundaries, not a local Base DB.
+    database_factory = Mock(return_value=Mock(spec=['close']))
+    cached_factory = Mock(return_value=Mock(spec=['close']))
+    monkeypatch.setattr(service, 'create_database', database_factory)
+    monkeypatch.setattr(cached_service, 'create_database', cached_factory)
+    monkeypatch.setattr(service, 'database', None, raising=False)
+    monkeypatch.setattr(service, 'cached_database', None, raising=False)
     module = tmp_path / 'modules/mobile_application'
     pages = module / 'pages'
     pages.mkdir(parents=True)
@@ -33,6 +42,13 @@ def test_release_preview_mounts_mobile_without_private_pages(tmp_path, monkeypat
     root = tmp_path / 'site'
     root.mkdir()
     resources, _ = prepare_gallery(root, tmp_path / 'customers.sqlite', module.parent, selection_trials=selection_trials, cached_trial=cached_trial, cached_threshold=1200)
+    database_factory.assert_called_once_with('asqueel')
+    assert service.database is database_factory.return_value
+    if cached_trial:
+        cached_factory.assert_called_once_with()
+        assert service.cached_database is cached_factory.return_value
+    else:
+        cached_factory.assert_not_called()
     assert '/mobile-application/device-provider.js' in resources
     assert '/mobile-application/private.p8' not in resources
     assert (root / 'mobile-application/app.py').exists()

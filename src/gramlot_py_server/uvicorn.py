@@ -5,14 +5,23 @@ from __future__ import annotations
 
 import asyncio
 
+import inspect
+import json
+import logging
 from functools import partial
 from pathlib import Path
 from typing import Any
+
+from genro_tytx import to_tytx
+from gramlot.server.upload import _UploadRegistry
 
 from gramlot_py_server import base
 from gramlot_py_server.store_channel import _StoreChannel
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
+
+
+logger = logging.getLogger(__name__)
 
 
 class _Disconnected(Exception):
@@ -62,8 +71,12 @@ class Application(base.Adapter):
     The HTTP rules, the same in every adapter, are those of ``gramlot_py_server.base``.
     """
 
-    def __init__(self, pages: str | Path, *, websocket: bool = False, **options: Any) -> None:
+    def __init__(self, pages: str | Path, *, websocket: bool = False, identity_provider=None, **options: Any) -> None:
+        if identity_provider is not None and not callable(identity_provider):
+            raise TypeError("identity_provider must be callable or None")
+        self.identity_provider = identity_provider
         super().__init__(pages, **options)
+        self.gramlot_server._uploads = _UploadRegistry()
         self._store_mutations = asyncio.Lock()
         self._store_channel = _StoreChannel(self.gramlot_server, self._invoke_store)
         self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
@@ -103,14 +116,26 @@ class Application(base.Adapter):
         elif self.mount_path and not path.startswith(self.mount_path + "/"):
             reply = self.reply(404, "Not found")
         else:
-            reply = await self.handle(base.Request(
-                method=scope.get("method", "GET").upper(),
-                path=path[len(self.mount_path):],
-                body=partial(self._body, receive),
-                query=query,
-                content_type=headers.get(b"content-type", b"").decode("latin-1"),
-                owner=self.owner_of(headers.get(b"cookie", b"").decode("latin-1")),
-            ))
+            relative = path[len(self.mount_path):]
+            method = scope.get("method", "GET").upper()
+            owner = self.owner_of(headers.get(b"cookie", b"").decode("latin-1"))
+            if relative == "/gramlot/upload":
+                reply = await self._upload(scope, headers, receive, owner) if method == "POST" else self.refuse("POST")
+            else:
+                identity = await self._identity(scope) if relative == self.gramlot_server.rpc_url and method == "POST" else None
+                body = partial(self._body, receive)
+                if relative == self.gramlot_server.close_url and method == "POST":
+                    data = await body()
+                    async def body():
+                        return data
+                reply = await self.handle(base.Request(
+                    method=method, path=relative, body=body, query=query,
+                    content_type=headers.get(b"content-type", b"").decode("latin-1"),
+                    owner=owner, identity=identity,
+                ))
+                if relative == self.gramlot_server.close_url and method == "POST" and reply.status == 200:
+                    payload = json.loads(data)
+                    await self.gramlot_server._uploads.close_page(payload["pageId"], owner)
         await self._send(send, reply)
 
     async def _websocket(self, scope, receive, send):
@@ -125,11 +150,75 @@ class Application(base.Adapter):
         while True:
             event = await receive()
             if event["type"] == "lifespan.startup":
+                self._upload_sweeper = asyncio.create_task(self._sweep_uploads())
                 await send({"type": "lifespan.startup.complete"})
             elif event["type"] == "lifespan.shutdown":
+                sweeper = getattr(self, "_upload_sweeper", None)
+                if sweeper:
+                    sweeper.cancel()
+                    await asyncio.gather(sweeper, return_exceptions=True)
+                await self.gramlot_server._uploads.close_all()
                 self.shutdown()
                 await send({"type": "lifespan.shutdown.complete"})
                 return
+
+    async def _identity(self, scope):
+        if self.identity_provider is None:
+            return None
+        value = self.identity_provider(scope)
+        return await value if inspect.isawaitable(value) else value
+
+    async def _upload(self, scope, headers, receive, owner):
+        media = headers.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
+        if media != b"application/octet-stream":
+            return self.reply(415, "Expected application/octet-stream")
+        server = self.gramlot_server
+        try:
+            page_id = headers[b"x-gramlot-page-id"].decode("ascii")
+            transfer_id = headers[b"x-gramlot-transfer-id"].decode("ascii")
+            token = headers[b"x-gramlot-upload-token"].decode("ascii")
+            transfer = server._upload_admit(page_id=page_id, owner=owner, identity=await self._identity(scope),
+                transfer_id=transfer_id, token=token)
+        except (KeyError, UnicodeError, PermissionError, LookupError, ValueError):
+            return self.reply(403, "Upload admission refused")
+        try:
+            while True:
+                event = await receive()
+                if event["type"] == "http.disconnect":
+                    raise ConnectionError("Upload disconnected")
+                chunk = event.get("body", b"")
+                for offset in range(0, len(chunk), 65536):
+                    await transfer.write(chunk[offset:offset + 65536])
+                    server._uploads.touch(transfer_id, page_id, owner)
+                if not event.get("more_body", False):
+                    break
+            result = await transfer.finish()
+            return self.reply(200, to_tytx(result), "application/json")
+        except asyncio.CancelledError:
+            try:
+                await asyncio.shield(transfer.abort())
+            finally:
+                raise
+        except Exception:
+            try:
+                await transfer.abort()
+            except Exception:
+                pass
+            return self.reply(400, "Upload did not complete; query its status")
+
+    async def _sweep_uploads(self):
+        while True:
+            await asyncio.sleep(30)
+            try:
+                server = self.gramlot_server
+                server._prune()
+                await server._uploads.expire()
+                records = list(server._uploads._records.values())
+                for page_id, owner in {(r["page_id"], r["owner"]) for r in records}:
+                    if page_id not in server._pages:
+                        await server._uploads.close_page(page_id, owner)
+            except Exception:
+                logger.exception("Upload cleanup failed; unresolved records are retained")
 
     @staticmethod
     async def _body(receive) -> bytes:

@@ -57,7 +57,7 @@ async def test_protocol_owner_limits_asset_and_close(tmp_path):
         page_id = argument["config"]["pageId"]
         assert argument["config"]["closeUrl"] == "/gramlot/close"
         assert argument["config"]["rpcUrl"] == "/gramlot/rpc"
-        assert argument["config"]["capabilities"] == []
+        assert argument["config"]["capabilities"] == ["upload"]
         assert (await client.get("/assets/gramlot.js")).status_code == 200
 
         async def rpc(sender, *args, **kwargs):

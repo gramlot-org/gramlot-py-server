@@ -104,8 +104,7 @@ the runtime URL and runs it with
 "resources": {"css": [url…], "js": [{"url", "group"}…]}}`. `config` also has
 `devices`, `locale` and `timeZone` when the page declares them; `resources` also
 has `collections` when the adapter has them. The URLs carry the
-mount prefix; `capabilities` is `[]` in every adapter of this package except
-Kajenn, where it is `["auth"]`. `nameSyntax` is the syntax of a method name that
+mount prefix; Uvicorn advertises `["upload"]`, Kajenn advertises `["auth"]`, and the other adapters advertise `[]`. `nameSyntax` is the syntax of a method name that
 the core server declares. `css` starts with the theme of the page (the base
 theme `/themes/gramlot-base/theme.css`), then the `Page.css` URLs and the
 companion stylesheet. The logic module, `<page>.js` or `<page>_aux.js`, when
@@ -155,3 +154,14 @@ Part B, once. Its names are common to every adapter:
 An adapter adds its routes, the translation of its framework request into a
 `Request`, the translation of a `Reply` into its response, and its shutdown.
 
+
+
+<a id="gp-120-025"></a>
+
+## 025 · Uploads and request identity
+
+Block ID: **GP-120-025**.
+
+Uvicorn `Application` supports the shared upload control protocol and accepts an optional `identity_provider`: a synchronous or asynchronous callable receiving the ASGI scope and returning the trusted identity for each RPC or binary upload request. The application owns authentication and record permissions. Without a provider the identity is `None`.
+
+The adapter streams bounded chunks to the application target. Its registry is process-local and does not survive a restart or coordinate multiple workers. It requests cleanup at page close, expiration and ASGI shutdown; an uncertain outcome is never proof that a file was not saved.

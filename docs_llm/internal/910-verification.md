@@ -631,8 +631,10 @@ weak-condition behavior remain unchanged. Original worktrees are preserved;
 Invoice application, package publication and deployment are excluded.
 
 
-<a id="gp-910-caption-field-20261101"></a>
-## Request caption_field verification — 2026-11-01
+<a id="gp-910-095"></a>
+## 095 · Request caption_field verification — 2026-11-01
+
+Block ID: **GP-910-095**.
 
 The common-base Asqueel selector accepts caption_field on search and identity
 lookup. It must name an already exposed field. Omission uses the registration
@@ -683,3 +685,16 @@ Evidence: /private/tmp/kajenn-89-upstream-tests.log,
 
 Imported from the preserved WebSocket worktree on 2026-11-01. This is dated
 evidence, not a fresh check of Kajenn upstream or a dependency change.
+
+
+### Release 0.3.25 qualification — 2026-11-01
+
+Owner authorized the complete common release. Fresh host suite: 355 passed,
+one skipped. Both documentation views build with strict identity/link checks.
+Paired Visual Editor and caption-field sections now carry numeric stable identities.
+Uvicorn browser checks pass per-file metadata, queueing, upload, preview and removal.
+The full Kajenn gallery passes Asqueel caption changes on Chromium/WebKit and a
+5,000-row cached selection with 200 browser rows and server sorting. Kajenn binary
+upload is not implemented; it remains a Uvicorn-only feature. Remote Edit is disabled.
+Wheel installation verifies version 0.3.25 and the matching packaged core/examples.
+Evidence: /private/tmp/gramlot-release-20261101/. Publication/deployment pending.

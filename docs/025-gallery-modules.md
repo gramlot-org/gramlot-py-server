@@ -91,8 +91,10 @@ still requires the same-origin HTTPS frontend and the Capacitor app; this runner
 does not bypass that check or install certificates. Production push and top-level
 shortcut prerequisites are not supplied. There is no automatic deployment.
 
-<a id="gp-025-visual-editor"></a>
-## Visual Editor documents
+<a id="gp-025-025"></a>
+## 025 · Visual Editor documents
+
+Block ID: **GP-025-025**.
 
 The gallery includes the reusable Visual Source editor. Its optional code panel
 uses `VisualEditorPageMixin` and `editor_source_files`, a host-owned map of document

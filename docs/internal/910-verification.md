@@ -647,3 +647,39 @@ unexposed fields. Chromium/WebKit exercise the gallery against read-only Postgre
 Full name → Code → Full name retains the selected state key and input instance.
 No database writes, migrations, publication or deployment. Evidence is retained in
 /private/tmp/gramlot-caption-completion/.
+
+
+**Historical record — Kajenn #89 verification, 2026-10-28.**
+Owner asks whether the issue is resolved and the asynchronous-cancellation
+limitation can be removed. The issue remains open, but
+[PR #93](https://github.com/kajenn-org/kajenn/pull/93) is merged into develop at
+6b023a5c6e5fcc09ce9b2af1564089f115f58103. Main still has the original
+run_in_executor implementation; the latest GitHub/PyPI release is still 0.7.0.
+The ordinary installed/public environments were not changed.
+
+Verified the official develop source in an isolated temporary environment:
+49 upstream pool/database-lifecycle tests pass, and all 84 Kajenn adapter tests
+pass against the published Gramlot integration. Four additional controlled tests
+exercise real async_db SQLite reads through the adapter's RPC call lifecycle,
+with Asqueel and SQLAlchemy and one/three cancellations while the executor operation
+is held active. All four pass on the corrected source: the task remains pending,
+busy stays accurate, and the event order is io_started, io_ended, release.
+All four fail on published Kajenn 0.7.0 with io_started, release_during_io,
+confirming that the probe detects the original defect.
+
+The implementation is therefore qualified for this regression on develop, but
+the limitation must remain for published integrations until Kajenn releases the
+fix. A follow-up can require the first fixed release, retain the regression tests
+and update the maintained limitation text. No Kajenn publication, dependency
+change or removal of the current warning was performed by this verification.
+Cancellation waits for work already running; it does not interrupt SQL or undo
+a completed commit. Django's unsupported async access is a separate limitation.
+
+Evidence: /private/tmp/kajenn-89-upstream-tests.log,
+/private/tmp/kajenn-89-fixed-integration.log,
+/private/tmp/kajenn-89-published-integration.log,
+/private/tmp/kajenn-89-adapter-tests.log. The isolated regression probe is
+/private/tmp/test_kajenn89_gramlot_async_io.py.
+
+Imported from the preserved WebSocket worktree on 2026-11-01. This is dated
+evidence, not a fresh check of Kajenn upstream or a dependency change.

@@ -121,7 +121,7 @@ def stage_tools(folder, *, remote_edit=False):
     return catalog, source
 
 
-def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None, *, remote_edit=False, modules=()) -> dict:
+def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverless_download_url: str | None = None, *, remote_edit=False, modules=(), editor_python=None) -> dict:
     """Write the pages of the gallery into ``folder``; return the assets to serve."""
     examples = examples_package()
     catalogs = [*catalogs, stage_tools(folder, remote_edit=remote_edit)]
@@ -149,6 +149,7 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
     for key, route in routes.items():
         if key == "index":
             continue
+        editor_config = key == "visual_source"
         key = route["url"]
         (folder / f"{key}.py").parent.mkdir(parents=True, exist_ok=True)
         (folder / f"{key}.py").write_text(subclass_module(route["page"], f"gramlot_gallery_{key}", (
@@ -157,6 +158,14 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
             "        super().main(root)\n"
             f"        root.script(src={prefix + '/gallery/dist/frame.js'!r})\n"
         )))
+        if editor_config and editor_python is not None:
+            page_file = folder / f"{key}.py"
+            with page_file.open('a') as stream:
+                stream.write("\nfrom gramlot_py_server.visual_editor import VisualEditorPageMixin\n")
+                stream.write("\nclass Page(VisualEditorPageMixin, Page):\n")
+                stream.write(f"    remote_edit = {remote_edit!r}\n")
+                target = str(Path(editor_python).resolve(strict=True))
+                stream.write(f"    editor_python = 'page'\n    editor_source_files = {{'page': {target!r}}}\n")
         if route["data"] is not None:
             shutil.copyfile(route["data"], folder / f"{key}_data.tytx")
         if route["stylesheet"] is not None:

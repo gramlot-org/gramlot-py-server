@@ -90,3 +90,23 @@ HTTP loopback is sufficient for ordinary browser checks. Native module activatio
 still requires the same-origin HTTPS frontend and the Capacitor app; this runner
 does not bypass that check or install certificates. Production push and top-level
 shortcut prerequisites are not supplied. There is no automatic deployment.
+
+<a id="gp-025-visual-editor"></a>
+## Visual Editor documents
+
+The gallery includes the reusable Visual Source editor. Its optional code panel
+uses `VisualEditorPageMixin` and `editor_source_files`, a host-owned map of document
+keys to Python files. `stage(..., editor_python=path)` maps one configured file to
+the Visual Editor route; the caller controls `remote_edit`, which defaults false.
+Never enable general gallery editing merely to expose one document.
+
+`editor_document` reads that configured document. `editor_document_save` requires
+remote editing, a matching revision and valid Python syntax; it writes the explicit
+draft only. `editor_document_preview` rereads the saved revision and invokes its
+Page.main with the existing builder/environment. No arbitrary client path is
+accepted. Preview executes trusted Python, not sandboxed user code; it does not
+install target endpoints or companion Logic.
+
+The optional `gramlot-examples/scripts/serve_visual_chat.py` launcher limits writable
+editing to its configured editor page. Its provider configuration is private runtime
+configuration and is not part of the public gallery. Public Remote Edit stays off.

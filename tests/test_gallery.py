@@ -191,3 +191,14 @@ class PageStore(BaseStore):
         assert store.data.get_item("record") == "loaded"
     finally:
         server.close_all()
+
+
+def test_visual_editor_host_file_mapping_is_explicit_and_optional(tmp_path):
+    source=tmp_path/'draft.py';source.write_text('class Page: pass')
+    target=tmp_path/'staged';target.mkdir()
+    stage(target, [], '', editor_python=source, remote_edit=True)
+    page=(target/'pages/07-tools/02-advanced/01-visual_source.py').read_text()
+    assert 'VisualEditorPageMixin' in page
+    assert "editor_python = 'page'" in page
+    assert repr(str(source)) in page
+    assert 'remote_edit = True' in page

@@ -50,26 +50,32 @@ class AsqueelSelect:
         self.database = database
         self.tables = {}
 
-    def register(self, name, table, *, identifier, caption, search=None,
+    def register(self, name, table, *, identifier, caption=None, search=None,
                  columns=(), order_by=(), filters=(), where=None, sqlparams=None):
         if name in self.tables:
             raise ValueError(f"Selection table already registered: {name}")
-        search = tuple(search) if search is not None else (caption,)
-        columns = tuple(dict.fromkeys((identifier, caption, *columns)))
-        ordering = tuple(order_by) or (caption, identifier)
-        fields = (identifier, caption, *search, *filters,
-                  *(field.removeprefix("-") for field in ordering))
-        if not search or any(not isinstance(field, str) or not _FIELD.fullmatch(field) for field in fields):
-            raise ValueError("Register simple key, caption, search, filter and ordering fields")
-        if any(not isinstance(field, str) or not _REFERENCE.fullmatch(field) for field in columns):
-            raise ValueError("Register model fields or relation paths")
-        if not set(field.removeprefix("-") for field in ordering).issubset(columns):
-            raise ValueError("Ordering fields must be exposed")
         parameters = dict(sqlparams or {})
         if any(name.startswith("selector_") for name in parameters):
             raise ValueError("selector_ parameters are reserved")
         with self.database.session() as session:
             model_table = session.table(table)
+            if caption is None:
+                caption = model_table.model.attributes.get('caption_field')
+                if caption is None:
+                    raise ValueError(f"Selection {name!r} requires caption or model caption_field")
+            if not isinstance(caption, str) or not _FIELD.fullmatch(caption):
+                raise ValueError("Selection caption must be a model field name")
+            search = tuple(search) if search is not None else (caption,)
+            columns = tuple(dict.fromkeys((identifier, caption, *columns)))
+            ordering = tuple(order_by) or (caption, identifier)
+            fields = (identifier, caption, *search, *filters,
+                      *(field.removeprefix("-") for field in ordering))
+            if not search or any(not isinstance(field, str) or not _FIELD.fullmatch(field) for field in fields):
+                raise ValueError("Register simple key, caption, search, filter and ordering fields")
+            if any(not isinstance(field, str) or not _REFERENCE.fullmatch(field) for field in columns):
+                raise ValueError("Register model fields or relation paths")
+            if not set(field.removeprefix("-") for field in ordering).issubset(columns):
+                raise ValueError("Ordering fields must be exposed")
             for field in (*fields, *columns):
                 if model_table.column(field) is None:
                     raise ValueError(f"Unknown registered field: {field}")

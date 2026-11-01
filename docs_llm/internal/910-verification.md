@@ -620,3 +620,12 @@ limits reject. Real HTTP typed decoding agrees across both pages at 1000/100000;
 cancellation and unowned page requests reject; retired comparison routes are 404.
 Core targeted loader/coordinator tests: 12 pass. No database writes or migrations
 are involved in this adoption; cachedFetch integration remains unchanged.
+
+
+Tree/dbSelect common-base checkpoint (2026-11-01): 337 adapter tests pass, one is
+skipped. The opt-in Asqueel relation explorer is covered by SQLite metadata/RPC
+tests (GP-915). Database-selector registration now uses the model's caption_field
+when no explicit provider caption is supplied; search, identity lookup, ordering,
+formula captions and explicit precedence have regressions. Query conditions and
+weak-condition behavior remain unchanged. Original worktrees are preserved;
+Invoice application, package publication and deployment are excluded.

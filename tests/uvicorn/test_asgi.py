@@ -402,3 +402,22 @@ async def test_the_lifespan_shutdown_forgets_every_page(tmp_path):
     await app({"type": "lifespan"}, receive, send)
     assert sent == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
     assert app.gramlot_server._pages == {}
+
+@pytest.mark.asyncio
+async def test_shared_markdown_asset_is_mapped_and_served_under_mount(tmp_path):
+    (tmp_path / 'index.py').write_text(PAGE)
+    app = create_application(tmp_path, mount_path='/py')
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url='http://test') as client:
+        html = (await client.get('/py/')).text
+        imports = json.loads(re.search(r'<script type="importmap"[^>]*>(.*?)</script>', html).group(1))['imports']
+        assert imports['@gramlot/gramlot/markdown'] == '/py/assets/gramlot-markdown.js'
+        url = '/py/assets/gramlot-markdown.js'
+        response = await client.get(url)
+        assert response.status_code == 200
+        assert response.headers['content-type'].startswith('text/javascript')
+        assert response.headers['cache-control'] == 'no-cache'
+        assert len(response.content) > 100000
+        head = await client.head(url)
+        assert head.status_code == 200 and head.content == b''
+        assert (await client.post(url)).status_code == 405

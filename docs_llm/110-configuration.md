@@ -195,3 +195,16 @@ All five adapters accept `collections=()` and forward it to the core server. Eac
 Collection browser resources are verified once at startup and served through fingerprinted URLs with `Cache-Control: public, max-age=31536000, immutable`. The fixed registry is discovered from page declarations. Page bootstrap includes only that page's collections. Restart after changing collection definitions. The runtime uses `no-cache` so browsers may store and revalidate it; other assets, HTML and RPC retain `no-store`.
 
 Known upstream limitation: Kajenn 0.5.0 rewrites `Content-Length` to zero on HEAD responses. GET content and caching remain correct. The other adapters preserve representation length. See [Kajenn issue 77](https://github.com/kajenn-org/kajenn/issues/77).
+
+
+<a id="gp-110-095"></a>
+## 095 · Optional Markdown resource
+
+Block ID: **GP-110-095**.
+
+The core's `markdown_url` is the sibling `gramlot-markdown.js` of `runtime_url`.
+The shared adapter serves this packaged resource through `send_file`, with
+JavaScript media type and `no-cache`. The bootstrap import map includes the
+mount prefix. The parser is fetched on first use, not because a collection is
+available. Deploy the corresponding wheel resources and collection artifacts
+together; no CDN fallback is used.

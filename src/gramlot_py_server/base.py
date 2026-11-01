@@ -249,6 +249,8 @@ class Adapter:
             return await self.send_file(request, resource, self.media_type(Path(resource.name)), "public, max-age=31536000, immutable")
         if path == "/app.webmanifest":
             return await self.manifest(request)
+        if path == server.markdown_url:
+            return await self.send_file(request, runtime_asset("gramlot-markdown.js"), JAVASCRIPT, NO_CACHE)
         if path == server.runtime_url:
             return await self.send_file(request, runtime_asset(), JAVASCRIPT, NO_CACHE)
         theme = server.theme_file(path)

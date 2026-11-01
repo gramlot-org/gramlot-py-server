@@ -150,6 +150,10 @@ class Page(DatabaseSelectors, BasePage):
         assert "error" not in result, result
         assert result["value"]["rows"] == [{"id": 3, "name": "Elena Bianchi", "city": "Trento"}]
         assert (await select(_id=0))["value"]["rows"][0]["id"] == 0
+        caption = await select(_id=0, caption_field='city')
+        assert caption['value'] == {'rows':[{'id':0,'city':'Torino'}], 'identifier':'id', 'caption':'city'}
+        assert (await select(_querystring='Tor', caption_field='city'))['value']['rows'] == [{'id':0,'city':'Torino'}]
+        assert 'error' in await select(_id=0, caption_field='secret')
         assert (await select(_id=9))["value"]["rows"] == []
         assert "error" in await select(_querystring="", hiddenColumns="secret")
         auxiliary = await select(_id=0, auxColumns='active', hiddenColumns='active')

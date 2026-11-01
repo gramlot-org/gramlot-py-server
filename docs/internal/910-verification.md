@@ -629,3 +629,21 @@ when no explicit provider caption is supplied; search, identity lookup, ordering
 formula captions and explicit precedence have regressions. Query conditions and
 weak-condition behavior remain unchanged. Original worktrees are preserved;
 Invoice application, package publication and deployment are excluded.
+
+
+<a id="gp-910-caption-field-20261101"></a>
+## Request caption_field verification — 2026-11-01
+
+The common-base Asqueel selector accepts caption_field on search and identity
+lookup. It must name an already exposed field. Omission uses the registration
+caption, whose default comes from the model. Explicit registration search/order
+remain independent; defaults follow the requested caption. Registration is not
+mutated. Response caption names the selected projection. Generic custom methods
+own their own implementation; SQLAlchemy and Django builtins are not extended.
+
+75 provider/endpoint regressions pass, including formula captions, model/registration
+precedence, hard/weak conditions, identity zero, auxiliary headers and invalid or
+unexposed fields. Chromium/WebKit exercise the gallery against read-only PostgreSQL:
+Full name → Code → Full name retains the selected state key and input instance.
+No database writes, migrations, publication or deployment. Evidence is retained in
+/private/tmp/gramlot-caption-completion/.

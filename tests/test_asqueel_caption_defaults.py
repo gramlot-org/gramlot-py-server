@@ -78,3 +78,42 @@ def test_invalid_model_caption_is_rejected():
     with caption_database('missing') as shared:
         with pytest.raises(ValueError, match='Unknown registered field: missing'):
             AsqueelSelect(shared).register('customers','demo.customer',identifier='id')
+
+
+def test_request_caption_overrides_registration_without_mutating_it():
+    with caption_database('name') as shared:
+        provider = AsqueelSelect(shared).register('customers', 'demo.customer',
+            identifier='id', columns=('code', 'display'))
+        result = provider.select(dbtable='customers', _querystring='', caption_field='code', auxColumns='name')
+        assert result['caption'] == 'code'
+        assert result['columns'] == ['code', 'name']
+        assert result['headers'] == ['Code', 'Customer']
+        assert [row['id'] for row in result['rows']] == [0, 1]
+        assert provider.select(dbtable='customers', _querystring='A01', caption_field='code')['rows'] == [{'id':0,'code':'A01'}]
+        assert provider.select(dbtable='customers', _id=0, caption_field='display')['rows'] == [{'id':0,'display':'Zoe (A01)'}]
+        assert provider.select(dbtable='customers', _querystring='Zoe')['caption'] == 'name'
+        assert provider.tables['customers'].caption == 'name'
+
+
+def test_request_caption_keeps_explicit_search_order_and_conditions():
+    with caption_database('name') as shared:
+        provider = AsqueelSelect(shared).register('customers', 'demo.customer', identifier='id',
+            caption='code', columns=('name',), search=('code',), order_by=('-id',), where='$id>=:minimum', sqlparams={'minimum':0})
+        result = provider.select(dbtable='customers', _querystring='A01', caption_field='name')
+        assert result['rows'] == [{'id':0,'name':'Zoe'}]
+        assert provider.select(dbtable='customers', _querystring='Zoe', caption_field='name')['rows'] == []
+        result = provider.select(dbtable='customers', _querystring='', caption_field='name')
+        assert [row['id'] for row in result['rows']] == [1,0]
+        result = provider.select(dbtable='customers', _id=0, caption_field='name', condition='$id=:allowed', allowed=1)
+        assert result['rows'] == [{'id':0,'name':'Zoe'}]
+        assert result['errors'] == 'Current value does not fit condition.'
+        result = provider.select(dbtable='customers', _querystring='A01', caption_field='name', condition='$id=:allowed', allowed=1, weakCondition=True)
+        assert result['rows'] == [{'id':0,'name':'Zoe'}]
+
+
+@pytest.mark.parametrize('field', ['', False, 1, [], 'missing', 'code', '$name', 'name; DROP TABLE customer'])
+def test_request_caption_cannot_expand_exposed_fields_or_fall_back(field):
+    with caption_database('name') as shared:
+        provider = AsqueelSelect(shared).register('customers', 'demo.customer', identifier='id')
+        with pytest.raises(ValueError, match='caption_field'):
+            provider.select(dbtable='customers', _querystring='', caption_field=field)

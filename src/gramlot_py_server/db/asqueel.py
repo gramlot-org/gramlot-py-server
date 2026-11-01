@@ -35,6 +35,8 @@ class _SelectionTable:
     identity_type: type
     expressions: dict
     headers: dict
+    default_search: bool
+    default_order: bool
 
 
 class AsqueelSelect:
@@ -54,6 +56,7 @@ class AsqueelSelect:
                  columns=(), order_by=(), filters=(), where=None, sqlparams=None):
         if name in self.tables:
             raise ValueError(f"Selection table already registered: {name}")
+        default_search, default_order = search is None, not order_by
         parameters = dict(sqlparams or {})
         if any(name.startswith("selector_") for name in parameters):
             raise ValueError("selector_ parameters are reserved")
@@ -93,11 +96,12 @@ class AsqueelSelect:
             identity_type = int if dtype in _INTEGER_DTYPES else str
         self.tables[name] = _SelectionTable(table, identifier, caption, search,
             tuple(projections), ordering, tuple(filters), where, parameters, identity_type,
-            projections, headers)
+            projections, headers, default_search, default_order)
         return self
 
     def select(self, *, dbtable, _querystring=_MISSING, _id=_MISSING,
                columns=None, hiddenColumns=None, auxColumns=None, order_by=None, limit=10,
+               caption_field=None,
                ignoreCase=True, condition=None, weakCondition=False, **filters):
         if dbtable not in self.tables:
             raise ValueError("Unknown selection table")
@@ -108,10 +112,15 @@ class AsqueelSelect:
         if type(ignoreCase) is not bool:
             raise TypeError("ignoreCase must be boolean")
         definition = self.tables[dbtable]
+        caption = definition.caption if caption_field is None else caption_field
+        if not isinstance(caption, str) or not _FIELD.fullmatch(caption) or caption not in definition.columns:
+            raise ValueError("caption_field must name an exposed selection field")
+        search_fields = (caption,) if definition.default_search else definition.search
+        default_order = (caption, definition.identifier) if definition.default_order else definition.order_by
         auxiliary = tuple(dict.fromkeys(field.removeprefix('$') for field in _names(auxColumns))) if auxColumns is not None else ()
         if any(not _REFERENCE.fullmatch(field) for field in auxiliary):
             raise ValueError('Auxiliary columns must be model fields or relation paths')
-        ordering = _names(order_by) if order_by is not None else definition.order_by
+        ordering = _names(order_by) if order_by is not None else default_order
         if not ordering or not set(field.removeprefix("-") for field in ordering).issubset(definition.columns):
             raise ValueError("Ordering field is not exposed by this selection")
         if condition is not None and (not isinstance(condition, str) or not condition.strip()):
@@ -161,7 +170,7 @@ class AsqueelSelect:
                     column = table.column(field)
                     headers[name] = (column.attributes.get('name_short')
                                      or column.attributes.get('name_long') or column.name)
-            projected = tuple(dict.fromkeys((definition.identifier, definition.caption,
+            projected = tuple(dict.fromkeys((definition.identifier, caption,
                 *(_names(columns) if columns is not None else ()),
                 *(_names(hiddenColumns) if hiddenColumns is not None else ()), *visible)))
             if not set(projected).issubset(projections):
@@ -190,7 +199,7 @@ class AsqueelSelect:
             else:
                 parameters["selector_query"] = _querystring
                 needle = "LOWER(:selector_query)" if ignoreCase else ":selector_query"
-                expressions = [f"COALESCE(CAST(${field} AS TEXT),'')" for field in definition.search]
+                expressions = [f"COALESCE(CAST(${field} AS TEXT),'')" for field in search_fields]
                 if ignoreCase:
                     expressions = [f"LOWER({expression})" for expression in expressions]
                 prefix = " OR ".join(f"SUBSTR({expr},1,LENGTH({needle})) = {needle}" for expr in expressions)
@@ -205,12 +214,12 @@ class AsqueelSelect:
                     rows = search((hard,))
         for row in rows:
             _identity(row[definition.identifier], definition.identity_type)
-            if not isinstance(row[definition.caption], str):
+            if not isinstance(row[caption], str):
                 raise TypeError("Selection caption must be text")
-        result = {"rows": rows, "identifier": definition.identifier, "caption": definition.caption}
+        result = {"rows": rows, "identifier": definition.identifier, "caption": caption}
         if errors:
             result['errors'] = errors
         if auxColumns is not None:
-            display = list(dict.fromkeys((definition.caption, *(_names(columns) if columns else ()), *visible)))
+            display = list(dict.fromkeys((caption, *(_names(columns) if columns else ()), *visible)))
             result.update(columns=display, headers=[headers[field] for field in display])
         return result

@@ -700,8 +700,10 @@ Wheel installation verifies version 0.3.25 and the matching packaged core/exampl
 Evidence: /private/tmp/gramlot-release-20261101/. Publication/deployment pending.
 
 
-<a id="gp-910-20261103-selector-wire"></a>
-## 2026-11-03 · SQLAlchemy wire keys and preview environment
+<a id="gp-910-100"></a>
+## 100 · SQLAlchemy wire keys and preview environment — 2026-11-03
+
+Block ID: **GP-910-100**.
 
 Owner requested resolution of the preview blockers during consolidation. SQLAlchemy
 rows now use the registered projection names as wire keys, instead of leaking

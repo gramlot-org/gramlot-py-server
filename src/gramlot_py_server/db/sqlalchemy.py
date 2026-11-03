@@ -99,7 +99,8 @@ class SQLAlchemySelect:
         with self.engine.connect() as connection:
             def fetch(predicate=None):
                 selected = statement if predicate is None else statement.where(predicate)
-                return [dict(row) for row in connection.execute(selected).mappings()]
+                return [{field: row[field] for field in projected}
+                        for row in connection.execute(selected).mappings()]
             if _id is not _MISSING or _querystring == "":
                 rows = fetch()
             else:

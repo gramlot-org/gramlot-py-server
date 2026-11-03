@@ -698,3 +698,21 @@ The full Kajenn gallery passes Asqueel caption changes on Chromium/WebKit and a
 upload is not implemented; it remains a Uvicorn-only feature. Remote Edit is disabled.
 Wheel installation verifies version 0.3.25 and the matching packaged core/examples.
 Evidence: /private/tmp/gramlot-release-20261101/. Publication/deployment pending.
+
+
+<a id="gp-910-20261103-selector-wire"></a>
+## 2026-11-03 · SQLAlchemy wire keys and preview environment
+
+Owner requested resolution of the preview blockers during consolidation. SQLAlchemy
+rows now use the registered projection names as wire keys, instead of leaking
+SQLAlchemy `_truncated_label` / `quoted_name` objects from RowMapping. Joined and
+aliased rows round-trip through TYTX for both search and identity lookup. No
+serializer or dependency workaround was introduced.
+
+Checks: 24 focused selector tests, then 355 full server tests passed (one skipped).
+Initial missing Asqueel/Kajenn and CLI entry points were local installation gaps;
+the preview environment was repaired with unpinned official packages and the
+primary server installation. Browser checks passed SQLAlchemy selection/caption/
+locality/state, Asqueel state filtering, PageStore/WebSocket and echo chat. A
+separate SQLite backup passed load/save; original database records were untouched.
+No package publication or deployment is part of this consolidation.

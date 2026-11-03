@@ -68,6 +68,10 @@ def test_sqlalchemy_state_name_preserves_customers_without_state():
                 {'id':2,'name':'Beta','state_name':None}]
         assert provider.select(dbtable='customers', _id=2,
             hiddenColumns='state_name')['rows'][0]['state_name'] is None
+        from genro_tytx import from_tytx, to_tytx
+        for lookup in ({'_querystring': ''}, {'_id': 2}):
+            result = provider.select(dbtable='customers', hiddenColumns='state_name', **lookup)
+            assert from_tytx(to_tytx(result)) == result
     finally:
         engine.dispose()
 

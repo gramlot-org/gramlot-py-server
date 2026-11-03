@@ -256,7 +256,7 @@ document folders are preserved. Opening a Python document never executes it.
 
 By default, changes stay in the browser draft. Undo, Redo and Revert remain
 available, but Save is disabled and the host rejects document writes. To allow
-explicit saving **inside the temporary sample workspace**, start a local gallery:
+explicit saving of gallery lesson sources and files in the temporary sample workspace, start a local gallery:
 
 ```console
 gramlot uvicorn gallery --remote-edit
@@ -264,8 +264,10 @@ gramlot uvicorn gallery --remote-edit
 
 The same flag is available for Django, Flask, FastAPI and Kajenn. It is a server
 startup option, not a client preference or an authentication mechanism. Leave it
-off on the public demo. Restarting the gallery resets the sample workspace even
-when saving was enabled. The flag does not enable editing gallery source pages.
+off on the public demo. Save writes lesson sources to the installed examples
+location; use an editable source checkout to keep your own copy. The preview
+reloads and executes the updated Python page. Restarting the gallery resets
+the IDE sample workspace even when saving was enabled.
 
 The reusable `gramlot_py_server.ide.stage_ide(pages, roots=[...], remote_edit=False)`
 stages the IDE using Page.gramlots and the standard bootstrap. `FileSystemPageMixin`

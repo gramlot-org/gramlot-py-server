@@ -53,7 +53,7 @@ def subclass_module(original: Path, name: str, body: str) -> str:
         "from gramlot_examples.gallery.collections import collections\n\n"
         f"spec = importlib.util.spec_from_file_location({name!r}, {str(original)!r})\n"
         "module = importlib.util.module_from_spec(spec)\n"
-        "spec.loader.exec_module(module)\n"
+        "exec(compile(spec.loader.get_source(spec.name), spec.origin, 'exec'), module.__dict__)\n"
         "if 'PageStore' in vars(module):\n"
         "    PageStore = module.PageStore\n\n\n"
         "class EnvironmentPage(GramlotPage):\n"
@@ -144,6 +144,10 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
         f"    serverless_download_url = {serverless_download_url!r}\n"
         f"    logoUrl = {prefix + '/assets/branding/svg/gramlot-horizontal-primary.svg'!r}\n"
     )))
+    with (folder / "index.py").open("a", encoding="utf-8") as stream:
+        stream.write("\nfrom gramlot_py_server.gallery.source_editing import GallerySourceEditing\n")
+        stream.write("\nclass Page(GallerySourceEditing, Page):\n")
+        stream.write(f"    remote_edit = {remote_edit!r}\n")
     (folder / "index_aux.js").write_text(f"export {{Logic}} from {json.dumps(prefix + '/gallery/dist/gallery.js')};\n")
     gallery_urls = {key: prefix + "/" + route["url"] for key, route in routes.items() if key != "index"}
     for key, route in routes.items():
@@ -190,7 +194,7 @@ def add_gallery(verbs, environment: str, serve) -> None:
     parser.add_argument("--serverless-download", help="URL of an offline gallery ZIP served by the deployment")
     if environment in {"uvicorn", "kajenn"}:
         parser.add_argument("--websocket", action="store_true", help="enable the shared PageStore channel")
-    parser.add_argument("--remote-edit", action="store_true", help="allow saving in the disposable IDE sample workspace")
+    parser.add_argument("--remote-edit", action="store_true", help="allow saving gallery source and the disposable IDE sample workspace")
     parser.set_defaults(run=lambda options: run_gallery(environment, serve, options))
 
 
@@ -205,6 +209,7 @@ def run_gallery(environment: str, serve, options) -> int:
         print(f"Gramlot gallery ({environment}): http://{options.host}:{options.port}{prefix}/", flush=True)
         try:
             serve(Path(folder), host=options.host, port=options.port, mount_path=prefix, assets=assets,
+                  **({"reload": True} if options.remote_edit else {}),
                   **({"websocket": options.websocket} if environment in {"uvicorn", "kajenn"} else {}))
         except ModuleNotFoundError as error:
             if error.name != "uvicorn":

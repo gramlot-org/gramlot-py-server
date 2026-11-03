@@ -11,6 +11,8 @@ extensions = ["myst_parser"]
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 exclude_patterns = ["_build", ".DS_Store", "internal"]
 html_theme = "sphinx_rtd_theme"
+html_static_path = [str(Path(__file__).resolve().parent / "_static")]
+html_css_files = ["manual.css"]
 html_logo = "_static/gramlot-logo.svg"
 
 

@@ -1,0 +1,26 @@
+/* Wrap explanatory prose, but keep API names and pointer expressions intact. */
+.rst-content .wy-table-responsive table td,
+.rst-content .wy-table-responsive table th { white-space: normal; }
+.rst-content code.literal {
+    color: #263445;
+    background: #edf2f7;
+    border-color: #dce2e8;
+    font-size: 1em;
+    font-weight: 600;
+    padding: 0.12em 0.3em;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.rst-content a code.literal { color: inherit; }
+.rst-content .wy-table-responsive { overflow-x: auto; }
+.rst-content pre,
+.rst-content div[class^="highlight"] pre {
+    font-size: 1rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-wrap: normal;
+    word-break: normal;
+    overflow-x: auto;
+}

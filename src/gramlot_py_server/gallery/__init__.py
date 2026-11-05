@@ -159,8 +159,8 @@ def stage(folder: Path, catalogs: list[tuple[Path, Path]], prefix: str, serverle
         (folder / f"{key}.py").write_text(subclass_module(route["page"], f"gramlot_gallery_{key}", (
             f"    gallery_urls = {gallery_urls!r}\n"
             "    def main(self, root):\n"
-            "        super().main(root)\n"
-            f"        root.script(src={prefix + '/gallery/dist/frame.js'!r})\n"
+            + ("        super().main(root.main(class_='example-page stack'))\n" if route.get("presentation") == "content" else "        super().main(root)\n")
+            + f"        root.script(src={prefix + '/gallery/dist/frame.js'!r})\n"
         )))
         if editor_config and editor_python is not None:
             page_file = folder / f"{key}.py"

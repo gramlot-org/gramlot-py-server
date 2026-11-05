@@ -38,6 +38,9 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     assert f'{prefix}/gallery/dist/gallery.js' in (tmp_path / "index_aux.js").read_text()
     assert "07-tools" in (tmp_path / ".gallery-tools/catalog.json").read_text()
     assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/00-html_svg/01-html_basics/01-hello_world.py").read_text()
+    assert "super().main(root.main(class_='example-page stack'))" in (tmp_path / "pages/00-html_svg/01-html_basics/01-hello_world.py").read_text()
+    assert "super().main(root)" in (tmp_path / "pages/05-grid_editable/10_editing.py").read_text()
+    assert "super().main(root)" in (tmp_path / "pages/06-editors/03-html.py").read_text()
     stub = (tmp_path / "pages/03-controllers/01-logic/03-named_logic_aux.js").read_text()
     assert stub == f'export * from "{prefix}/pages/03-controllers/01-logic/03-named_logic.js";\n'
     assert assets["/pages/03-controllers/01-logic/03-named_logic.js"]["type"] == "text/javascript; charset=utf-8"
@@ -155,6 +158,21 @@ def test_directory_tool_is_read_only_and_bounded_to_samples(tmp_path):
         page.directory_tree(str(tmp_path))
     with pytest.raises(PermissionError):
         page.document_create(root, "unwanted.txt", "no")
+
+
+def test_gallery_content_frame_owns_the_example_layout(tmp_path):
+    from gramlot.server import GramlotFileServer
+    from gramlot_examples.gallery.collections import collections
+
+    stage(tmp_path, [], "")
+    page = GramlotFileServer(tmp_path).resolve_page("pages/00-html_svg/01-html_basics/01-hello_world")()
+    grammars = [json.loads(item.verify()[item.grammar]) for item in collections()]
+    builder = page.source_builder("main", collections=grammars)
+    page.main(builder.root)
+    container = builder.source.nodes[0]
+    assert container.node_tag == "main"
+    assert container.attr["class_"] == "example-page stack"
+    assert [child.node_tag for child in container.value.nodes] == ["h1", "p"]
 
 
 @pytest.mark.asyncio

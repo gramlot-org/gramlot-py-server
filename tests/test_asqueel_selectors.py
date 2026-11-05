@@ -197,3 +197,12 @@ def test_condition_binding_and_retry_does_not_fill_partial_results(provider):
         db.select(dbtable='customers',_querystring='',condition='$city=:city',city='Torino',enabled=0)
     with pytest.raises(ValueError,match='server-owned'):
         db.select(dbtable='customers',_querystring='',condition='$city=:city',city='Torino',selector_id=9)
+
+
+def test_complete_checkbox_option_list_keeps_filters(provider):
+    db, _ = provider
+    complete = db.select(dbtable="customers", _querystring="", limit=None)
+    assert len(complete["rows"]) > 1
+    assert len(db.select(dbtable="customers", _querystring="", limit=1)["rows"]) == 1
+    assert all(row["id"] != 9 for row in complete["rows"])
+    assert len(db.select(dbtable="customers", _querystring="", limit=None, city="Firenze")["rows"]) == 1

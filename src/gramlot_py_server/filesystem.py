@@ -1,5 +1,6 @@
 """Host filesystem endpoints for the reusable Gramlot filesystem tree and IDE."""
 from pathlib import Path, PurePosixPath
+import base64
 import hashlib
 import os
 import stat
@@ -7,12 +8,53 @@ import tempfile
 import threading
 
 from genro_bag import Bag
-from gramlot import endpoint
+from genro_tytx import from_tytx, to_tytx
+from gramlot import endpoint, upload
+from gramlot.server import UploadTarget
 
 _WRITE_LOCK = threading.Lock()
+_IMAGE_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}
 _LANGUAGES = {'.py':'python', '.js':'javascript', '.mjs':'javascript', '.ts':'typescript',
               '.json':'json', '.html':'html', '.css':'css', '.xml':'xml', '.md':'markdown',
               '.markdown':'markdown', '.sql':'sql', '.typ':'typst'}
+
+
+class WorkspaceImageTarget(UploadTarget):
+    """Write one image atomically into the selected workspace without replacement."""
+    def __init__(self, root, name, max_bytes):
+        super().__init__(max_bytes=max_bytes)
+        self.root = root
+        self.name = name
+        self.file = tempfile.NamedTemporaryFile(dir=root, prefix='.gramlot-upload-', delete=False)
+        self.temporary = Path(self.file.name)
+        self.outcome = {'state': 'pending'}
+
+    def write(self, chunk):
+        self.file.write(chunk)
+
+    def finish(self):
+        self.file.flush()
+        os.fsync(self.file.fileno())
+        self.file.close()
+        try:
+            os.link(self.temporary, self.root / self.name)
+        except FileExistsError:
+            self.outcome = {'state': 'unsaved'}
+            raise ValueError('File already exists. Choose another image name.')
+        finally:
+            self.temporary.unlink(missing_ok=True)
+        self.outcome = {'state': 'completed', 'result': {'root': str(self.root), 'path': self.name}}
+        return self.outcome
+
+    def abort(self):
+        if self.outcome['state'] != 'completed':
+            self.file.close()
+            self.temporary.unlink(missing_ok=True)
+            self.outcome = {'state': 'unsaved'}
+        return self.outcome
+
+    def status(self):
+        return self.outcome
 
 
 class FileSystemPageMixin:
@@ -49,6 +91,21 @@ class FileSystemPageMixin:
             raise ValueError('Not a regular file')
         return current
 
+    @upload
+    def workspace_upload(self, metadata):
+        if not self.remote_edit:
+            raise PermissionError('Remote editing is disabled by the host')
+        root = self._root(metadata['context']['root'])
+        name = metadata['name']
+        if not isinstance(name, str) or not name or name in {'.', '..'} or '/' in name or '\\' in name:
+            raise ValueError('Expected an image file name')
+        suffix = Path(name).suffix.lower()
+        if suffix not in _IMAGE_TYPES or metadata['mediaType'].lower() != _IMAGE_TYPES[suffix]:
+            raise ValueError('Choose a PNG, JPEG or WebP image')
+        if (root / name).exists() or (root / name).is_symlink():
+            raise ValueError('File already exists. Choose another image name.')
+        return WorkspaceImageTarget(root, name, self.filesystem_max_bytes)
+
     @endpoint
     def workspace_open(self, root):
         root = str(self._root(root))
@@ -83,6 +140,26 @@ class FileSystemPageMixin:
     @endpoint
     def document_read(self, root, path):
         file = self._path(root, path)
+        media_type = _IMAGE_TYPES.get(file.suffix.lower())
+        if media_type:
+            with file.open('rb') as stream:
+                raw = stream.read(self.filesystem_max_bytes + 1)
+            if len(raw) > self.filesystem_max_bytes:
+                raise ValueError('Image exceeds the workspace size limit')
+            relative = PurePosixPath(path)
+            companion = relative.with_name(relative.stem + '_' + relative.suffix[1:] + '.ant.tytx')
+            companion_file = file.with_name(companion.name)
+            if companion_file.is_symlink():
+                raise PermissionError('Symbolic links are not exposed')
+            if companion_file.exists():
+                companion_raw, content = self._read(self._path(root, companion.as_posix()))
+                revision = hashlib.sha256(companion_raw).hexdigest()
+            else:
+                content = to_tytx(Bag())
+                revision = None
+            image = 'data:' + media_type + ';base64,' + base64.b64encode(raw).decode('ascii')
+            return dict(path=path, content=from_tytx(content), revision=revision, writable=bool(self.remote_edit),
+                        language='image', image=image, annotationPath=companion.as_posix())
         raw, content = self._read(file)
         return dict(path=path, content=content, revision=hashlib.sha256(raw).hexdigest(),
                     writable=bool(self.remote_edit), language=_LANGUAGES.get(file.suffix.lower(), 'text'))
@@ -92,6 +169,8 @@ class FileSystemPageMixin:
         """Publish a new text file atomically without replacing an existing entry."""
         if not self.remote_edit:
             raise PermissionError('Remote editing is disabled by the host')
+        if isinstance(path, str) and path.endswith('.ant.tytx') and isinstance(content, Bag):
+            content = to_tytx(content)
         if not isinstance(content, str) or '\0' in content:
             raise ValueError('Expected UTF-8 text')
         raw = content.encode('utf-8')
@@ -131,6 +210,8 @@ class FileSystemPageMixin:
     def document_save(self, root, path, content, revision):
         if not self.remote_edit:
             raise PermissionError('Remote editing is disabled by the host')
+        if isinstance(path, str) and path.endswith('.ant.tytx') and isinstance(content, Bag):
+            content = to_tytx(content)
         if not isinstance(content, str) or '\0' in content:
             raise ValueError('Expected UTF-8 text')
         raw = content.encode('utf-8')

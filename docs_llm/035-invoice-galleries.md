@@ -293,3 +293,91 @@ all nine limits against independent SQL; verify_selection_trial_http.mjs decodes
 JSONL from both the floating page and timing page at 1000/100000, compares every
 attribute and checks cancellation, ownership and old-route 404. Ordinary RPC and
 its payload handling are unaffected; no public adapter-wide wire contract changes.
+
+
+Local chart report qualification (2026-11-04) uses the shared ChartPane and
+FrameGrid against ordinary dataRpc results. ChartReportPage in gramlot-examples
+owns the page composition; SalesCharts owns the read-only Asqueel invoice query.
+The core owns chart rendering, column discovery, filtering and configuration.
+No new transport or database API is introduced.
+
+From an environment with the current integration checkouts available, run:
+
+```sh
+python -m gramlot_py_server.gallery.base.chart_reports --geojson /path/to/australia-states.geojson --port 8901
+```
+
+The GeoJSON must contain territory names in properties.name matching the report's
+territory column. Open /index for invoice data, /attributes and /values for the
+deterministic store variants. Two charts share the filtered store and keep
+independent configuration. Choose 2030 for an empty result, 2022 for an unavailable
+annual comparison, then 2025 to recover. Fixture year 2023 also changes columns.
+The displayed period describes the last successful result, including after an
+error. All database sessions are verified read-only.
+
+Repeat browser qualification with an installed Playwright entry module:
+
+```sh
+node scripts/verify_chart_reports.mjs /path/to/playwright/index.mjs http://127.0.0.1:8901 /tmp/chart-report-check
+```
+
+Chromium and WebKit cover all three routes: reload, shared filter, retained chart
+identity and configuration, schema change, empty recovery and error retention.
+Focused provider tests are in tests/test_sales_charts.py. The launcher stages only
+host injection; maintained pages remain in gramlot-examples. This is local
+integration qualification, not a published release or cross-adapter qualification.
+
+
+Chart composition update — 2026-11-05: the report examples now use the shared
+chartPane JavaScript Source composition through the thin Python ChartPane entry.
+Charts no longer calculate aggregations; SalesCharts still supplies prepared
+state totals, distinct-customer ratios and annual changes. The configuration
+contains no aggregation option. Browser qualification uses the composed child
+views and covers all three routes in Chromium and WebKit. The standard drawer,
+measure configuration, filtering, schema changes and reload recovery remain.
+
+
+<a id="gp-035-075"></a>
+## 075 · Streaming chart qualification — 2026-11-05
+
+Block ID: **GP-035-075**.
+
+The chart_reports launcher also stages the canonical examples page and browser
+Logic for /streaming. It simulates two sine curves locally through a 600-row Data
+Bag and the standard timed controller. No WebSocket or database streaming endpoint
+is added. uPlot uses the shared chartPane configurator; ECharts, Plotly and Vega
+can display the same line data. Frequency controls request 2/10/30/60 updates per
+second; the observed counter reports timer frequency, not rendering FPS.
+
+```sh
+node scripts/verify_chart_streaming.mjs /path/to/playwright/index.mjs http://127.0.0.1:8901 /tmp/chart-stream-check
+```
+
+Chromium/WebKit qualification covers bounded data, pause/reset/resume, retained
+canvas for data updates, four-engine switching, retained configuration and resize.
+Observed timer rates in the local run: 2 Hz in both browsers; at a requested 60 Hz,
+62.5 Hz in Chromium and 50 Hz in WebKit. These are environment-specific observations,
+not performance guarantees. The existing report qualification remains separate.
+
+<a id="gp-035-080"></a>
+## 080 · Original chart reports inside the gallery
+
+Block ID: **GP-035-080**.
+
+Add `--gallery` to the chart report launcher to expose the common Charts lessons
+and seven original reports through Example, Explanation and Code tabs:
+
+```sh
+python -m gramlot_py_server.gallery.base.chart_reports --gallery \
+  --geojson /path/to/australia-states.geojson \
+  --localities /path/to/sal --port 8901
+```
+
+Both geography sources are required in gallery mode. The existing SalesCharts
+and SalesGeography providers perform the live queries; no replacement dataset
+is injected. Attribute/value rows and monthly snapshots remain explicitly
+labelled prepared fixtures. The streaming example generates its signal locally.
+The standalone report URLs remain available when `--gallery` is omitted.
+Gallery metadata and lessons live beside the original pages in gramlot-examples.
+This launcher requires the configured Asqueel demonstration database and is not
+an offline/serverless export of the live reports.

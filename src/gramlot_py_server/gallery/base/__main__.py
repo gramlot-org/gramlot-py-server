@@ -28,7 +28,7 @@ def main():
         page=folder/'pages/80-database/01-customers.py'
         page.write_text(page.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
         if args.backend == 'asqueel':
-            for path in ('81-asqueel/01-state_customers', '82-grid-database/01-customers', '82-grid-database/02-invoice_rows'):
+            for path in ('81-asqueel/01-state_customers', '81-asqueel/02-checkbox_customers', '82-grid-database/01-customers', '82-grid-database/02-invoice_rows'):
                 dependent = folder/f'pages/{path}.py'
                 dependent.write_text(dependent.read_text()+"\nfrom gramlot_py_server.gallery.base.service import database\nPage.database = database\n")
         if args.backend != 'asqueel':

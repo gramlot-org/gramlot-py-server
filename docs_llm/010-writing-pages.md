@@ -197,3 +197,20 @@ not mutate application classes shared with another host. Explicit extra page
 collections still accumulate. The gallery supplies its environment selection.
 Component definitions load at bootstrap; external editor/compiler engines use
 verified dynamic module files and load only on first use on HTTP hosts.
+
+
+<a id="gp-010-045"></a>
+## 045 · Complete checkbox option lists
+
+Block ID: **GP-010-045**.
+
+`checkBoxText(dbtable=..., popup=True)` uses the configured `DatabaseSelectors`
+service. The request contains `_querystring=""` and `limit=None`: SQLAlchemy,
+Django and Asqueel providers return the complete eligible list, preserving their
+registered tables, fields, filters and ordering. An ordinary `dbSelect` continues
+to request a positive limit. SQL `condition` remains Asqueel-only.
+
+For `checkBoxText(method=...)`, the application endpoint returns the complete
+`{rows, identifier, caption}` response. There is no search or paging in this
+component. Use bounded option sets, rather than loading an unrestricted large
+table. Missing selected codes remain in Data when the option list changes.

@@ -39,7 +39,7 @@ import_module('gramlot_py_server.' + framework).serve(
 """
 # The conformance cases: no mount prefix, no policy and a short page_ttl for the check of the expiry
 # (GC-230 item 18, which takes about 2.5 times page_ttl), a mount prefix and the strict policy.
-PAGE_TTL = 2
+PAGE_TTL = 3
 CASES = [("", None, PAGE_TTL), ("/py", STRICT_CSP, None)]
 CASE_IDS = ["root-and-page-ttl", "mount-and-policy"]
 

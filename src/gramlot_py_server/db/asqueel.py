@@ -107,8 +107,8 @@ class AsqueelSelect:
             raise ValueError("Unknown selection table")
         if (_querystring is _MISSING) == (_id is _MISSING):
             raise ValueError("Supply exactly one of _querystring or _id")
-        if type(limit) is not int or limit < 1:
-            raise ValueError("limit must be a positive integer")
+        if limit is not None and (type(limit) is not int or limit < 1):
+            raise ValueError("limit must be a positive integer or None for the complete option list")
         if type(ignoreCase) is not bool:
             raise TypeError("ignoreCase must be boolean")
         definition = self.tables[dbtable]

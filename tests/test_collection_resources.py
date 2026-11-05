@@ -1,5 +1,7 @@
 """Verified startup resources and page-specific bootstrap across all adapters."""
 import re
+from collections import Counter
+from gramlot.collection import standard_collections
 from urllib.error import HTTPError
 from urllib.parse import unquote, urlsplit
 from urllib.request import Request, urlopen
@@ -16,7 +18,7 @@ def pages(folder):
 
 
 def module_url(document):
-    return re.search(r'"url":"([^"]+/assets/index.js)"', document).group(1)
+    return re.search(r'"name":"inputs","url":"([^"]+/assets/index.js)"', document).group(1)
 
 
 @pytest.mark.parametrize('framework', ['uvicorn', 'django', 'flask', 'fastapi', 'kajenn'])
@@ -24,7 +26,7 @@ def test_verified_resources_through_every_adapter(tmp_path, framework):
     pages(tmp_path)
     with served(framework, tmp_path, '/demo', None) as base:
         with urlopen(base + '/') as response:
-            assert '"collections":[]' in response.read().decode()
+            assert '"name":"inputs"' in response.read().decode()
         with urlopen(base + '/input') as response:
             module = module_url(response.read().decode())
         origin = urlsplit(base)
@@ -57,10 +59,10 @@ async def test_registry_is_verified_once_and_reused(tmp_path, monkeypatch):
         return original(self)
     monkeypatch.setattr(type(collection), 'verify', counted)
     adapter = Adapter(tmp_path)
-    assert calls == [collection.name]
+    assert Counter(calls) == Counter(c.name for c in standard_collections())
     first = await adapter.gramlot_server.open_page('/input')
     # First use prepares and verifies the Python grammar; later openings reuse it.
-    assert calls == [collection.name, collection.name]
+    assert Counter(calls) == Counter({c.name: 2 for c in standard_collections()})
     calls.clear()
     second = await adapter.gramlot_server.open_page('/input')
     assert first.page_id != second.page_id

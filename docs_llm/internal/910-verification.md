@@ -10,6 +10,8 @@ Derived from a guide of the archived gramlot-uvicorn repository.
 
 ## 005 · Automated checks
 
+IDE image annotations, 2026-11-05: document_read returns PNG/JPEG/WebP images and their separately stored TYTX annotation Bag. The existing workspace size limit and Remote Edit gate apply; document_create and document_save retain exclusive creation and revision checks. Existing filesystem and image-companion tests pass (8), as do the Uvicorn IDE checks (3); Chromium and WebKit verified save, original-image preservation and reopening against the updated server and core runtime, including a server restart. The documentation checker is blocked by an existing identity inconsistency in the modified GP-010 pair. IDE upload now uses the shared uploader and an application-owned workspace target, preserving the original and refusing existing names. Nine filesystem/image tests and three Uvicorn IDE tests pass; Chromium/WebKit verified upload, annotate, save and reopen.
+
 Block ID: **GP-910-005**.
 
 The tests live in `tests/<framework>/`, one folder per adapter. Each folder holds
@@ -718,3 +720,44 @@ primary server installation. Browser checks passed SQLAlchemy selection/caption/
 locality/state, Asqueel state filtering, PageStore/WebSocket and echo chat. A
 separate SQLite backup passed load/save; original database records were untouched.
 No package publication or deployment is part of this consolidation.
+
+
+<a id="gp-910-105"></a>
+## 105 · Australian temporal report — 2026-11-05
+
+Block ID: **GP-910-105**.
+
+The host-provided australian_timeline page composes standard FrameGrid(searchOn=True), ChartPane, Data Bags and dataRpc. Read-only server preparation offers month or day by territory, with revenue, invoices, quantity and distinct customers per period. Revenue and invoices are selected initially on independent axes; quantity can be added from the shared measure menu. No local search, chart, filtering or playback implementation exists. Temporal step slices prepared records and does not aggregate them; daily customer counts cannot be summed into distinct monthly customers. Select Lines/Rank for the numeric-X uPlot contract.
+
+Qualified against 410,429 source invoice lines and 60,179 invoices dated 2022–2025. All source invoice and line totals reconcile at Decimal precision; browser measures use numeric values. The browser receives 384 monthly or 11,612 daily prepared rows, not 410,429 raw lines. No customer identifiers or raw invoice rows are committed. The connected gramlot-py-server provider and local chart_reports host own database access; run that host and open /australian_timeline.
+
+Chromium/WebKit passed all four engines with three measures, Tasmania filtering and clearing, monthly/daily replacement, temporal cursor changes and screenshots. The search is the shared frameGrid control; this does not certify unrelated legacy pages. One measured local run: initial monthly load 1.58–1.95 s, daily reload 0.81–0.97 s; daily update median 33–34 ms and p95 at most 51 ms, filter 259–433 ms. Updates include two requestAnimationFrame callbacks and do not measure animation completion or pure render CPU time. Synchronous daily Data dispatch median was 3–7 ms. Small per-frame series (up to eight territories) do not establish large-point rendering throughput. No release or publication.
+
+Provider checks: five sales tests passed, including read-only rejection, invalid grain rejection and exact total/count reconciliation. scripts/verify_sales_timeline.mjs accepts PLAYWRIGHT_ENTRY HOST_URL OUTPUT_DIR and writes aggregate metrics and screenshots; timings include no forced sleep in the measured filter interval.
+
+
+<a id="gp-910-110"></a>
+
+## 110 · Australian geographic navigation — 2026-11-05
+
+Block ID: **GP-910-110**.
+
+The australian_geography page shows Australia by State and opens the clicked State's ABS SAL 2021 suburb boundaries. Australia returns to the national map; year, map measure and shared grid search persist. The shared chart selectedTerritory binding carries ECharts/Plotly map clicks. Ordinary Source controllers/dataRpc perform the application navigation; no page DOM, manual event wiring or parallel request mechanism is present.
+
+SalesGeography prepares one row per State or locality from a read-only invoice query. Exact suburb + State matching leaves ambiguous/unmatched localities in the grid and totals, with explicit coverage counts; only the owner-approved official State suffix is removed from SAL names before comparison; no fuzzy matching or compound-qualifier removal is applied. Nonspatial ABS records are excluded from map geometry. Suburb labels appear on hover to avoid urban overlaps. Boundaries load only for the chosen State. All eight State totals reconcile with the national 2025 total; 15,329 spatial polygons validate. Ten host sales tests and Chromium/WebKit two-engine navigation/retained-filter checks passed. No publication.
+
+Reproduce: run `python scripts/download_australian_localities.py LOCALITIES_DIR` in gramlot-py-server; then run its existing `python -m gramlot_py_server.gallery.base.chart_reports --geojson AUSTRALIA_STATES_FILE --localities LOCALITIES_DIR --port 8903` and open `/australian_geography`. The existing national file must identify States by their full English names. `scripts/verify_sales_geography.mjs PLAYWRIGHT_ENTRY HOST_URL OUTPUT_DIR` runs the browser qualification.
+
+Source: [ABS SAL 2021 MapServer](https://geo.abs.gov.au/arcgis/rest/services/ASGS2021/SAL/MapServer). Download uses paginated GeoJSON queries, WGS84 output, four decimal places and 0.001-degree simplification; it is a display dataset, not legal boundary evidence. Downloaded public geometry stays in the supplied local directory rather than being bundled with Gramlot. Owner approved the State-suffix rule. For 2025, 553 of 681 active locality pairs match; Tasmania matches 93 of 97. Ambiguous or other unmatched names remain visible and contribute to totals.
+
+
+<a id="gp-910-115"></a>
+
+
+## 115 · Geographic values and 3D columns — 2026-11-05
+
+Block ID: **GP-910-115**.
+
+The Australian geography page now initializes readable name/value labels and Revenue as the selected column measure. The shared configurator offers labels (none/name/value/name+value), 2D graduated colors and ECharts-only “3D bars on map”. More measures can be selected with existing measure controls; colors remain configurable. All 3D measures share a height scale. “From zero” and “Data range” choose the baseline explicitly; data range is labelled as truncated. No page renderer or custom input implementation was added. Numeric tooltips retain source values; grey areas have no matched sales. Matching and SQL totals are unchanged.
+
+Chromium/WebKit qualification passed for the two map engines, numeric labels/zoom, grouped 3D columns, scale selection and return to 2D. The host script `verify_sales_map_values.mjs PLAYWRIGHT_ENTRY HOST_URL OUTPUT_DIR` reproduces these checks and saves screenshots. Local preview remains `/australian_geography`. No publication.

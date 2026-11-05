@@ -94,3 +94,17 @@ def test_legacy_conditions_are_explicitly_asqueel_only(provider, parameters):
     for selection in (db, DjangoSelect()):
         with pytest.raises(ValueError, match='Asqueel-only'):
             selection.select(dbtable='people', _querystring='', **parameters)
+
+
+def test_complete_checkbox_option_list_keeps_filters(provider):
+    db, _ = provider
+    complete = db.select(dbtable="people", _querystring="", limit=None)
+    assert len(complete["rows"]) > 1
+    assert len(db.select(dbtable="people", _querystring="", limit=1)["rows"]) == 1
+    assert len(db.select(dbtable="people", _querystring="", limit=None, country="IT")["rows"]) == 2
+
+
+def test_django_complete_list_and_filters_in_isolated_settings():
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, "-c", "from django.conf import settings\nsettings.configure(INSTALLED_APPS=[], DATABASES={'default': {'ENGINE':'django.db.backends.sqlite3','NAME':':memory:'}})\nimport django\ndjango.setup()\nfrom django.db import models, connection\nfrom gramlot_py_server.db.django import DjangoSelect\nclass Option(models.Model):\n    name=models.CharField(max_length=30)\n    state=models.CharField(max_length=5)\n    class Meta: app_label='test_options'\nwith connection.schema_editor() as editor: editor.create_model(Option)\nOption.objects.bulk_create([Option(name=f'Choice {i}',state='A' if i<12 else 'B') for i in range(15)])\ndb=DjangoSelect().register('options',Option,identifier='id',caption='name',filters=('state',))\nassert len(db.select(dbtable='options',_querystring='',limit=None)['rows'])==15\nassert len(db.select(dbtable='options',_querystring='',limit=None,state='A')['rows'])==12\nassert len(db.select(dbtable='options',_querystring='',limit=10)['rows'])==10\nprint('Django: complete and limited lists plus filters PASS')\n"], check=True, capture_output=True, text=True)

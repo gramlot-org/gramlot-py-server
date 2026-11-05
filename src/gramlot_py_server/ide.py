@@ -22,9 +22,11 @@ def stage_ide(pages, *, roots, remote_edit=False):
         'from gramlot.collections.tree import mygramlot as tree\n'
         'from gramlot.collections.editors import mygramlot as editors\n'
         'from gramlot.collections.typst import mygramlot as typst\n'
+        'from gramlot.collections.drawing import mygramlot as drawing\n'
+        'from gramlot.collections.uploads import mygramlot as uploads\n'
         'from gramlot_py_server.filesystem import FileSystemPageMixin\n\n'
         'class Page(FileSystemPageMixin, IdePage):\n'
-        '    gramlots = [inputs, layout, tree, editors, typst]\n'
+        '    gramlots = [inputs, layout, tree, editors, typst, drawing, uploads]\n'
         f'    filesystem_roots = {roots!r}\n'
         f'    remote_edit = {bool(remote_edit)!r}\n', encoding="utf-8")
     (pages / "index_aux.js").write_text(

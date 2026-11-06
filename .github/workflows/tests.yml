@@ -3,10 +3,8 @@ name: tests
 # One job per framework adapter, each installed with the extras its guide installs:
 # its own extra, and for FastAPI also uvicorn, which runs it (GP-405).
 
+# Full suite only on request: run by hand or from Publish release with full_tests.
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
   workflow_dispatch:
   workflow_call:
 

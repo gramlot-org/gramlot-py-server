@@ -283,7 +283,8 @@ node scripts/verify_gallery_browser.mjs "$(command -v python)" "$PLAYWRIGHT_ENTR
 python scripts/verify_install.py flask dist/gramlot_py_server-*.whl "$PLAYWRIGHT_ENTRY"
 ```
 
-CI runs each adapter with its own extra against the released core and, as an
+CI runs only on request (manual dispatch, or `Publish release` with
+`full_tests`). It runs each adapter with its own extra against the released core and, as an
 informational job, every adapter against the core's `main` checkout; it runs the
 browser checks in Chromium and a clean install of each environment from the
 built wheel, and builds the documentation; coverage goes to Codecov with one

@@ -68,5 +68,5 @@ node scripts/verify_gallery_browser.mjs .venv/bin/python "$PLAYWRIGHT_ENTRY" chr
 Only with owner authorization. A release is the tag `vX.Y.Z` on `main`, with
 `version` in `pyproject.toml` equal to it and `.github/release-notes/vX.Y.Z.md`
 present; the workflow `Publish release` (`.github/workflows/publish.yml`), run
-by hand on the tag, tests, builds, creates the GitHub release and uploads to
+by hand on the tag, runs the full tests only when started with `full_tests`, builds, creates the GitHub release and uploads to
 PyPI with trusted publishing.

@@ -28,8 +28,8 @@ async def channel(app, cookie, page_id, *, origin="http://test", prefix="", send
         if send_hook is not None:
             await send_hook(event)
     task = asyncio.create_task(app(scope, incoming.get, emit))
-    async def receive():
-        return await asyncio.wait_for(outgoing.get(), 2)
+    async def receive(timeout=2):
+        return await asyncio.wait_for(outgoing.get(), timeout)
     async def send(message):
         await incoming.put(dict(type="websocket.receive", text=to_tytx({"pageId": page_id, **message})))
     try:
@@ -281,7 +281,8 @@ class PageStore(BaseStore):
             primary, cookie = await open_page(client)
             async with channel(app, cookie, primary) as (_, send, receive):
                 await send(dict(rpc("main", "main"), contentType="source"))
-                main = from_tytx((await receive())["text"])
+                # Building the first Source includes loading the standard collections.
+                main = from_tytx((await receive(timeout=30))["text"])
                 assert main["id"] == "main" and main["pageId"] == primary
                 assert main["contentType"] == "source" and isinstance(main["value"], Bag)
                 await send(rpc("slow", "delayed_echo", value="late", delay=0.05))

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gramlot-py-server"
-version = "0.3.28"
+version = "0.3.29"
 description = "Python server adapters for Gramlot pages: Uvicorn, Django, Flask, FastAPI and Kajenn"
 readme = "README.md"
 requires-python = ">=3.11"

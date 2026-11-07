@@ -87,6 +87,8 @@ def test_prefixed_close_url_matches_route(tmp_path):
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+# The policy sent with the default library source "cdn": the core adds the jsDelivr origin to script-src.
+SENT_CSP = "script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'"
 BOOTSTRAP = re.compile(
     r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
     r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
@@ -113,7 +115,7 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     client = app.test_client()
     document = client.get("/nested/")
     nonce, runtime, argument = BOOTSTRAP.search(document.text).groups()
-    assert document.headers["Content-Security-Policy"] == STRICT_CSP.replace("{nonce}", nonce)
+    assert document.headers["Content-Security-Policy"] == SENT_CSP.replace("{nonce}", nonce)
     assert json.loads(runtime) == "/nested/assets/gramlot.js"
     resources = json.loads(argument)["resources"]
     assert resources["css"] == [

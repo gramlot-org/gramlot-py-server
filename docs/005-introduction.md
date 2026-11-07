@@ -218,8 +218,10 @@ Block ID: **GP-005-025**.
   the adapter is created.
 - **Content Security Policy.** `content_security_policy` is sent as the
   `Content-Security-Policy` header of each HTML page. `{nonce}` in it is
-  replaced by the nonce of the bootstrap script of that opening. With `None`
-  (the default) no header is sent. See
+  replaced by the nonce of the bootstrap script of that opening. With
+  `library_source="cdn"` (the default) the core adds the jsDelivr origin of the
+  third-party libraries; with `"local"` the libraries come from the server and
+  the policy is sent as configured. With `None` (the default) no header is sent. See
   [Uvicorn configuration](110-configuration.md) for the two profiles.
 - **Process-local registry.** Open pages live in the memory of one process.
   Pages opened by one worker are unknown to another.

@@ -156,10 +156,30 @@ async def test_requires_raw_body(tmp_path):
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+# The policy sent with the default library source "cdn": the core adds the jsDelivr origin to script-src.
+SENT_CSP = "script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'"
 BOOTSTRAP = re.compile(
     r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
     r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
 )
+
+
+@pytest.mark.asyncio
+async def test_the_site_recipe_passes_the_library_source(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+
+    class Site(DefaultConfiguration):
+        def applications_section(self, cfg):
+            cfg.applications().application(
+                code="pages", mount="page", app_class=Application, pages=tmp_path,
+                content_security_policy=STRICT_CSP, library_source="local",
+            ).request(body="raw")
+
+    async with client_for(AsgiServer(config=Site)) as client:
+        document = await client.get("/")
+        nonce = BOOTSTRAP.search(document.text).group(1)
+        assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
+        assert '<html data-gramlot-library-source="local">' in document.text
 
 
 @pytest.mark.asyncio
@@ -189,7 +209,7 @@ async def test_mount_companions_and_content_security_policy(tmp_path):
     async with client_for(AsgiServer(config=Site)) as client:
         document = await client.get("/")
         nonce, runtime, argument = BOOTSTRAP.search(document.text).groups()
-        assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
+        assert document.headers["content-security-policy"] == SENT_CSP.replace("{nonce}", nonce)
         assert json.loads(runtime) == "/page/assets/gramlot.js"
         resources = json.loads(argument)["resources"]
         assert resources["css"] == [

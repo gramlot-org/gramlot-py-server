@@ -126,8 +126,15 @@ class Adapter:
     ``gramlot-examples`` returns them.
 
     ``content_security_policy`` is the application's policy, sent as the
-    ``Content-Security-Policy`` header of each HTML page; ``{nonce}`` in it is
-    replaced by the nonce that ``open_page`` puts on the bootstrap script.
+    ``Content-Security-Policy`` header of each HTML page. The core composes it
+    with ``GramlotServer.content_security_policy``: ``{nonce}`` in it is replaced
+    by the nonce that ``open_page`` puts on the bootstrap script, and the origins
+    of the third-party libraries are added to the directives of scripts and
+    connections.
+
+    ``library_source`` is passed to ``GramlotServer``: ``"cdn"`` (the default)
+    loads the third-party libraries of the components from jsDelivr, ``"local"``
+    from the copies served with the collections.
 
     The resolution order of a path is: the web manifest, the runtime, the core themes,
     ``assets``, the companion files, the rpc and close URLs, the pages. A page path
@@ -170,6 +177,7 @@ class Adapter:
         page_ttl: float = 1800,
         max_pages: int = 1000,
         content_security_policy: str | None = None,
+        library_source: str = "cdn",
         assets: dict[str, dict[str, Any]] | None = None,
         collections: Any = (),
         reload: bool = False,
@@ -187,7 +195,7 @@ class Adapter:
         self._validators: dict[str, tuple[tuple[int, int], str, str]] = {}
         self.gramlot_server = self.server_class(
             pages, page_ttl=page_ttl, max_pages=max_pages, collections=collections,
-            reload=reload, collection_resources=self.collection_resources,
+            reload=reload, collection_resources=self.collection_resources, library_source=library_source,
         )
         self.gramlot_server.initialize_collections()
 
@@ -391,6 +399,6 @@ class Adapter:
             return self.reply(503, "Page capacity reached")
         headers = [("Set-Cookie", self.owner_cookie(owner))]
         if self.content_security_policy is not None:
-            policy = self.content_security_policy.replace("{nonce}", opened.nonce)
+            policy = self.gramlot_server.content_security_policy(self.content_security_policy, opened.nonce)
             headers.append(("Content-Security-Policy", policy))
         return self.reply(200, opened.html, "text/html; charset=utf-8", tuple(headers))

@@ -124,6 +124,8 @@ def test_application_errors_are_not_reported_as_missing_pages(tmp_path):
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+# The policy sent with the default library source "cdn": the core adds the jsDelivr origin to script-src.
+SENT_CSP = "script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'"
 BOOTSTRAP = re.compile(
     r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
     r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
@@ -152,7 +154,7 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     client = Client()
     document = client.get("/hello/")
     nonce, runtime, argument = BOOTSTRAP.search(document.content.decode()).groups()
-    assert document["Content-Security-Policy"] == STRICT_CSP.replace("{nonce}", nonce)
+    assert document["Content-Security-Policy"] == SENT_CSP.replace("{nonce}", nonce)
     assert json.loads(runtime) == "/hello/assets/gramlot.js"
     argument = json.loads(argument)
     assert argument["config"]["closeUrl"] == "/hello/gramlot/close"

@@ -24,7 +24,8 @@ Module functions, outside `__all__`:
 - `create_application(pages, **options) -> Application`: builds the
   application. `options` are those of `Application`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: the ASGI callable,
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  the ASGI callable,
   a subclass of `gramlot_py_server.base.Adapter` (section 020). It handles the
   `http` and `lifespan` scopes. Any other scope type raises `ValueError`
   ("Application supports HTTP only"). On `lifespan.shutdown` it calls
@@ -129,9 +130,9 @@ The five adapters inherit from `base.Adapter`, which writes the HTTP rules of th
 Part B, once. Its names are common to every adapter:
 
 - `Adapter(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: builds
-  `gramlot_server` from `server_class(pages, page_ttl=…, max_pages=…,
-  collections=…)`. `server_class` is `GramlotFileServer`; the Kajenn adapter
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  builds `gramlot_server` from `server_class(pages, page_ttl=…, max_pages=…,
+  collections=…, library_source=…)`. `server_class` is `GramlotFileServer`; the Kajenn adapter
   replaces it with a subclass that has the capability `auth`. Other keyword
   arguments reach the next class in the order of the adapter class: Kajenn's
   `RoutedApplication`; in the other adapters they raise `TypeError`.

@@ -138,7 +138,7 @@ async def test_mount_path_is_the_prefix_of_the_request_paths(tmp_path):
 @pytest.mark.parametrize("policy", [STRICT_CSP, PERMISSIVE_CSP])
 async def test_content_security_policy_carries_the_bootstrap_nonce(tmp_path, policy):
     (tmp_path / "index.py").write_text(PAGE)
-    app = create_application(tmp_path, content_security_policy=policy)
+    app = create_application(tmp_path, content_security_policy=policy, library_source="local")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         first = await client.get("/")
@@ -149,6 +149,21 @@ async def test_content_security_policy_carries_the_bootstrap_nonce(tmp_path, pol
         assert response.headers["content-security-policy"] == policy.replace("{nonce}", nonce)
     assert bootstrap(first.text)[0] != bootstrap(second.text)[0]
     assert "content-security-policy" not in runtime.headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["cdn", "local"])
+async def test_library_source_reaches_the_policy_and_the_document(tmp_path, source):
+    (tmp_path / "index.py").write_text(PAGE)
+    app = create_application(tmp_path, content_security_policy=STRICT_CSP, library_source=source)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/")
+    nonce, _, _ = bootstrap(response.text)
+    policy = response.headers["content-security-policy"]
+    assert f"'nonce-{nonce}'" in policy
+    assert ("https://cdn.jsdelivr.net" in policy) is (source == "cdn")
+    assert f'<html data-gramlot-library-source="{source}">' in response.text
 
 
 async def raw_get(app, path):

@@ -1,5 +1,6 @@
 """The HTTP rules of the shared adapter base, without a framework."""
 import gc
+import re
 import weakref
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -99,6 +100,26 @@ def test_close_at_exit_runs_at_exit_and_does_not_keep_the_adapter_alive(tmp_path
     assert reference() is None
     assert not finalizer.alive
     assert server._pages == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["cdn", "local"])
+async def test_the_page_policy_and_document_follow_the_library_source(tmp_path, source):
+    (tmp_path / "index.py").write_text("from gramlot import Page\nclass Page(Page):\n    def main(self, root): root.h1('x')\n")
+    adapter = base.Adapter(tmp_path, content_security_policy="script-src 'nonce-{nonce}'; object-src 'none'",
+                           library_source=source)
+    reply = await adapter.page(base.Request(method="GET", path="/", body=base.stored(b"")))
+    policy = dict(reply.headers)["Content-Security-Policy"]
+    html = reply.body.decode()
+    nonce = re.search(r'nonce="([^"]+)"', html).group(1)
+    origin = " https://cdn.jsdelivr.net" if source == "cdn" else ""
+    assert policy == f"script-src 'nonce-{nonce}'{origin}; object-src 'none'"
+    assert f'<html data-gramlot-library-source="{source}">' in html
+
+
+def test_an_unknown_library_source_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="library source must be 'cdn' or 'local'"):
+        base.Adapter(tmp_path, library_source="unpkg")
 
 
 def conditional(**headers):

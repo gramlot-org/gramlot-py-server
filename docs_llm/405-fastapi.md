@@ -105,8 +105,8 @@ app = Application(PAGES, mount_path="/py", title="Pages")
 - With a prefix the router has one more route, `/py` without the final slash,
   that answers 301 to `/py/` with the query string: pages link each other with
   relative URLs.
-- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
-  have the meaning of the [Uvicorn options](110-configuration.md). The option
+- `page_ttl`, `max_pages`, `content_security_policy`, `library_source`, `assets`
+  and `collections` have the meaning of the [Uvicorn options](110-configuration.md). The option
   `css_theme` of the core server is not exposed: the base theme is
   `gramlot-base`.
 
@@ -161,10 +161,12 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages` and calls
   `mount(app)`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=(), **fastapi_options)`:
+  content_security_policy=None, library_source="cdn", assets=None, collections=(),
+  **fastapi_options)`:
   a `FastAPI` application. `gramlot_pages` holds its `Pages`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: a subclass of
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  a subclass of
   `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
   section 020):
   - `mount(app)`: includes the router and registers the shutdown handler.

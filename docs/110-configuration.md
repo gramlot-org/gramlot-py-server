@@ -24,12 +24,14 @@ Kajenn adapter takes all of them except `mount_path`, whose role its Kajenn
 | `page_ttl` | `int` or `float`, seconds | `1800` | a page that is not closed expires after this time; must be finite and positive |
 | `max_pages` | `int` | `1000` | the number of open pages the process accepts; the next opening answers 503 |
 | `content_security_policy` | `str` or `None` | `None` | the `Content-Security-Policy` header of HTML pages; see section 015 |
+| `library_source` | `"cdn"` or `"local"` | `"cdn"` | where the pages take the third-party libraries of the components; see section 015 |
 | `assets` | `dict` or `None` | `None` | URLs below the prefix served from files; see section 030 |
 | `collections` | sequence | `()` | the component collections of the application; see section 090 |
 
-`pages`, `page_ttl`, `max_pages` and `collections` are passed to the core server
-(`GramlotFileServer`); the adapter keeps `mount_path`, `content_security_policy`
-and `assets`. A value of `page_ttl` or `max_pages` outside the rule raises
+`pages`, `page_ttl`, `max_pages`, `library_source` and `collections` are passed
+to the core server (`GramlotFileServer`); the adapter keeps `mount_path`,
+`content_security_policy` and `assets`. A value of `page_ttl` or `max_pages`
+outside the rule, or a `library_source` other than `"cdn"` and `"local"`, raises
 `ValueError` when the application is created. `page_ttl` counts from the last
 call to the page: every call to a page that has not expired starts the period
 again.
@@ -72,8 +74,10 @@ Block ID: **GP-110-015**.
 
 The application chooses the policy. Gramlot defines two profiles and never sets
 the header itself. The adapter sends the configured string as the
-`Content-Security-Policy` header of every HTML page, with `{nonce}` replaced by
-the nonce of the bootstrap script of that opening. The header is not sent on
+`Content-Security-Policy` header of every HTML page, composed by the core
+`GramlotServer.content_security_policy(policy, nonce)`: `{nonce}` is replaced by
+the nonce of the bootstrap script of that opening, and the origins of the
+third-party libraries are added. The header is not sent on
 the runtime, the companions or the protocol responses. It is not sent at all
 when the option is `None`. The rule is the same in all five adapters.
 
@@ -93,6 +97,18 @@ Nothing is written to the Data and nothing is mounted. The logic module is
 imported by the bootstrap script, which carries the nonce, so `script-src`
 needs no `'self'`. The import map that resolves `@gramlot/gramlot/page` carries
 the same nonce.
+
+`library_source` says where the components take their third-party libraries,
+for example ECharts. With `"cdn"` (the default) the libraries that have a CDN
+copy load from jsDelivr (`https://cdn.jsdelivr.net`) at the exact version of the
+core manifest. The import map carries the integrity of each CDN module, and the
+core adds the jsDelivr origin to `script-src` (else `default-src`) and to
+`connect-src` (else `default-src`). A policy without such a directive leaves
+that kind unrestricted. The strict profile is sent as
+`script-src 'nonce-…' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'`.
+With `"local"` the libraries load from the copies served with the collections
+and the policy is sent as configured. The bootstrap `<html>` carries
+`data-gramlot-library-source` with the value of the option.
 
 <a id="gp-110-020"></a>
 

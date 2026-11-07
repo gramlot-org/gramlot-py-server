@@ -85,10 +85,20 @@ def test_prefixed_close_url_matches_route(tmp_path):
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+# The policy sent with the default library source "cdn": the core adds the jsDelivr origin to script-src.
+SENT_CSP = "script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'"
 BOOTSTRAP = re.compile(
     r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
     r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
 )
+
+
+def test_application_passes_the_library_source(tmp_path):
+    (tmp_path / "index.py").write_text(PAGE)
+    document = TestClient(Application(tmp_path, content_security_policy=STRICT_CSP, library_source="local")).get("/")
+    nonce = BOOTSTRAP.search(document.text).group(1)
+    assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
+    assert '<html data-gramlot-library-source="local">' in document.text
 
 
 def test_mount_path_companions_and_content_security_policy(tmp_path):
@@ -109,7 +119,7 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     client = TestClient(Application(pages, mount_path="/nested", content_security_policy=STRICT_CSP))
     document = client.get("/nested/")
     nonce, runtime, argument = BOOTSTRAP.search(document.text).groups()
-    assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
+    assert document.headers["content-security-policy"] == SENT_CSP.replace("{nonce}", nonce)
     assert json.loads(runtime) == "/nested/assets/gramlot.js"
     resources = json.loads(argument)["resources"]
     assert resources["css"] == [

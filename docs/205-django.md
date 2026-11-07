@@ -107,8 +107,8 @@ the prefix of the browser URLs and to the `Path` of the owner cookie. The page
 same pages without the 301 of `/py`. A different path in `include()` and in
 `mount_path` gives browser URLs that the URLconf does not route.
 
-`Pages` takes `page_ttl`, `max_pages`, `content_security_policy`, `assets` and
-`collections` with the meaning of the [Uvicorn options](110-configuration.md).
+`Pages` takes `page_ttl`, `max_pages`, `content_security_policy`, `library_source`,
+`assets` and `collections` with the meaning of the [Uvicorn options](110-configuration.md).
 It does not expose the option `css_theme` of the core server: the base theme is
 `gramlot-base`. One `Pages` instance owns one page registry. Create it once, at
 URLconf import, not per request.
@@ -171,7 +171,8 @@ Module functions, outside `__all__`:
   entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-content_security_policy=None, assets=None, collections=())`: a subclass of
+content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+a subclass of
 `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md), section
 020).
 

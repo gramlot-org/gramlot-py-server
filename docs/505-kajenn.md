@@ -93,8 +93,8 @@ The application is declared in the site recipe, as in the example:
 - `.request(body="raw")`. The request envelope reaches `GramlotServer.call` as
   the TYTX text the browser sent, not through Kajenn's TYTX hydration. Without it every protocol request raises
   `RuntimeError` ("Application requires request(body='raw')") and answers 500.
-- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`,
-  with the meaning of the [Uvicorn options](110-configuration.md). There is no
+- `page_ttl`, `max_pages`, `content_security_policy`, `library_source`, `assets`
+  and `collections`, with the meaning of the [Uvicorn options](110-configuration.md). There is no
   `mount_path` option: `Application` raises `TypeError` when it is given. The
   option `css_theme` of the core server is not exposed: the base theme is
   `gramlot-base`.
@@ -161,7 +161,8 @@ Module functions, outside `__all__`:
   entry point of `gramlot_py_server.commands` ([The gramlot command](020-command.md)).
 
 `Application(pages, *, page_ttl=1800, max_pages=1000,
-content_security_policy=None, assets=None, collections=(), **kwargs)`: a subclass
+content_security_policy=None, library_source="cdn", assets=None, collections=(),
+**kwargs)`: a subclass
 of `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
 section 020) and of Kajenn's `RoutedApplication`; the other keyword arguments go
 to `RoutedApplication`. The site recipe passes them.

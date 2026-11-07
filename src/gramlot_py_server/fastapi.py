@@ -65,11 +65,13 @@ class Application(FastAPI):
 
     def __init__(self, pages: str | Path, *, mount_path: str = "", page_ttl: float = 1800,
                  max_pages: int = 1000, content_security_policy: str | None = None,
-                 assets: dict | None = None, collections=(), **fastapi_options) -> None:
+                 library_source: str = "cdn", assets: dict | None = None, collections=(),
+                 **fastapi_options) -> None:
         super().__init__(**fastapi_options)
         self.gramlot_pages = mount_pages(
             self, pages, mount_path=mount_path, page_ttl=page_ttl, max_pages=max_pages,
-            content_security_policy=content_security_policy, assets=assets, collections=collections,
+            content_security_policy=content_security_policy, library_source=library_source,
+            assets=assets, collections=collections,
         )
 
 

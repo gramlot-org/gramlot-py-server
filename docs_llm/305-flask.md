@@ -124,7 +124,9 @@ Block ID: **GP-305-020**.
   `GramlotFileServer` runs in its own event loop through `asyncio.run`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
-  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  `Content-Type: text/javascript; charset=utf-8`. The runtime and the core
+  themes carry `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified`,
+  and answer 304 with no body to a matching `If-None-Match` or `If-Modified-Since`.
   Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
 - **Request body.** The protocol views pass the body to `GramlotServer.call`
   as text. The adapter fixes no size; Flask's `MAX_CONTENT_LENGTH`, when the

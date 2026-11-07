@@ -134,7 +134,9 @@ view `view`, which serves the runtime, the pages, the core themes, the files of
   method answer 405 with `Allow: GET`; a `HEAD` opens no page.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
-  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  `Content-Type: text/javascript; charset=utf-8`. The runtime and the core
+  themes carry `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified`,
+  and answer 304 with no body to a matching `If-None-Match` or `If-Modified-Since`.
   Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
   Every 405 answer carries an `Allow` header.
 - **Request body.** The view reads `request.body` and the core decodes it

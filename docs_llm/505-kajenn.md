@@ -124,7 +124,9 @@ Block ID: **GP-505-020**.
   the protocol URLs `POST`. Every 405 carries an `Allow` header.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
-  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  `Content-Type: text/javascript; charset=utf-8`. The runtime and the core
+  themes carry `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified`,
+  and answer 304 with no body to a matching `If-None-Match` or `If-Modified-Since`.
   Errors are plain text with `Content-Type: text/plain; charset=utf-8`, as in the
   other adapters, for example `Invalid envelope`. The
   outcomes of a call are not errors: they arrive in the 200 response envelope.

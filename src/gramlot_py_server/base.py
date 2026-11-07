@@ -18,10 +18,12 @@ write responses.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import weakref
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from email.utils import formatdate, parsedate_to_datetime
 from http.cookies import CookieError, SimpleCookie
 from mimetypes import MimeTypes
 from pathlib import Path, PurePosixPath
@@ -43,7 +45,7 @@ TEXT = "text/plain; charset=utf-8"
 JSON = "application/json"
 JAVASCRIPT = "text/javascript; charset=utf-8"
 NO_STORE = "no-store"
-# The runtime is the same file for a given core version: the browser may keep it but must revalidate it.
+# The runtime and the core themes: the browser may keep them but must revalidate them with ETag.
 NO_CACHE = "no-cache"
 
 
@@ -57,6 +59,8 @@ class Request:
     ``None``. ``identity`` is the identity of the request that the adapter hands to
     ``GramlotServer.call``, or ``None`` for an adapter without an identity system.
     ``body`` reads the request body; the adapter reads it only when it is asked for.
+    ``if_none_match`` and ``if_modified_since`` are the headers of the same name as
+    sent, or ``""``: the conditions of a revalidated file.
     """
 
     method: str
@@ -66,6 +70,8 @@ class Request:
     content_type: str = ""
     owner: str | None = None
     identity: Any = None
+    if_none_match: str = ""
+    if_modified_since: str = ""
 
 
 @dataclass(frozen=True)
@@ -128,8 +134,16 @@ class Adapter:
     accepts GET only; every other method, HEAD included, answers 405 with ``Allow: GET``.
     The cookie ``gramlot_owner`` associates a browser with its pages; it is not
     authentication. Every response, errors and redirects included, carries
-    ``Cache-Control: no-store``, except the runtime, which carries ``no-cache``
-    as the JavaScript servers do.
+    ``Cache-Control: no-store``, except the revalidated files and the collection files.
+
+    The revalidated files are the runtime, the Markdown runtime and the core themes:
+    they carry ``Cache-Control: no-cache``, a strong ``ETag`` (the SHA-256 of the
+    content) and ``Last-Modified`` (the modification time of the file), as the
+    JavaScript servers do. A ``GET`` or ``HEAD`` whose ``If-None-Match`` matches the
+    ``ETag``, or without ``If-None-Match`` whose ``If-Modified-Since`` is not older
+    than the file, answers 304 with no body. The ``ETag`` is computed once for each
+    path, modification time and size. The collection files carry a content hash in
+    their URL and are served with ``Cache-Control: public, max-age=31536000, immutable``.
     """
 
     METHODS = ("GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
@@ -169,6 +183,8 @@ class Adapter:
             raise ValueError("The collection resource route is reserved")
         self.collection_resources = GramlotCollectionResources(base_url="/gramlot/collections")
         self.mime_types = MimeTypes()
+        # The validators of the revalidated files: path -> ((mtime_ns, size), ETag, Last-Modified).
+        self._validators: dict[str, tuple[tuple[int, int], str, str]] = {}
         self.gramlot_server = self.server_class(
             pages, page_ttl=page_ttl, max_pages=max_pages, collections=collections,
             reload=reload, collection_resources=self.collection_resources,
@@ -250,12 +266,12 @@ class Adapter:
         if path == "/app.webmanifest":
             return await self.manifest(request)
         if path == server.markdown_url:
-            return await self.send_file(request, runtime_asset("gramlot-markdown.js"), JAVASCRIPT, NO_CACHE)
+            return await self.send_revalidated(request, runtime_asset("gramlot-markdown.js"), JAVASCRIPT)
         if path == server.runtime_url:
-            return await self.send_file(request, runtime_asset(), JAVASCRIPT, NO_CACHE)
+            return await self.send_revalidated(request, runtime_asset(), JAVASCRIPT)
         theme = server.theme_file(path)
         if theme is not None:
-            return await self.send_file(request, theme, self.media_type(theme))
+            return await self.send_revalidated(request, theme, self.media_type(theme))
         asset = self.assets.get(path)
         if asset is not None:
             return await self.send_file(request, Path(asset["file"]), asset["type"])
@@ -276,6 +292,57 @@ class Adapter:
         content = await asyncio.to_thread(source.read_bytes)
         body = b"" if request.method == "HEAD" else content
         return self.reply(200, body, media_type, headers=(("Content-Length", str(len(content))),), cache_control=cache_control)
+
+    def validators(self, source: Path) -> tuple[str, str, bytes | None]:
+        """The ``ETag`` and the ``Last-Modified`` of the file ``source``, and its content
+        when it was read to compute them, else ``None``.
+
+        The ``ETag`` is the SHA-256 of the content; it is computed again only when the
+        modification time or the size of the file changes.
+        """
+        status = source.stat()
+        stamp = (status.st_mtime_ns, status.st_size)
+        known = self._validators.get(str(source))
+        if known is not None and known[0] == stamp:
+            return known[1], known[2], None
+        content = source.read_bytes()
+        etag = '"' + hashlib.sha256(content).hexdigest() + '"'
+        modified = formatdate(status.st_mtime_ns // 1_000_000_000, usegmt=True)
+        self._validators[str(source)] = (stamp, etag, modified)
+        return etag, modified, content
+
+    @staticmethod
+    def not_modified(request: Request, etag: str, modified: str) -> bool:
+        """Whether the conditions of ``request`` select the copy the browser already has.
+
+        ``If-None-Match`` uses the weak comparison; ``If-Modified-Since`` counts only
+        without ``If-None-Match``, and a date that cannot be parsed is ignored.
+        """
+        if request.if_none_match:
+            tags = [tag.strip().removeprefix("W/") for tag in request.if_none_match.split(",")]
+            return "*" in tags or etag in tags
+        if request.if_modified_since:
+            try:
+                since = parsedate_to_datetime(request.if_modified_since)
+            except (TypeError, ValueError):
+                return False
+            return since.tzinfo is not None and parsedate_to_datetime(modified) <= since
+        return False
+
+    async def send_revalidated(self, request: Request, source: Path, media_type: str) -> Reply:
+        """The revalidated file ``source`` for ``GET`` and ``HEAD``: 200 with ``ETag`` and
+        ``Last-Modified``, or 304 with no body when the browser copy is current."""
+        if request.method not in ("GET", "HEAD"):
+            return self.refuse("GET", "HEAD")
+        etag, modified, content = await asyncio.to_thread(self.validators, source)
+        headers = (("ETag", etag), ("Last-Modified", modified))
+        if self.not_modified(request, etag, modified):
+            return self.reply(304, b"", media_type, headers, cache_control=NO_CACHE)
+        if content is None:
+            content = await asyncio.to_thread(source.read_bytes)
+        body = b"" if request.method == "HEAD" else content
+        return self.reply(200, body, media_type, (("Content-Length", str(len(content))), *headers),
+                          cache_control=NO_CACHE)
 
     async def manifest(self, request: Request) -> Reply:
         """The web manifest of the installable root page, for ``GET`` and ``HEAD``."""

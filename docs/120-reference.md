@@ -58,7 +58,13 @@ All paths are shown without the mount prefix. With a prefix, the request path
 carries it; a path outside it answers 404 `Not found`, and the prefix without
 the final slash answers 301 with `Location: /py/` and the query string. Every
 response carries `Content-Length` and `Cache-Control: no-store`, except the
-runtime, which carries `Cache-Control: no-cache`. Error bodies are plain text.
+runtime, the Markdown runtime and the core themes, which carry
+`Cache-Control: no-cache`, a strong `ETag` (the SHA-256 of the content, computed
+once for each path, modification time and size) and `Last-Modified`. A `GET` or
+`HEAD` of one of them whose `If-None-Match` matches the `ETag`, or without
+`If-None-Match` whose `If-Modified-Since` is not older than the file, answers 304
+with no body. The collection files carry `Cache-Control: public, max-age=31536000,
+immutable`. Error bodies are plain text.
 
 | Method and path | Answer |
 | --- | --- |

@@ -132,6 +132,8 @@ class Application(base.Adapter):
                     method=method, path=relative, body=body, query=query,
                     content_type=headers.get(b"content-type", b"").decode("latin-1"),
                     owner=owner, identity=identity,
+                    if_none_match=headers.get(b"if-none-match", b"").decode("latin-1"),
+                    if_modified_since=headers.get(b"if-modified-since", b"").decode("latin-1"),
                 ))
                 if relative == self.gramlot_server.close_url and method == "POST" and reply.status == 200:
                     payload = json.loads(data)
@@ -235,7 +237,8 @@ class Application(base.Adapter):
     async def _send(send, reply: base.Reply) -> None:
         headers = {
             "content-type": reply.content_type,
-            "content-length": str(len(reply.body)),
+            # A 304 carries no Content-Length: there it would state the size of the file.
+            **({} if reply.status == 304 else {"content-length": str(len(reply.body))}),
             **{name.lower(): value for name, value in reply.headers},
         }
         headers = [(name.encode("latin-1"), value.encode("latin-1")) for name, value in headers.items()]

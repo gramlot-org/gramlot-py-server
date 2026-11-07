@@ -49,6 +49,8 @@ class Pages(base.Adapter):
             query=request.url.query,
             content_type=request.headers.get("content-type", ""),
             owner=request.cookies.get(self.OWNER_COOKIE),
+            if_none_match=request.headers.get("if-none-match", ""),
+            if_modified_since=request.headers.get("if-modified-since", ""),
         )))
 
     @staticmethod

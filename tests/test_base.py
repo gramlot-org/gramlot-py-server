@@ -99,3 +99,47 @@ def test_close_at_exit_runs_at_exit_and_does_not_keep_the_adapter_alive(tmp_path
     assert reference() is None
     assert not finalizer.alive
     assert server._pages == {}
+
+
+def conditional(**headers):
+    """A ``GET`` with the conditions ``headers``."""
+    return base.Request(method="GET", path="/x", body=base.stored(b""), **headers)
+
+
+@pytest.mark.asyncio
+async def test_a_revalidated_file_carries_its_validators_and_answers_304(adapter, tmp_path):
+    file = tmp_path / "theme.css"
+    file.write_text("h1 {}\n")
+    first = await adapter.send_revalidated(conditional(), file, "text/css")
+    headers = dict(first.headers)
+    assert first.status == 200 and first.body == b"h1 {}\n"
+    assert headers["Cache-Control"] == "no-cache"
+    assert headers["ETag"].startswith('"') and len(headers["ETag"]) == 66
+    for condition in ({"if_none_match": headers["ETag"]}, {"if_none_match": '"other", W/' + headers["ETag"]},
+                      {"if_none_match": "*"}, {"if_modified_since": headers["Last-Modified"]}):
+        reply = await adapter.send_revalidated(conditional(**condition), file, "text/css")
+        assert reply.status == 304 and reply.body == b"", condition
+        assert dict(reply.headers)["ETag"] == headers["ETag"]
+        assert dict(reply.headers)["Cache-Control"] == "no-cache"
+    for condition in ({"if_none_match": '"other"'}, {"if_modified_since": "Mon, 01 Jan 2001 00:00:00 GMT"},
+                      {"if_modified_since": "not a date"},
+                      {"if_none_match": '"other"', "if_modified_since": headers["Last-Modified"]}):
+        reply = await adapter.send_revalidated(conditional(**condition), file, "text/css")
+        assert reply.status == 200 and reply.body == b"h1 {}\n", condition
+
+
+@pytest.mark.asyncio
+async def test_the_etag_is_computed_once_per_file_content(adapter, tmp_path, monkeypatch):
+    file = tmp_path / "gramlot.js"
+    file.write_text("one")
+    computed = []
+    sha256 = base.hashlib.sha256
+    monkeypatch.setattr(base.hashlib, "sha256", lambda data: computed.append(data) or sha256(data))
+    etag = dict((await adapter.send_revalidated(conditional(), file, "text/javascript")).headers)["ETag"]
+    assert dict((await adapter.send_revalidated(conditional(), file, "text/javascript")).headers)["ETag"] == etag
+    assert computed == [b"one"]
+    file.write_text("two!")
+    changed = await adapter.send_revalidated(conditional(if_none_match=etag), file, "text/javascript")
+    assert changed.status == 200 and changed.body == b"two!"
+    assert dict(changed.headers)["ETag"] != etag
+    assert computed == [b"one", b"two!"]

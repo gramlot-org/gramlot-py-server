@@ -124,7 +124,9 @@ Block ID: **GP-110-025**.
   answers 400; a body of `/gramlot/close` that is not a JSON object with a
   string `pageId` answers 400.
 - Every response of this adapter carries `Cache-Control: no-store`, except the
-  runtime, which carries `Cache-Control: no-cache`.
+  runtime, the Markdown runtime and the core themes, which carry
+  `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified` and answer 304
+  to a matching `If-None-Match` or `If-Modified-Since`.
 - The page registry lives in the process: pages opened by one worker are
   unknown to another. On `lifespan.shutdown` the application forgets every
   open page.
@@ -192,7 +194,7 @@ Block ID: **GP-110-090**.
 All five adapters accept `collections=()` and forward it to the core server. Each entry has `grammar` (generated JSON object) and `module` (root-relative browser module URL); serve that module through `assets`. The core guide [Components](https://github.com/gramlot-org/gramlot/blob/main/docs/public/105-components.md#gc-105-035) describes an entry. The gallery command passes the collections of `gramlot-examples` through its explicit application configuration. Restart the gallery after rebuilding development assets.
 
 
-Collection browser resources are verified once at startup and served through fingerprinted URLs with `Cache-Control: public, max-age=31536000, immutable`. The fixed registry is discovered from page declarations. Page bootstrap includes only that page's collections. Restart after changing collection definitions. The runtime uses `no-cache` so browsers may store and revalidate it; other assets, HTML and RPC retain `no-store`.
+Collection browser resources are verified once at startup and served through fingerprinted URLs with `Cache-Control: public, max-age=31536000, immutable`. The fixed registry is discovered from page declarations. Page bootstrap includes only that page's collections. Restart after changing collection definitions. The runtime and the core themes use `no-cache` with a strong `ETag` and `Last-Modified`, so browsers store them and revalidate them with a 304; other assets, HTML and RPC retain `no-store`.
 
 Known upstream limitation: Kajenn 0.5.0 rewrites `Content-Length` to zero on HEAD responses. GET content and caching remain correct. The other adapters preserve representation length. See [Kajenn issue 77](https://github.com/kajenn-org/kajenn/issues/77).
 
@@ -203,8 +205,8 @@ Known upstream limitation: Kajenn 0.5.0 rewrites `Content-Length` to zero on HEA
 Block ID: **GP-110-095**.
 
 The core's `markdown_url` is the sibling `gramlot-markdown.js` of `runtime_url`.
-The shared adapter serves this packaged resource through `send_file`, with
-JavaScript media type and `no-cache`. The bootstrap import map includes the
-mount prefix. The parser is fetched on first use, not because a collection is
+The shared adapter serves this packaged resource through `send_revalidated`, with
+JavaScript media type, `no-cache`, `ETag` and `Last-Modified`. The bootstrap
+import map includes the mount prefix. The parser is fetched on first use, not because a collection is
 available. Deploy the corresponding wheel resources and collection artifacts
 together; no CDN fallback is used.

@@ -199,7 +199,9 @@ Block ID: **GP-005-025**.
   lists the accepted methods and the body `Method not allowed`; the five
   adapters answer the same way.
 - **Headers.** Every response carries `Cache-Control: no-store`, except the
-  runtime, which carries `Cache-Control: no-cache`.
+  runtime, the Markdown runtime and the core themes, which carry
+  `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified` and answer 304
+  to a matching `If-None-Match` or `If-Modified-Since`.
 - **Protocol requests.** `/gramlot/rpc` and `/gramlot/close` accept `POST` with
   `Content-Type: application/json`. The core reads the body as UTF-8 and removes
   a leading byte order mark. The adapters fix no body size; a web server in

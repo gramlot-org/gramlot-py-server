@@ -128,7 +128,9 @@ Block ID: **GP-405-020**.
   header of the URL and the plain text body `Method not allowed`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
-  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  `Content-Type: text/javascript; charset=utf-8`. The runtime and the core
+  themes carry `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified`,
+  and answer 304 with no body to a matching `If-None-Match` or `If-Modified-Since`.
   Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
 - **Request body.** The protocol endpoints read the whole body; the core
   decodes it (UTF-8, a leading byte order mark removed) into the text that

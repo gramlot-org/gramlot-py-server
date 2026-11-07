@@ -7,7 +7,7 @@ import pytest
 from genro_tytx import from_tytx
 
 from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
-from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, THEME_URL, check_no_cache, check_no_store,
                         check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
@@ -340,7 +340,9 @@ async def test_http_rules_of_the_shared_base(tmp_path, mount):
         for url in NO_STORE_URLS:
             check_no_store(url, (await client.get(mount + url)).headers)
         check_no_cache(RUNTIME_URL, (await client.get(mount + RUNTIME_URL)).headers)
+        check_no_cache(THEME_URL, (await client.get(mount + THEME_URL)).headers)
         check_no_cache(RUNTIME_URL, (await client.head(mount + RUNTIME_URL)).headers)
+        check_no_cache(THEME_URL, (await client.head(mount + THEME_URL)).headers)
         for url in ("/gramlot/rpc", "/gramlot/close"):
             response = await client.get(mount + url)
             check_refusal("GET", response.status_code, response.headers, "POST")

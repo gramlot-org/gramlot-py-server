@@ -101,3 +101,35 @@ def check_adapter(framework, tmp_path, mount_path, policy, page_ttl):
     with served(framework, pages, mount_path, policy, page_ttl) as base_url:
         check_protocol(base_url, "/")
         check_protocol(base_url, "/orders", page_ttl=page_ttl)
+
+
+def check_revalidation(framework, tmp_path, mount_path=""):
+    """Over HTTP: the runtime and a core theme answer 200 with ``ETag`` and ``Cache-Control:
+    no-cache``, then 304 with no body to the same ``ETag`` and to ``Last-Modified``."""
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    def get(url, **headers):
+        try:
+            with urlopen(Request(url, headers=headers), timeout=10) as response:
+                return response.status, dict(response.headers), response.read()
+        except HTTPError as error:
+            return error.code, dict(error.headers), error.read()
+
+    pages = conformance_pages(tmp_path)
+    with served(framework, pages, mount_path, None) as base_url:
+        for path in ("/assets/gramlot.js", "/themes/gramlot-base/theme.css"):
+            status, headers, body = get(base_url + path)
+            headers = {name.lower(): value for name, value in headers.items()}
+            assert status == 200 and body, path
+            assert headers["cache-control"] == "no-cache", path
+            etag = headers["etag"]
+            assert etag.startswith('"') and etag.endswith('"'), path
+            for condition in ({"If-None-Match": etag}, {"If-Modified-Since": headers["last-modified"]}):
+                status, revalidated, body = get(base_url + path, **condition)
+                revalidated = {name.lower(): value for name, value in revalidated.items()}
+                assert status == 304 and body == b"", (path, condition)
+                assert revalidated["etag"] == etag, (path, condition)
+                assert revalidated["cache-control"] == "no-cache", (path, condition)
+            status, _, body = get(base_url + path, **{"If-None-Match": '"other"'})
+            assert status == 200 and body, path

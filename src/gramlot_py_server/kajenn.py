@@ -109,11 +109,24 @@ class Application(base.Adapter, RoutedApplication):
                     content_type=str(_request.content_type or ""),
                     owner=_request.cookies.get(self.OWNER_COOKIE),
                     identity=_request.avatar(),
+                    if_none_match=self.raw_header(_request, b"if-none-match"),
+                    if_modified_since=self.raw_header(_request, b"if-modified-since"),
                 ))
         for name, value in reply.headers:
             _request.response.set_header(name, value)
         _request.response.status_code = reply.status
         return self.result_wrapper(reply.body, media_type=reply.content_type)
+
+    @staticmethod
+    def raw_header(request, name: bytes) -> str:
+        """The header ``name`` as sent, or ``""``.
+
+        ``request.headers`` holds TYTX-hydrated values: a quoted ``ETag`` loses its quotes there.
+        """
+        for key, value in request.scope.get("headers", []):
+            if key.lower() == name:
+                return value.decode("latin-1")
+        return ""
 
     @asynccontextmanager
     async def _operation(self, *, register=False):

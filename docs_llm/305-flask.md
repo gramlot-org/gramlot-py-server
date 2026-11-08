@@ -96,8 +96,8 @@ pages = mount_pages(app, PAGES, mount_path="/py")
   at the same path gives the same name, and Flask raises `ValueError`.
 - The `Pages` is recorded in `app.extensions["gramlot_pages"][mount_path]`,
   for example `app.extensions["gramlot_pages"]["/py"]`.
-- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
-  have the meaning of the [Uvicorn options](110-configuration.md). The option
+- `page_ttl`, `max_pages`, `content_security_policy`, `library_source`, `assets`
+  and `collections` have the meaning of the [Uvicorn options](110-configuration.md). The option
   `css_theme` of the core server is not exposed: the base theme is
   `gramlot-base`.
 
@@ -124,7 +124,9 @@ Block ID: **GP-305-020**.
   `GramlotFileServer` runs in its own event loop through `asyncio.run`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
-  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  `Content-Type: text/javascript; charset=utf-8`. The runtime and the core
+  themes carry `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified`,
+  and answer 304 with no body to a matching `If-None-Match` or `If-Modified-Since`.
   Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
 - **Request body.** The protocol views pass the body to `GramlotServer.call`
   as text. The adapter fixes no size; Flask's `MAX_CONTENT_LENGTH`, when the
@@ -158,7 +160,8 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages`, registers
   its blueprint and records it in `app.extensions["gramlot_pages"]`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: a subclass of
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  a subclass of
   `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
   section 020):
   - `blueprint()`: a new `Blueprint` with the routes below.

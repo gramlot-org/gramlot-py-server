@@ -105,8 +105,8 @@ app = Application(PAGES, mount_path="/py", title="Pages")
 - With a prefix the router has one more route, `/py` without the final slash,
   that answers 301 to `/py/` with the query string: pages link each other with
   relative URLs.
-- `page_ttl`, `max_pages`, `content_security_policy`, `assets` and `collections`
-  have the meaning of the [Uvicorn options](110-configuration.md). The option
+- `page_ttl`, `max_pages`, `content_security_policy`, `library_source`, `assets`
+  and `collections` have the meaning of the [Uvicorn options](110-configuration.md). The option
   `css_theme` of the core server is not exposed: the base theme is
   `gramlot-base`.
 
@@ -128,7 +128,9 @@ Block ID: **GP-405-020**.
   header of the URL and the plain text body `Method not allowed`.
 - **Responses.** Pages, companions and protocol answers carry
   `Cache-Control: no-store`. The runtime carries
-  `Content-Type: text/javascript; charset=utf-8` and `Cache-Control: no-cache`.
+  `Content-Type: text/javascript; charset=utf-8`. The runtime and the core
+  themes carry `Cache-Control: no-cache`, a strong `ETag` and `Last-Modified`,
+  and answer 304 with no body to a matching `If-None-Match` or `If-Modified-Since`.
   Error messages are plain text with `Content-Type: text/plain; charset=utf-8`.
 - **Request body.** The protocol endpoints read the whole body; the core
   decodes it (UTF-8, a leading byte order mark removed) into the text that
@@ -159,10 +161,12 @@ Module functions, outside `__all__`:
 - `mount_pages(app, pages, **options) -> Pages`: creates the `Pages` and calls
   `mount(app)`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=(), **fastapi_options)`:
+  content_security_policy=None, library_source="cdn", assets=None, collections=(),
+  **fastapi_options)`:
   a `FastAPI` application. `gramlot_pages` holds its `Pages`.
 - `Pages(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: a subclass of
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  a subclass of
   `gramlot_py_server.base.Adapter` ([Uvicorn reference](120-reference.md),
   section 020):
   - `mount(app)`: includes the router and registers the shutdown handler.

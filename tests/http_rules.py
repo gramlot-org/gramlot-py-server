@@ -4,10 +4,11 @@ from http.cookies import Morsel, SimpleCookie
 # The methods that a page path refuses, HEAD included.
 REFUSED_ON_A_PAGE = ("HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
 # The URLs, below the mount path, that every adapter answers with Cache-Control: no-store, and how.
-NO_STORE_URLS = ("/", "/themes/gramlot-base/theme.css", "/index.css", "/index_aux.js",
-                 "/extra/logo.svg", "/missing", "/missing.css")
-# The runtime is the one URL that carries Cache-Control: no-cache, as in the JavaScript servers.
+NO_STORE_URLS = ("/", "/index.css", "/index_aux.js", "/extra/logo.svg", "/missing", "/missing.css")
+# The runtime and the core themes carry Cache-Control: no-cache and an ETag, as in the JavaScript servers.
 RUNTIME_URL = "/assets/gramlot.js"
+THEME_URL = "/themes/gramlot-base/theme.css"
+REVALIDATED_URLS = (RUNTIME_URL, THEME_URL)
 RULES_PAGE = """from gramlot import Page as BasePage
 class Page(BasePage):
     title = 'Rules'
@@ -43,8 +44,11 @@ def check_no_store(url, headers):
 
 
 def check_no_cache(url, headers):
-    """The response of ``url`` carries ``Cache-Control: no-cache``."""
-    assert lowered(headers).get("cache-control") == "no-cache", url
+    """The response of ``url`` carries ``Cache-Control: no-cache``, a strong ``ETag`` and ``Last-Modified``."""
+    headers = lowered(headers)
+    assert headers.get("cache-control") == "no-cache", url
+    assert headers.get("etag", "").startswith('"'), url
+    assert headers.get("last-modified", "").endswith(" GMT"), url
 
 
 def check_owner_cookie(cookie, path):

@@ -22,7 +22,7 @@ def stage_gallery(folder, *, prefix=""):
     report_folder = folder / 'pages/85-chart-reports'
     links = [(prefix + '/pages/85-chart-reports/' + name, label)
              for name, label in [('sales', 'Live Australian sales'), ('attributes', 'Attributes fixture'),
-                                 ('values', 'Values fixture'), ('streaming', 'Streaming sine waves')]]
+                                 ('values', 'Values fixture')]]
     for name in ('sales', 'attributes', 'values'):
         with (report_folder / f'{name}.py').open('a') as stream:
             stream.write(f"\nPage.report_links = {links!r}\n")
@@ -55,7 +55,7 @@ def main():
             assets = stage_gallery(Path(folder))
             serve(folder, host='127.0.0.1', port=args.port, assets=assets)
             return
-        for name in ('index','attributes','values','streaming','australian_timeline') + (('australian_geography',) if args.localities else ()):
+        for name in ('index','attributes','values','australian_timeline') + (('australian_geography',) if args.localities else ()):
             path=Path(folder)/f'{name}.py'
             path.write_text(pages.joinpath('sales.py' if name == 'index' else f'{name}.py').read_text())
             if name in ('index','australian_timeline'):
@@ -64,7 +64,6 @@ def main():
             if name=='australian_geography':
                 with path.open('a') as stream:
                     stream.write('\nfrom gramlot_py_server.gallery.base.sales_charts import geography_provider\nPage.provider = geography_provider\nPage.geojson = geography_provider.states\n')
-        (Path(folder)/'streaming.js').write_text(pages.joinpath('streaming.js').read_text())
         serve(folder,host='127.0.0.1',port=args.port)
 
 

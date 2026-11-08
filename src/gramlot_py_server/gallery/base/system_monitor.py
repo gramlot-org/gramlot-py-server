@@ -17,7 +17,7 @@ def main():
     )
     args = parser.parse_args()
     page = files("gramlot_examples").joinpath(
-        "base/pages/86-system-analysis/system_analysis.py"
+        "base/pages/10-realtime/system_analysis.py"
     )
     with TemporaryDirectory(prefix="gramlot-system-") as folder:
         if args.gallery:
@@ -34,9 +34,6 @@ def main():
             return
 
         (Path(folder) / "index.py").write_text(page.read_text())
-        (Path(folder) / "audio.py").write_text(
-            page.parent.joinpath("audio_spectrum.py").read_text()
-        )
         serve(folder, host="127.0.0.1", port=args.port, websocket=True)
 
 

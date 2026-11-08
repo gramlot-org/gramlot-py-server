@@ -11,6 +11,8 @@ from rpc_checks import RPC_HEADERS, envelope, rpc_source
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 PAGES = EXAMPLES / "pages"
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+# The policy sent with the default library source "cdn": the core adds the jsDelivr origin to script-src.
+SENT_CSP = "script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'"
 
 
 @pytest.mark.asyncio
@@ -39,7 +41,7 @@ async def test_tutorial_page_with_page_module_and_stylesheet_under_the_strict_pr
         document = await client.get("/greeting")
         assert document.status_code == 200
         nonce = re.search(r'nonce="([^"]+)"', document.text).group(1)
-        assert document.headers["content-security-policy"] == STRICT_CSP.replace("{nonce}", nonce)
+        assert document.headers["content-security-policy"] == SENT_CSP.replace("{nonce}", nonce)
         assert '"css":["/themes/gramlot-base/theme.css","/greeting.css"]' in document.text
         assert '{"url":"/greeting.js","group":null}' in document.text
         assert (await client.get("/greeting.css")).headers["content-type"] == "text/css; charset=utf-8"

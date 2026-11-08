@@ -74,6 +74,8 @@ class Pages(base.Adapter):
             query=request.META.get("QUERY_STRING", ""),
             content_type=request.META.get("CONTENT_TYPE", ""),
             owner=request.COOKIES.get(self.OWNER_COOKIE),
+            if_none_match=request.headers.get("If-None-Match", ""),
+            if_modified_since=request.headers.get("If-Modified-Since", ""),
         ))
         return self.response(reply)
 

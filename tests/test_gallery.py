@@ -39,7 +39,7 @@ def test_stage_writes_one_page_per_route(tmp_path, prefix):
     assert "07-tools" in (tmp_path / ".gallery-tools/catalog.json").read_text()
     assert f"root.script(src='{prefix}/gallery/dist/frame.js')" in (tmp_path / "pages/00-html_svg/01-html_basics/01-hello_world.py").read_text()
     assert "super().main(root.main(class_='example-page stack'))" in (tmp_path / "pages/00-html_svg/01-html_basics/01-hello_world.py").read_text()
-    assert "super().main(root)" in (tmp_path / "pages/05-grid_editable/10_editing.py").read_text()
+    assert "super().main(root)" in (tmp_path / "pages/05-grid/13_editing.py").read_text()
     assert "super().main(root)" in (tmp_path / "pages/06-editors/03-html.py").read_text()
     stub = (tmp_path / "pages/03-controllers/01-logic/03-named_logic_aux.js").read_text()
     assert stub == f'export * from "{prefix}/pages/03-controllers/01-logic/03-named_logic.js";\n'
@@ -134,8 +134,8 @@ def test_tools_navigation_keeps_playground_and_ide_together(tmp_path):
     from gramlot_examples import navigation_directory
     from gramlot_py_server.gallery import stage_tools
     catalog = stage_tools(tmp_path)
-    root = navigation_directory(catalogs=[catalog])
-    assert [n.attr["directory"] for n in root.nodes].count("07-tools") == 1
+    group = navigation_directory("editors-tools", catalogs=[catalog])
+    assert [n.attr["directory"] for n in group.nodes].count("07-tools") == 1
     tools = navigation_directory("07-tools", catalogs=[catalog])
     assert tools.get_node("e13").attr["url"] == "pages/07-tools/01-live_source"
     assert tools.get_node("02-directory_tree").attr["title"] == "Browse a directory on disk"
@@ -215,7 +215,7 @@ def test_visual_editor_host_file_mapping_is_explicit_and_optional(tmp_path):
     source=tmp_path/'draft.py';source.write_text('class Page: pass')
     target=tmp_path/'staged';target.mkdir()
     stage(target, [], '', editor_python=source, remote_edit=True)
-    page=(target/'pages/07-tools/02-advanced/01-visual_source.py').read_text()
+    page=(target/'pages/07-tools/02-visual_source.py').read_text()
     assert 'VisualEditorPageMixin' in page
     assert "editor_python = 'page'" in page
     assert repr(str(source)) in page

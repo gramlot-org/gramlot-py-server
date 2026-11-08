@@ -24,7 +24,8 @@ Module functions, outside `__all__`:
 - `create_application(pages, **options) -> Application`: builds the
   application. `options` are those of `Application`.
 - `Application(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: the ASGI callable,
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  the ASGI callable,
   a subclass of `gramlot_py_server.base.Adapter` (section 020). It handles the
   `http` and `lifespan` scopes. Any other scope type raises `ValueError`
   ("Application supports HTTP only"). On `lifespan.shutdown` it calls
@@ -58,7 +59,13 @@ All paths are shown without the mount prefix. With a prefix, the request path
 carries it; a path outside it answers 404 `Not found`, and the prefix without
 the final slash answers 301 with `Location: /py/` and the query string. Every
 response carries `Content-Length` and `Cache-Control: no-store`, except the
-runtime, which carries `Cache-Control: no-cache`. Error bodies are plain text.
+runtime, the Markdown runtime and the core themes, which carry
+`Cache-Control: no-cache`, a strong `ETag` (the SHA-256 of the content, computed
+once for each path, modification time and size) and `Last-Modified`. A `GET` or
+`HEAD` of one of them whose `If-None-Match` matches the `ETag`, or without
+`If-None-Match` whose `If-Modified-Since` is not older than the file, answers 304
+with no body. The collection files carry `Cache-Control: public, max-age=31536000,
+immutable`. Error bodies are plain text.
 
 | Method and path | Answer |
 | --- | --- |
@@ -123,9 +130,9 @@ The five adapters inherit from `base.Adapter`, which writes the HTTP rules of th
 Part B, once. Its names are common to every adapter:
 
 - `Adapter(pages, *, mount_path="", page_ttl=1800, max_pages=1000,
-  content_security_policy=None, assets=None, collections=())`: builds
-  `gramlot_server` from `server_class(pages, page_ttl=…, max_pages=…,
-  collections=…)`. `server_class` is `GramlotFileServer`; the Kajenn adapter
+  content_security_policy=None, library_source="cdn", assets=None, collections=())`:
+  builds `gramlot_server` from `server_class(pages, page_ttl=…, max_pages=…,
+  collections=…, library_source=…)`. `server_class` is `GramlotFileServer`; the Kajenn adapter
   replaces it with a subclass that has the capability `auth`. Other keyword
   arguments reach the next class in the order of the adapter class: Kajenn's
   `RoutedApplication`; in the other adapters they raise `TypeError`.

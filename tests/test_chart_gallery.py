@@ -16,7 +16,7 @@ def test_chart_gallery_preserves_reports_and_companions(tmp_path, monkeypatch):
     monkeypatch.setattr(sales_charts, 'geography_provider', SimpleNamespace(states=geometry), raising=False)
     assets = chart_reports.stage_gallery(tmp_path)
     server = GramlotFileServer(tmp_path)
-    for name in ('sales', 'australian_timeline', 'australian_geography', 'streaming', 'attributes', 'values', 'time_snapshots'):
+    for name in ('sales', 'australian_timeline', 'australian_geography', 'attributes', 'values', 'time_snapshots'):
         cls = server.resolve_page('pages/85-chart-reports/' + name)
         page = cls()
         builder = page.source_builder('main')
@@ -26,10 +26,9 @@ def test_chart_gallery_preserves_reports_and_companions(tmp_path, monkeypatch):
     sales = server.resolve_page('pages/85-chart-reports/sales')
     assert sales.provider is provider
     assert sales.report_links[0][0] == '/pages/85-chart-reports/sales'
-    assert '/pages/85-chart-reports/streaming.js' in assets
     root = Path(chart_reports.files('gramlot_examples'))
     gallery = build_gallery([(root / 'base/chart-reports-catalog.json', root / 'base/pages')])
-    for i in range(1, 8):
+    for i in (1, 2, 3, 5, 6, 7):
         route = gallery['routes'][f'chart-reports-{i:02}']
         assert route['page'].exists()
     assert (root / 'base/pages/85-chart-reports/00-index.md').exists()

@@ -7,7 +7,7 @@ import pytest
 from genro_tytx import from_tytx
 
 from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
-from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, THEME_URL, check_no_cache, check_no_store,
                         check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from rpc_checks import RPC_HEADERS, envelope, rpc_outcome, rpc_source
@@ -138,7 +138,7 @@ async def test_mount_path_is_the_prefix_of_the_request_paths(tmp_path):
 @pytest.mark.parametrize("policy", [STRICT_CSP, PERMISSIVE_CSP])
 async def test_content_security_policy_carries_the_bootstrap_nonce(tmp_path, policy):
     (tmp_path / "index.py").write_text(PAGE)
-    app = create_application(tmp_path, content_security_policy=policy)
+    app = create_application(tmp_path, content_security_policy=policy, library_source="local")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         first = await client.get("/")
@@ -149,6 +149,21 @@ async def test_content_security_policy_carries_the_bootstrap_nonce(tmp_path, pol
         assert response.headers["content-security-policy"] == policy.replace("{nonce}", nonce)
     assert bootstrap(first.text)[0] != bootstrap(second.text)[0]
     assert "content-security-policy" not in runtime.headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["cdn", "local"])
+async def test_library_source_reaches_the_policy_and_the_document(tmp_path, source):
+    (tmp_path / "index.py").write_text(PAGE)
+    app = create_application(tmp_path, content_security_policy=STRICT_CSP, library_source=source)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/")
+    nonce, _, _ = bootstrap(response.text)
+    policy = response.headers["content-security-policy"]
+    assert f"'nonce-{nonce}'" in policy
+    assert ("https://cdn.jsdelivr.net" in policy) is (source == "cdn")
+    assert f'<html data-gramlot-library-source="{source}">' in response.text
 
 
 async def raw_get(app, path):
@@ -340,7 +355,9 @@ async def test_http_rules_of_the_shared_base(tmp_path, mount):
         for url in NO_STORE_URLS:
             check_no_store(url, (await client.get(mount + url)).headers)
         check_no_cache(RUNTIME_URL, (await client.get(mount + RUNTIME_URL)).headers)
+        check_no_cache(THEME_URL, (await client.get(mount + THEME_URL)).headers)
         check_no_cache(RUNTIME_URL, (await client.head(mount + RUNTIME_URL)).headers)
+        check_no_cache(THEME_URL, (await client.head(mount + THEME_URL)).headers)
         for url in ("/gramlot/rpc", "/gramlot/close"):
             response = await client.get(mount + url)
             check_refusal("GET", response.status_code, response.headers, "POST")

@@ -57,6 +57,8 @@ class Pages(base.Adapter):
             query=request.query_string.decode("latin-1"),
             content_type=request.headers.get("Content-Type", ""),
             owner=request.cookies.get(self.OWNER_COOKIE),
+            if_none_match=request.headers.get("If-None-Match", ""),
+            if_modified_since=request.headers.get("If-Modified-Since", ""),
         ))))
 
     @staticmethod

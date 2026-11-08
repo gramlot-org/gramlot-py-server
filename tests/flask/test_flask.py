@@ -6,7 +6,7 @@ from flask import Flask
 from genro_tytx import from_tytx
 
 from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
-from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, check_no_cache, check_no_store,
+from http_rules import (NO_STORE_URLS, REFUSED_ON_A_PAGE, RUNTIME_URL, THEME_URL, check_no_cache, check_no_store,
                         check_owner_cookie, check_refusal, rules_pages)
 from index_html_checks import INDEX_HTML_MISSING, INDEX_HTML_PATHS, title_of, titled_pages
 from gramlot_py_server.flask import mount_pages
@@ -87,6 +87,8 @@ def test_prefixed_close_url_matches_route(tmp_path):
 
 
 STRICT_CSP = "script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'"
+# The policy sent with the default library source "cdn": the core adds the jsDelivr origin to script-src.
+SENT_CSP = "script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'"
 BOOTSTRAP = re.compile(
     r'<script type="module" nonce="([^"]+)">import \{PageBootstrap\} from ("[^"]+");'
     r"await new PageBootstrap\((.+)\)\.run\(\);</script>"
@@ -113,7 +115,7 @@ def test_mount_path_companions_and_content_security_policy(tmp_path):
     client = app.test_client()
     document = client.get("/nested/")
     nonce, runtime, argument = BOOTSTRAP.search(document.text).groups()
-    assert document.headers["Content-Security-Policy"] == STRICT_CSP.replace("{nonce}", nonce)
+    assert document.headers["Content-Security-Policy"] == SENT_CSP.replace("{nonce}", nonce)
     assert json.loads(runtime) == "/nested/assets/gramlot.js"
     resources = json.loads(argument)["resources"]
     assert resources["css"] == [
@@ -262,7 +264,9 @@ def test_http_rules_of_the_shared_base(tmp_path):
     for url in NO_STORE_URLS:
         check_no_store(url, client.get("/nested" + url).headers)
     check_no_cache(RUNTIME_URL, client.get("/nested" + RUNTIME_URL).headers)
+    check_no_cache(THEME_URL, client.get("/nested" + THEME_URL).headers)
     check_no_cache(RUNTIME_URL, client.head("/nested" + RUNTIME_URL).headers)
+    check_no_cache(THEME_URL, client.head("/nested" + THEME_URL).headers)
     for url in ("/gramlot/rpc", "/gramlot/close"):
         response = client.get("/nested" + url)
         check_refusal("GET", response.status_code, response.headers, "POST")

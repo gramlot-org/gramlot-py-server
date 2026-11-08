@@ -297,8 +297,9 @@ Apache License 2.0. Copyright 2026 Softwell S.r.l. See [LICENSE](LICENSE) and
 
 ## Hosted gallery updates
 
-After a successful `Publish release`, the separate `Update hosted galleries`
-workflow updates both public galleries and their serverless ZIP. It can also be
-run manually on main to retry a failed deployment. See the
-[deployment runbook](https://github.com/gramlot-org/gramlot-examples/blob/main/deploy/galleries/README.md)
-for credentials, verification and rollback.
+The public galleries run in the k3s cluster. An updater in the cluster
+(genro/hetzner-kube, `apps/gramlot-galleries`) checks the releases of the four
+Gramlot repositories every ten minutes and, after a release, builds and deploys a
+new generation of both galleries and their serverless ZIP. No workflow of this
+repository deploys the galleries. See the
+[deployment runbook](https://github.com/gramlot-org/gramlot-examples/blob/main/deploy/galleries/README.md).

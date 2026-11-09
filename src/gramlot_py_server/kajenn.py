@@ -19,6 +19,7 @@ from kajenn.websocket import WebSocket
 
 from gramlot_py_server import base
 from gramlot_py_server.store_channel import _StoreChannel
+from gramlot_py_server.terminal_channel import _TerminalChannel
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
@@ -80,6 +81,7 @@ class Application(base.Adapter, RoutedApplication):
         self._operation_lock = asyncio.Lock()
         self._execution = ContextVar("gramlot_kajenn_execution", default=None)
         self._store_channel = _StoreChannel(self.gramlot_server, self.gramlot_server._invoke, self._store_request)
+        self._terminal_channel = _TerminalChannel(self.gramlot_server, self._operation)
         self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
         if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
             raise ValueError("mount must be a single lowercase URL segment or empty")
@@ -206,6 +208,13 @@ class Application(base.Adapter, RoutedApplication):
             return
         self.server.websockets.register(socket)
         try:
+            if scope["path"] == "/gramlot/terminal":
+                await self._terminal_channel.serve(
+                    socket, scope, owner=socket.cookies.get(self.OWNER_COOKIE),
+                    path="/gramlot/terminal", disconnect_error=WebSocketDisconnect,
+                    identity=identity,
+                )
+                return
             await self._store_channel.serve(
                 socket, scope, owner=socket.cookies.get(self.OWNER_COOKIE),
                 path="/gramlot/store", disconnect_error=WebSocketDisconnect,

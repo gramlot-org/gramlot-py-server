@@ -8,10 +8,17 @@ never enters its queue.
 """
 
 import asyncio
+import time
 from contextlib import nullcontext
 from urllib.parse import parse_qs
 
+from gramlot.server import PageExpired
+from gramlot.server.terminal import TerminalClosed
+
 from gramlot_py_server.store_channel import same_origin
+
+# A frame renews the page at most once per interval: a keyboard-only session outlives page_ttl.
+RENEWAL = 60
 
 
 class _TerminalChannel:
@@ -38,11 +45,13 @@ class _TerminalChannel:
                     raise ValueError("Expected a page ID and a session")
                 page_id, name = query["pageId"][0], query["session"][0]
                 terminal = await self.gramlot_server.open_terminal(
-                    page_id, name, send=send, owner=owner, identity=identity)
+                    page_id, name, send=send, owner=owner, identity=identity,
+                    host=headers.get(b"host", b"").decode("ascii"))
             except (ValueError, LookupError, PermissionError, TypeError, UnicodeError):
                 await socket.refuse(1008)
                 return
         incoming = closed = None
+        renewed = time.monotonic()
         try:
             await socket.accept()
             accepted.set()
@@ -51,14 +60,27 @@ class _TerminalChannel:
                 incoming = asyncio.ensure_future(socket.receive_bytes())
                 await asyncio.wait((incoming, closed), return_when=asyncio.FIRST_COMPLETED)
                 # The session ended (method returned, page closed): frames still arriving are dropped.
-                if closed.done():
+                if terminal.closed:
+                    if incoming.done() and not incoming.cancelled():
+                        incoming.exception()
                     await socket.close(1000)
                     return
                 try:
                     terminal.receive(incoming.result())
+                except TerminalClosed:
+                    await socket.close(1000)
+                    return
                 except (ValueError, TypeError):
                     await socket.close(1008)
                     return
+                if time.monotonic() - renewed >= RENEWAL:
+                    renewed = time.monotonic()
+                    try:
+                        async with self.request_context():
+                            self.gramlot_server.page_store(page_id, owner=owner)
+                    except PageExpired:
+                        await socket.close(1000)
+                        return
         except disconnect_error:
             return
         finally:

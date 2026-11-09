@@ -31,7 +31,7 @@ async def terminal(app, cookie, page_id, session, *, origin="http://test", prefi
         return await asyncio.wait_for(outgoing.get(), timeout)
 
     async def send(frame):
-        await incoming.put(dict(type="websocket.receive", bytes=frame))
+        await incoming.put(dict(type="websocket.receive", **({"text": frame} if isinstance(frame, str) else {"bytes": frame})))
 
     try:
         yield await receive(), send, receive
@@ -127,5 +127,28 @@ class TerminalChecks:
             page_id, cookie = await self.page(client)
             async with terminal(app, cookie, page_id, "echo") as (accepted, send, receive):
                 await send(bytes([9]))
+                event = await receive()
+                assert event["type"] == "websocket.close" and event["code"] == 1008
+
+    @pytest.mark.asyncio
+    async def test_opening_the_name_again_closes_the_open_session(self):
+        app = self.app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page_id, cookie = await self.page(client)
+            async with terminal(app, cookie, page_id, "echo") as (first, first_send, first_receive):
+                async with terminal(app, cookie, page_id, "echo") as (second, send, receive):
+                    assert second["type"] == "websocket.accept"
+                    event = await first_receive()
+                    assert event["type"] == "websocket.close" and event["code"] == 1000
+                    await send(bytes([INPUT]) + b"again")
+                    assert (await receive())["bytes"] == bytes([OUTPUT]) + b"again"
+
+    @pytest.mark.asyncio
+    async def test_a_text_frame_closes_the_socket_with_1008(self):
+        app = self.app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page_id, cookie = await self.page(client)
+            async with terminal(app, cookie, page_id, "echo") as (accepted, send, receive):
+                await send("ls")
                 event = await receive()
                 assert event["type"] == "websocket.close" and event["code"] == 1008

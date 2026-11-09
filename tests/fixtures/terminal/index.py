@@ -34,6 +34,15 @@ class PageStore(BasePageStore):
     async def bye(self, session):
         await session.write(b"bye")
 
+    @terminal
+    async def peer(self, session):
+        await session.write(f"{session.host} {session.client}".encode())
+
+    @terminal
+    async def held(self, session):
+        while True:
+            await session.write(b"x" * 65536)
+
     @terminal(auth="admin")
     async def guarded(self, session):
         await session.write(b"secret")

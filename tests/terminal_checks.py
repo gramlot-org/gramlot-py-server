@@ -7,6 +7,9 @@ from pathlib import Path
 import httpx
 import pytest
 from genro_tytx import from_tytx
+from gramlot.server import GramlotServer
+
+import gramlot_py_server.terminal_channel as terminal_channel
 
 from page_store_checks import channel, open_page, rpc
 
@@ -19,12 +22,12 @@ def ack(count):
 
 
 @asynccontextmanager
-async def terminal(app, cookie, page_id, session, *, origin="http://test", prefix="", query=None):
+async def terminal(app, cookie, page_id, session, *, origin="http://test", prefix="", query=None, peer=("127.0.0.1", 50000)):
     incoming, outgoing = asyncio.Queue(), asyncio.Queue()
     await incoming.put({"type": "websocket.connect"})
     scope = dict(type="websocket", scheme="ws", path=prefix + "/gramlot/terminal",
                  query_string=(query if query is not None else f"pageId={page_id}&session={session}").encode(),
-                 headers=[(b"host", b"test"), (b"origin", origin.encode()), (b"cookie", cookie.encode())])
+                 headers=[(b"host", b"test"), (b"origin", origin.encode()), (b"cookie", cookie.encode())], client=peer)
     task = asyncio.create_task(app(scope, incoming.get, outgoing.put))
 
     async def receive(timeout=2):
@@ -152,3 +155,56 @@ class TerminalChecks:
                 await send("ls")
                 event = await receive()
                 assert event["type"] == "websocket.close" and event["code"] == 1008
+
+    @pytest.mark.asyncio
+    async def test_the_session_knows_the_host_header_and_the_peer_address(self):
+        app = self.app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page_id, cookie = await self.page(client)
+            async with terminal(app, cookie, page_id, "peer", peer=("::1", 4000)) as (accepted, send, receive):
+                assert (await receive())["bytes"] == bytes([OUTPUT]) + b"test ::1"
+
+    @pytest.mark.asyncio
+    async def test_a_frame_after_the_renewal_interval_renews_the_page(self, monkeypatch):
+        renewals = []
+        page_store = GramlotServer.page_store
+
+        def counting(server, page_id, **options):
+            renewals.append(page_id)
+            return page_store(server, page_id, **options)
+        monkeypatch.setattr(GramlotServer, "page_store", counting)
+        app = self.app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page_id, cookie = await self.page(client)
+            async with terminal(app, cookie, page_id, "echo") as (accepted, send, receive):
+                opened = len(renewals)
+                await send(bytes([INPUT]) + b"a")
+                await receive()
+                assert len(renewals) == opened
+                monkeypatch.setattr(terminal_channel, "RENEWAL", 0)
+                await send(bytes([INPUT]) + b"b")
+                await receive()
+                assert renewals[opened:] == [page_id]
+
+    @pytest.mark.asyncio
+    async def test_a_browser_leaving_while_output_waits_cancels_the_method(self, monkeypatch):
+        tasks = []
+        open_terminal = GramlotServer.open_terminal
+
+        async def recording(server, page_id, session, **options):
+            opened = await open_terminal(server, page_id, session, **options)
+            tasks.append((opened, server._terminals[(page_id, session)][1]))
+            return opened
+        monkeypatch.setattr(GramlotServer, "open_terminal", recording)
+        app = self.app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page_id, cookie = await self.page(client)
+            async with terminal(app, cookie, page_id, "held") as (accepted, send, receive):
+                received = 0
+                while received < 1 << 20:
+                    received += len((await receive())["bytes"]) - 1
+                session, task = tasks[0]
+                assert session.unacknowledged == 1 << 20 and not task.done()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, 2)
+            assert session.closed

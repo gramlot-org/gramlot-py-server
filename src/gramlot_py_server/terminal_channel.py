@@ -44,9 +44,11 @@ class _TerminalChannel:
                 if set(query) != {"pageId", "session"} or any(len(values) != 1 for values in query.values()):
                     raise ValueError("Expected a page ID and a session")
                 page_id, name = query["pageId"][0], query["session"][0]
+                # ASGI's client is the peer (host, port), or None when the server does not know it.
+                peer = scope.get("client")
                 terminal = await self.gramlot_server.open_terminal(
                     page_id, name, send=send, owner=owner, identity=identity,
-                    host=headers.get(b"host", b"").decode("ascii"))
+                    host=headers.get(b"host", b"").decode("ascii"), client=peer[0] if peer else None)
             except (ValueError, LookupError, PermissionError, TypeError, UnicodeError):
                 await socket.refuse(1008)
                 return

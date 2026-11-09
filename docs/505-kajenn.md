@@ -348,6 +348,12 @@ initial snapshots, changes, RPC with cancellation, and topic publications in bot
 directions. A refused publication returns an error for that message; it does not
 close the connection. Acceptance precedes subscriber execution.
 
+A `terminal` component opens a second socket of its own,
+`/pages/gramlot/terminal?pageId=...&session=...`, with the same owner, origin and
+handshake checks. It carries binary frames between the component and an
+`@terminal` PageStore method; terminal output never enters the PageStore channel.
+The frames are described in the core server protocol (GC-101-325).
+
 Kajenn authenticates the handshake using its configured authentication service;
 that identity is passed to Gramlot RPC authorization. The Gramlot owner cookie,
 same-origin handshake and ownership checks remain mandatory. Connection identity

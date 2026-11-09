@@ -11,6 +11,13 @@ from genro_tytx import from_tytx, to_tytx
 from gramlot.server import PageExpired
 
 
+def same_origin(scope, headers):
+    """Whether the ``origin`` header names the host of the WebSocket request, with the matching scheme."""
+    origin = urlsplit(headers.get(b"origin", b"").decode("ascii"))
+    scheme = "https" if scope["scheme"] == "wss" else "http"
+    return origin.scheme == scheme and origin.netloc == headers.get(b"host", b"").decode("ascii")
+
+
 class _StoreChannel:
     def __init__(self, server, invoke, request_context=nullcontext):
         self.gramlot_server = server
@@ -25,9 +32,7 @@ class _StoreChannel:
             try:
                 if self.gramlot_server.websocket_url is None or scope["path"] != path:
                     raise ValueError("Unknown WebSocket route")
-                origin = urlsplit(headers.get(b"origin", b"").decode("ascii"))
-                scheme = "https" if scope["scheme"] == "wss" else "http"
-                if origin.scheme != scheme or origin.netloc != headers.get(b"host", b"").decode("ascii"):
+                if not same_origin(scope, headers):
                     raise ValueError("Origin does not match")
                 query = parse_qs(scope.get("query_string", b"").decode("ascii"), strict_parsing=True)
                 if set(query) != {"pageId"} or len(query["pageId"]) != 1:

@@ -17,6 +17,7 @@ from gramlot.server.upload import _UploadRegistry
 
 from gramlot_py_server import base
 from gramlot_py_server.store_channel import _StoreChannel
+from gramlot_py_server.terminal_channel import _TerminalChannel
 from gramlot_py_server.gallery import add_gallery
 from gramlot_py_server.scaffold import add_new
 
@@ -57,6 +58,17 @@ class _AsgiWebSocket:
     async def send_text(self, text):
         await self.send({"type": "websocket.send", "text": text})
 
+    async def receive_bytes(self):
+        event = await self.receive()
+        if event["type"] == "websocket.disconnect":
+            raise _Disconnected()
+        if event["type"] != "websocket.receive" or not isinstance(event.get("bytes"), bytes):
+            raise ValueError("Expected a binary frame")
+        return event["bytes"]
+
+    async def send_bytes(self, data):
+        await self.send({"type": "websocket.send", "bytes": data})
+
 
 class Application(base.Adapter):
     """Serve a trusted page directory through Gramlot's ``GramlotFileServer``.
@@ -79,6 +91,7 @@ class Application(base.Adapter):
         self.gramlot_server._uploads = _UploadRegistry()
         self._store_mutations = asyncio.Lock()
         self._store_channel = _StoreChannel(self.gramlot_server, self._invoke_store)
+        self._terminal_channel = _TerminalChannel(self.gramlot_server)
         self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
 
     async def _invoke_store(self, function, *args, **kwargs):
@@ -142,6 +155,14 @@ class Application(base.Adapter):
 
     async def _websocket(self, scope, receive, send):
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
+        if scope["path"] == self.mount_path + "/gramlot/terminal":
+            await self._terminal_channel.serve(
+                _AsgiWebSocket(receive, send), scope,
+                owner=self.owner_of(headers.get(b"cookie", b"").decode("latin-1")),
+                path=self.mount_path + "/gramlot/terminal", disconnect_error=_Disconnected,
+                identity=await self._identity(scope),
+            )
+            return
         await self._store_channel.serve(
             _AsgiWebSocket(receive, send), scope,
             owner=self.owner_of(headers.get(b"cookie", b"").decode("latin-1")),

@@ -1,6 +1,5 @@
 """Gramlot's browser protocol against the opt-in Kajenn SPA server."""
 
-import asyncio
 from contextlib import asynccontextmanager
 
 import httpx
@@ -10,6 +9,7 @@ from genro_tytx import from_tytx, to_tytx
 import kajenn
 from gramlot.server import GramlotServer
 from kajenn import AsgiServer
+from kajenn_support import running_kajenn
 from page_store_checks import channel, open_page
 
 pytestmark = pytest.mark.skipif(
@@ -87,19 +87,8 @@ async def running(tmp_path, **options):
         .replace("STORAGE_KEY", repr(Fernet.generate_key().decode()))
     )
     server = AsgiServer(config=str(config))
-    incoming, outgoing = asyncio.Queue(), asyncio.Queue()
-    task = asyncio.create_task(server({"type": "lifespan"}, incoming.get, outgoing.put))
-    await incoming.put({"type": "lifespan.startup"})
-    try:
-        started = await asyncio.wait_for(outgoing.get(), 30)
-        assert started["type"] == "lifespan.startup.complete", started
-        async with asyncio.timeout(30):
-            while not server.is_enabled("demo"):
-                await asyncio.sleep(0.02)
+    async with running_kajenn(server):
         yield server
-    finally:
-        await incoming.put({"type": "lifespan.shutdown"})
-        await asyncio.wait_for(task, 30)
 
 
 async def details(client, pid, branch="pages"):

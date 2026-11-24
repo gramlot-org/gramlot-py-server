@@ -134,7 +134,7 @@ def test_asqueel_levels_are_lazy_and_restricted():
 
 @pytest.mark.asyncio
 async def test_kajenn_rpc_uses_request_database(tmp_path):
-    import asyncio
+    from kajenn_support import running_kajenn
     import re
     import httpx
     from genro_tytx import from_tytx
@@ -160,34 +160,24 @@ class Page(AsqueelRelations, BasePage):
                                            pages=tmp_path).request(body='raw')
 
     server = AsgiServer(config=Site)
-    queue, events = asyncio.Queue(), []
-    async def send(message): events.append(message)
-    task = asyncio.create_task(server({'type': 'lifespan'}, queue.get, send))
-    await queue.put({'type': 'lifespan.startup'})
-    while not events: await asyncio.sleep(0)
-    assert events[0]['type'] == 'lifespan.startup.complete'
-    try:
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url='http://test') as client:
-            page = await client.get('/')
-            assert page.status_code == 200
-            page_id = re.search(r'"pageId":"([^"]+)"', page.text).group(1)
-            async def call(path):
-                payload = {'id': 'a', 'pageId': page_id, 'contentType': 'data', 'name': 'relation_tree',
-                           'params': {'table': 'app.customer', 'path': path, 'label': None, 'attributes': {}}}
-                response = await client.post('/gramlot/rpc', content=to_tytx(payload),
-                                             headers={'content-type': 'application/json'})
-                assert response.status_code == 200
-                return from_tytx(response.text)
-            root = await call('')
-            assert root.get('error') is None, root
-            assert root['value'].get_node('@invoices').resolver is not None
-            child = await call('@invoices')
-            assert child.get('error') is None, child
-            assert child['value'].get_node('customer_id') is not None
-            assert child['value'].get_node('links.@customer_id').resolver is not None
-            nested = await call('@invoices.links.@customer_id')
-            assert nested.get('error') is None, nested
-            assert nested['value'].get_node('contact.email') is not None
-    finally:
-        await queue.put({'type': 'lifespan.shutdown'})
-        await task
+    async with running_kajenn(server), httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url='http://test') as client:
+        page = await client.get('/')
+        assert page.status_code == 200
+        page_id = re.search(r'"pageId":"([^"]+)"', page.text).group(1)
+        async def call(path):
+            payload = {'id': 'a', 'pageId': page_id, 'contentType': 'data', 'name': 'relation_tree',
+                       'params': {'table': 'app.customer', 'path': path, 'label': None, 'attributes': {}}}
+            response = await client.post('/gramlot/rpc', content=to_tytx(payload),
+                                         headers={'content-type': 'application/json'})
+            assert response.status_code == 200
+            return from_tytx(response.text)
+        root = await call('')
+        assert root.get('error') is None, root
+        assert root['value'].get_node('@invoices').resolver is not None
+        child = await call('@invoices')
+        assert child.get('error') is None, child
+        assert child['value'].get_node('customer_id') is not None
+        assert child['value'].get_node('links.@customer_id').resolver is not None
+        nested = await call('@invoices.links.@customer_id')
+        assert nested.get('error') is None, nested
+        assert nested['value'].get_node('contact.email') is not None

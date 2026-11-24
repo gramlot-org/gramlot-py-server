@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from kajenn_support import running_kajenn
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
 
@@ -133,7 +134,7 @@ class Page(DatabaseSelectors, BasePage):
 
     server = AsgiServer(config=Site)
     transport = httpx.ASGITransport(app=server, raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test" + prefix) as client:
+    async with running_kajenn(server), httpx.AsyncClient(transport=transport, base_url="http://test" + prefix) as client:
         document = await client.get("/")
         assert document.status_code == 200
         page_id = re.search(r'"pageId":"([^"]+)"', document.text).group(1)

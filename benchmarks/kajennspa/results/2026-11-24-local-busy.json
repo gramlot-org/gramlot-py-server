@@ -1,0 +1,259 @@
+{
+  "placement": "local",
+  "levels": [
+    250,
+    500,
+    750,
+    1000
+  ],
+  "cycles": 20,
+  "interval_s": 1.0,
+  "idle_seconds": 3.0,
+  "idle_only": false,
+  "slo_ms": 250,
+  "timeout_s": 5,
+  "setup_parallel": 8,
+  "host": "macOS-27.0.1-arm64-arm-64bit",
+  "logical_cpus": 10,
+  "ram_gib": 24.0,
+  "python": "3.12.12",
+  "packages": {
+    "kajenn": "0.10.0",
+    "gramlot": "0.3.40",
+    "gramlot-py-server": "0.3.31",
+    "uvicorn": "0.54.0",
+    "websockets": "17.4"
+  },
+  "stages": [
+    {
+      "users": 250,
+      "sockets": 500,
+      "sockets_open_at_end": 500,
+      "window_s": 20.0,
+      "pongs": null,
+      "expected_per_operation": 5000,
+      "operations": {
+        "bind": {
+          "ok": 5000,
+          "missing": 0,
+          "p50": 1.3,
+          "p95": 2.6,
+          "p99": 19.7
+        },
+        "rpc": {
+          "ok": 5000,
+          "missing": 0,
+          "p50": 1.7,
+          "p95": 3.4,
+          "p99": 29.5
+        }
+      },
+      "errors": {},
+      "resources": {
+        "front": {
+          "cpu_percent": 34.9,
+          "rss_peak_mib": 237.1
+        },
+        "driver": {
+          "cpu_percent": 7.9,
+          "rss_peak_mib": 112.4
+        }
+      },
+      "passed": true,
+      "idle": {
+        "users": 250,
+        "sockets": 500,
+        "sockets_open_at_end": 500,
+        "window_s": 3.0,
+        "pongs": 500,
+        "expected_per_operation": 0,
+        "operations": {
+          "bind": {
+            "ok": 0,
+            "missing": 0
+          },
+          "rpc": {
+            "ok": 0,
+            "missing": 0
+          }
+        },
+        "errors": {},
+        "resources": {
+          "front": {
+            "cpu_percent": 0.5,
+            "rss_peak_mib": 307.4
+          },
+          "driver": {
+            "cpu_percent": 0.2,
+            "rss_peak_mib": 108.9
+          }
+        },
+        "passed": true
+      },
+      "setup": {
+        "p_ms": {
+          "p50": 544.7,
+          "p95": 749.0,
+          "p99": 1464.2
+        },
+        "seconds": 18.58,
+        "errors": {}
+      }
+    },
+    {
+      "users": 500,
+      "sockets": 1000,
+      "sockets_open_at_end": 1000,
+      "window_s": 20.0,
+      "pongs": null,
+      "expected_per_operation": 10000,
+      "operations": {
+        "bind": {
+          "ok": 10000,
+          "missing": 0,
+          "p50": 0.9,
+          "p95": 1.7,
+          "p99": 15.0
+        },
+        "rpc": {
+          "ok": 10000,
+          "missing": 0,
+          "p50": 1.3,
+          "p95": 2.5,
+          "p99": 25.4
+        }
+      },
+      "errors": {},
+      "resources": {
+        "front": {
+          "cpu_percent": 50.9,
+          "rss_peak_mib": 268.6
+        },
+        "driver": {
+          "cpu_percent": 9.5,
+          "rss_peak_mib": 137.4
+        }
+      },
+      "passed": true,
+      "idle": {
+        "users": 500,
+        "sockets": 1000,
+        "sockets_open_at_end": 1000,
+        "window_s": 3.0,
+        "pongs": 1000,
+        "expected_per_operation": 0,
+        "operations": {
+          "bind": {
+            "ok": 0,
+            "missing": 0
+          },
+          "rpc": {
+            "ok": 0,
+            "missing": 0
+          }
+        },
+        "errors": {},
+        "resources": {
+          "front": {
+            "cpu_percent": 1.4,
+            "rss_peak_mib": 360.5
+          },
+          "driver": {
+            "cpu_percent": 1.3,
+            "rss_peak_mib": 130.9
+          }
+        },
+        "passed": true
+      },
+      "setup": {
+        "p_ms": {
+          "p50": 600.9,
+          "p95": 696.4,
+          "p99": 727.7
+        },
+        "seconds": 19.59,
+        "errors": {}
+      }
+    },
+    {
+      "users": 750,
+      "sockets": 1500,
+      "sockets_open_at_end": 1500,
+      "window_s": 20.0,
+      "pongs": null,
+      "expected_per_operation": 15000,
+      "operations": {
+        "bind": {
+          "ok": 15000,
+          "missing": 0,
+          "p50": 1.5,
+          "p95": 170.2,
+          "p99": 227.8
+        },
+        "rpc": {
+          "ok": 15000,
+          "missing": 0,
+          "p50": 2.7,
+          "p95": 312.8,
+          "p99": 425.5
+        }
+      },
+      "errors": {},
+      "resources": {
+        "front": {
+          "cpu_percent": 81.1,
+          "rss_peak_mib": 337.3
+        },
+        "driver": {
+          "cpu_percent": 13.1,
+          "rss_peak_mib": 155.3
+        }
+      },
+      "passed": false,
+      "idle": {
+        "users": 750,
+        "sockets": 1500,
+        "sockets_open_at_end": 1500,
+        "window_s": 3.0,
+        "pongs": 1500,
+        "expected_per_operation": 0,
+        "operations": {
+          "bind": {
+            "ok": 0,
+            "missing": 0
+          },
+          "rpc": {
+            "ok": 0,
+            "missing": 0
+          }
+        },
+        "errors": {},
+        "resources": {
+          "front": {
+            "cpu_percent": 1.5,
+            "rss_peak_mib": 397.5
+          },
+          "driver": {
+            "cpu_percent": 1.6,
+            "rss_peak_mib": 130.0
+          }
+        },
+        "passed": true
+      },
+      "setup": {
+        "p_ms": {
+          "p50": 600.8,
+          "p95": 761.4,
+          "p99": 1104.0
+        },
+        "seconds": 20.49,
+        "errors": {}
+      }
+    }
+  ],
+  "max_pages": 2000,
+  "baseline_rss_mib": {
+    "front": 99.7,
+    "driver": 44.1
+  }
+}

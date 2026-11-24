@@ -536,3 +536,19 @@ rollback and recovery, family routing and one physical WebSocket. The optional
 `tests/kajenn/test_kajenn_db_gallery.py` checks persistence across startup; it needs
 the matching examples catalogue and Asqueel installed. These checks qualify this
 local development increment and do not constitute a release or deployment.
+
+<a id="gp-505-050"></a>
+
+## 050 · Gramlot dispatcher on SpaApplicationBase
+
+Block ID: **GP-505-050**.
+
+- Entry point: `gramlot_py_server.kajennspa.Application`. Install `gramlot-py-server[kajennspa]>=0.3.32`. Dependency floors: Kajenn 0.10.1 and Gramlot 0.3.41.
+- Mount: `cfg.applications().application(code="demo", app_class=Application, pages=folder)` serves the folder under `/demo/pages/`. Select another segment with `branch`. Use `self.add_pages(name, folder)` in an application subclass to add a sibling dispatcher. Kajenn typed routes may coexist with them.
+- Page contract: export a subclass of `gramlot_py_server.kajennspa.Page` named `Page`. Each logical page has one ID for bootstrap, RPC and the native Gramlot channel. Kajenn owns the browser session and connection identity.
+- Lifetime: application `persistent=True` reuses the page instance. Page class `persistent` overrides the application setting. A fresh instance can read the same `self.store` until page close, expiry or process shutdown. Application-defined storage supplies durability across process restarts.
+- Data: `Page.store` returns the Gramlot PageStore. Use `shared_store` and `bind_path` within a dispatcher. The recipe supplies the authorization callback. Set `writable=True` for client writes.
+- Identity: on a verified guest-to-user transition the adapter unbinds shared paths for each page. A subclass of `gramlot_py_server.kajennspa.PageStore` may implement `on_user_changed(previous, current)` to install new bindings. Request identity is available during RPC as `page.request_identity`.
+- Transport: a store socket can disconnect and reopen for the same live page and session. Explicit page close releases its store. A credential change invalidates the previous channel on its next frame. Placement may be local or `spawner="subprocess"`.
+
+- Browser reconnect: this adapter advertises `pageStoreReconnect`. An established primary channel retries after loss; children reattach through their parent. Each dataBinder resumes after a fresh authorized snapshot for its original page ID. Pending RPC calls fail on disconnect, and offline edits are discarded. Page disposal stops retries. Recovery requires a live logical page owned by the session.

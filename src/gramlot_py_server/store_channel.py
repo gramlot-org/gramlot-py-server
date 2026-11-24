@@ -19,9 +19,10 @@ def same_origin(scope, headers):
 
 
 class _StoreChannel:
-    def __init__(self, server, invoke, request_context=nullcontext):
+    def __init__(self, server, invoke, request_context=nullcontext, *, keep_pages_on_disconnect=False):
         self.gramlot_server = server
         self.request_context = request_context
+        self.keep_pages_on_disconnect = keep_pages_on_disconnect
         self.invoke = invoke
         self._store_channels = {}
 
@@ -51,7 +52,7 @@ class _StoreChannel:
         calls = {}
         self._store_channels[page_id] = pages
 
-        async def detach(target):
+        async def detach(target, *, disconnect=False):
             for (call_page, _), task in calls.items():
                 if call_page == target:
                     task.cancel()
@@ -59,7 +60,10 @@ class _StoreChannel:
             def close():
                 for binder in binders:
                     target_store.unsubscribe(binder)
-                self.gramlot_server.close_page(target, owner=owner)
+                if disconnect and self.keep_pages_on_disconnect:
+                    self.gramlot_server.disconnect_page_channel(target, owner=owner)
+                else:
+                    self.gramlot_server.close_page(target, owner=owner)
             await self.invoke(close)
             self._store_channels.pop(target, None)
 
@@ -218,10 +222,10 @@ class _StoreChannel:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             calls.clear()
-            # Preserve the PoC lifetime: socket loss closes every attached page.
+            # Each adapter chooses the lifetime of a page after transport loss.
             async with self.request_context():
                 for target in list(pages):
-                    await detach(target)
+                    await detach(target, disconnect=True)
 
     async def _call(self, text, *, owner, identity):
         async with self.request_context():

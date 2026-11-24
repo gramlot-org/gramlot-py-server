@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+from contextlib import asynccontextmanager
 from importlib.resources import files
 
 import httpx
@@ -8,7 +9,7 @@ import pytest
 from genro_tytx import from_tytx
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
-from kajenn.server_app import ServerApplication
+from kajenn_support import auth_site, running_kajenn
 
 from conformance_checks import conformance_pages
 from gallery_checks import check_index_main, expected, gallery_collections, page_id, staged
@@ -59,9 +60,11 @@ def site(pages, *, raw=True):
     return AsgiServer(config=Site)
 
 
-def client_for(server, **options):
-    transport = httpx.ASGITransport(app=server, raise_app_exceptions=False)
-    return httpx.AsyncClient(transport=transport, base_url="http://test/page", **options)
+@asynccontextmanager
+async def client_for(server, *, base_url="http://test/page", raise_app_exceptions=False, **options):
+    transport = httpx.ASGITransport(app=server, raise_app_exceptions=raise_app_exceptions)
+    async with running_kajenn(server), httpx.AsyncClient(transport=transport, base_url=base_url, **options) as client:
+        yield client
 
 
 def page_id_of(document):
@@ -110,11 +113,11 @@ async def test_protocol_owner_limits_asset_and_close(tmp_path):
         assert (await client.post("/gramlot/rpc", content="broken", headers=RPC_HEADERS)).status_code == 400
         assert (await client.post("/gramlot/rpc", content=b"\xff", headers=RPC_HEADERS)).status_code == 400
         assert (await client.post("/gramlot/close", content="{}", headers=RPC_HEADERS)).status_code == 400
-        outsider = client_for(server)
-        assert rpc_outcome((await rpc(outsider)).text) == "page_expired"
-        assert (await outsider.post("/gramlot/close", json={"pageId": page_id})).status_code == 200
-        assert (await rpc(client)).status_code == 200
-        await outsider.aclose()
+        transport = httpx.ASGITransport(app=server)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test/page") as outsider:
+            assert rpc_outcome((await rpc(outsider)).text) == "page_expired"
+            assert (await outsider.post("/gramlot/close", json={"pageId": page_id})).status_code == 200
+            assert (await rpc(client)).status_code == 200
         assert (await client.post("/gramlot/close", json={"pageId": page_id})).json() == {"ok": True}
         assert rpc_outcome((await rpc(client)).text) == "page_expired"
 
@@ -279,8 +282,7 @@ async def test_assets_and_redirect_of_the_bare_mount_path(tmp_path):
                 code="pages", mount="page", app_class=Application, pages=pages, assets=assets,
             ).request(body="raw")
 
-    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_for(AsgiServer(config=Site), base_url="http://test") as client:
         for url, media_type, body in (("/page/assets/branding/logo.svg", "image/svg+xml", b"<svg/>"),
                                       ("/page/gallery/dist/notices.json", "application/json", b"[]")):
             response = await client.get(url)
@@ -313,8 +315,7 @@ async def test_core_themes_below_the_mount_path(tmp_path):
         "    def main(self, root): root.h1('Themed')\n"
     )
     (pages / "themes" / "own.css").write_text("h1 { color: red; }")
-    transport = httpx.ASGITransport(app=site(pages), raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_for(site(pages), base_url="http://test") as client:
         response = await client.get("/page/themes/gramlot-base/theme.css")
         assert response.status_code == 200
         assert response.headers["content-type"] == "text/css; charset=utf-8"
@@ -339,8 +340,7 @@ async def test_gallery_under_the_mount_path(tmp_path):
                 collections=gallery_collections(),
             ).request(body="raw")
 
-    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_for(AsgiServer(config=Site), base_url="http://test") as client:
         for url, kind in expected("kajenn"):
             response = await client.get(url)
             assert response.status_code == 200, url
@@ -360,8 +360,7 @@ async def test_empty_mount_serves_the_pages_at_the_site_root(tmp_path):
                 code="pages", mount="", app_class=Application, pages=tmp_path,
             ).request(body="raw")
 
-    transport = httpx.ASGITransport(app=AsgiServer(config=Site), raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_for(AsgiServer(config=Site), base_url="http://test") as client:
         document = await client.get("/")
         assert document.status_code == 200
         assert '"rpcUrl":"/gramlot/rpc"' in document.text
@@ -395,30 +394,10 @@ async def test_shutdown_forgets_every_page(tmp_path):
         assert rpc_outcome(expired.text) == "page_expired"
 
 
-def auth_site(pages):
-    """A site with Kajenn's Basic credentials: ``ada`` tagged ``admin``, ``bob`` tagged ``staff``.
-
-    Kajenn verifies the ``Authorization`` header through the route
-    ``/_server/auth/authenticate`` of its ``ServerApplication``.
-    """
-    class Site(DefaultConfiguration):
-        def applications_section(self, cfg):
-            credentials = cfg.authentication().credentials()
-            credentials.basic_user(username="ada", password="ada-secret", tags="admin,staff")
-            credentials.basic_user(username="bob", password="bob-secret", tags="staff")
-            applications = cfg.applications()
-            applications.application(code="_server", app_class=ServerApplication)
-            applications.application(
-                code="pages", mount="page", app_class=Application, pages=pages
-            ).request(body="raw")
-
-    return AsgiServer(config=Site)
-
-
 @pytest.mark.asyncio
-async def test_auth_capability_evaluates_the_avatar_tags(tmp_path):
+async def test_auth_capability_evaluates_the_avatar_tags(tmp_path, tmp_path_factory):
     conformance_pages(tmp_path)
-    async with client_for(auth_site(tmp_path)) as client:
+    async with client_for(auth_site(tmp_path, tmp_path_factory.mktemp("auth"))) as client:
         document = await client.get("/")
         assert '"capabilities":["auth"]' in document.text
         page_id = page_id_of(document)
@@ -433,7 +412,7 @@ async def test_auth_capability_evaluates_the_avatar_tags(tmp_path):
         assert (await check_endpoint_auth())["error"]["code"] == "not_authenticated"
         assert (await check_endpoint_auth(("bob", "bob-secret")))["error"]["code"] == "not_authorized"
         assert (await check_endpoint_auth(("ada", "ada-secret")))["value"] == "allowed"
-        # The avatar is passed with every call: an anonymous call after a login is a logout.
+        # Basic credentials authorize one call. The next anonymous call stays anonymous.
         assert (await check_endpoint_auth())["error"]["code"] == "not_authenticated"
         # An endpoint without a rule runs for anyone.
         anonymous = await client.post(
@@ -442,9 +421,9 @@ async def test_auth_capability_evaluates_the_avatar_tags(tmp_path):
         assert json.loads(anonymous.text)["value"] == 3
 
 @pytest.mark.asyncio
-async def test_source_auth_filters_each_request_avatar(tmp_path):
+async def test_source_auth_filters_each_request_avatar(tmp_path, tmp_path_factory):
     conformance_pages(tmp_path)
-    async with client_for(auth_site(tmp_path)) as client:
+    async with client_for(auth_site(tmp_path, tmp_path_factory.mktemp("auth"))) as client:
         page_id = page_id_of(await client.get("/"))
         for identity, allowed in [
             (None, False),
@@ -485,8 +464,7 @@ async def test_folder_page_companions_preserve_index_segments(tmp_path, mount, f
             ).request(body="raw")
 
     prefix = f"/{mount}" if mount else ""
-    transport = httpx.ASGITransport(app=AsgiServer(config=Site))
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_for(AsgiServer(config=Site), base_url="http://test", raise_app_exceptions=True) as client:
         paths = [f"/{folder}", f"/{folder}/index.html"]
         if folder == "index":
             paths.extend(["/", "/index.html"])
@@ -532,8 +510,7 @@ async def test_configured_assets_preserve_index_segments(tmp_path, mount):
             ).request(body="raw")
 
     prefix = f"/{mount}" if mount else ""
-    transport = httpx.ASGITransport(app=AsgiServer(config=Site))
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_for(AsgiServer(config=Site), base_url="http://test", raise_app_exceptions=True) as client:
         for path in assets:
             url = prefix + path
             response = await client.get(url)

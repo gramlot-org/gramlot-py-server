@@ -1,6 +1,7 @@
 """``gramlot kajenn new`` creates the quick start project, which serves its page."""
 import httpx
 import pytest
+from kajenn_support import running_kajenn
 from kajenn import AsgiServer
 from project_checks import check_document, check_files, check_main
 from rpc_checks import RPC_HEADERS, envelope, rpc_source
@@ -11,8 +12,9 @@ async def test_new_project_serves_the_page_and_its_logic(new_project, capsys, so
     folder, module = new_project("kajenn", "config.py")
     check_files(folder, "config.py", "gramlot-py-server[kajenn]>=0.2.11", "kajenn serve config.py --port 8000",
                 capsys.readouterr().out)
-    transport = httpx.ASGITransport(app=AsgiServer(config=module.Site))
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    server = AsgiServer(config=module.Site)
+    transport = httpx.ASGITransport(app=server)
+    async with running_kajenn(server), httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         assert (await client.get("/pages")).headers["location"] == "/pages/"
         document = await client.get("/pages/")
         assert document.status_code == 200

@@ -8,6 +8,7 @@ from uuid import uuid4
 import httpx
 import pytest
 from genro_tytx import from_tytx, to_tytx
+from kajenn_support import running_kajenn
 from kajenn import AsgiServer
 from kajenn.config.templates import DefaultConfiguration
 from gramlot_py_server.kajenn import Application
@@ -128,15 +129,9 @@ class PageStore(BaseStore):
         released.extend((obj, threading.get_ident(), call.request_id) for obj in call.databases.values())
         return original_release(call)
     handler.take, handler.release = take, release
-    try:
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url='http://test') as client:
-            page_id, cookie = await open_page(client)
-            yield server, app, client, page_id, cookie, taken, released
-    finally:
-        app.on_shutdown()
-        for db_handler in server.db_handlers.values():
-            await db_handler.close()
-        server.pool.shutdown(wait=True)
+    async with running_kajenn(server), httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url='http://test') as client:
+        page_id, cookie = await open_page(client)
+        yield server, app, client, page_id, cookie, taken, released
 
 
 @pytest.mark.asyncio

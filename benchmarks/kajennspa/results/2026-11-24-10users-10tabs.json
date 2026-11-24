@@ -1,0 +1,111 @@
+{
+  "placement": "local",
+  "tabs_per_user": 10,
+  "levels": [
+    10
+  ],
+  "cycles": 30,
+  "interval_s": 1.0,
+  "idle_seconds": 8,
+  "idle_only": false,
+  "slo_ms": 250,
+  "timeout_s": 5,
+  "setup_parallel": 8,
+  "host": "macOS-27.0.1-arm64-arm-64bit",
+  "logical_cpus": 10,
+  "ram_gib": 24.0,
+  "python": "3.12.12",
+  "packages": {
+    "kajenn": "0.10.0",
+    "gramlot": "0.3.40",
+    "gramlot-py-server": "0.3.31",
+    "uvicorn": "0.54.0",
+    "websockets": "17.4"
+  },
+  "stages": [
+    {
+      "users": 10,
+      "sockets": 100,
+      "sockets_open_at_end": 100,
+      "window_s": 30.0,
+      "pongs": null,
+      "expected_per_operation": 300,
+      "operations": {
+        "bind": {
+          "ok": 300,
+          "missing": 0,
+          "p50": 6.5,
+          "p95": 10.0,
+          "p99": 13.4
+        },
+        "rpc": {
+          "ok": 300,
+          "missing": 0,
+          "p50": 4.4,
+          "p95": 10.0,
+          "p99": 11.2
+        }
+      },
+      "errors": {},
+      "resources": {
+        "front": {
+          "cpu_percent": 5.5,
+          "rss_peak_mib": 108.5
+        },
+        "driver": {
+          "cpu_percent": 1.7,
+          "rss_peak_mib": 45.0
+        }
+      },
+      "passed": true,
+      "idle": {
+        "users": 10,
+        "sockets": 100,
+        "sockets_open_at_end": 100,
+        "window_s": 8.0,
+        "pongs": 100,
+        "expected_per_operation": 0,
+        "operations": {
+          "bind": {
+            "ok": 0,
+            "missing": 0
+          },
+          "rpc": {
+            "ok": 0,
+            "missing": 0
+          }
+        },
+        "errors": {},
+        "resources": {
+          "front": {
+            "cpu_percent": 0.4,
+            "rss_peak_mib": 192.5
+          },
+          "driver": {
+            "cpu_percent": 0.0,
+            "rss_peak_mib": 55.0
+          }
+        },
+        "passed": true
+      },
+      "setup": {
+        "p_ms": {
+          "p50": 3270.0,
+          "p95": 3291.3,
+          "p99": 3291.3
+        },
+        "rss_peak_mib": {
+          "front": 257.7,
+          "driver": 55.0
+        },
+        "seconds": 3.91,
+        "errors": {}
+      }
+    }
+  ],
+  "max_pages": 1000,
+  "baseline_rss_mib": {
+    "front": 99.6,
+    "driver": 44.4
+  }
+}

@@ -536,3 +536,50 @@ rollback and recovery, family routing and one physical WebSocket. The optional
 `tests/kajenn/test_kajenn_db_gallery.py` checks persistence across startup; it needs
 the matching examples catalogue and Asqueel installed. These checks qualify this
 local development increment and do not constitute a release or deployment.
+
+<a id="gp-505-050"></a>
+
+## 050 · Keep a Gramlot page alive in a Kajenn SPA
+
+Block ID: **GP-505-050**.
+
+Choose `gramlot_py_server.kajennspa.Application` when a Kajenn application
+owns a browser visit and its tabs. This development adapter requires the Kajenn
+SPA branch and the Gramlot core with page lifecycle hooks. In a Kajenn
+configuration recipe, mount the application and point it at your pages folder:
+
+```python
+from pathlib import Path
+from kajenn.config.templates import DefaultConfiguration
+from gramlot_py_server.kajennspa import Application
+
+class Site(DefaultConfiguration):
+    def applications_section(self, cfg):
+        cfg.applications().application(code="demo", app_class=Application,
+                                      pages=str(Path(__file__).parent / "pages"))
+```
+
+Create `pages/index.py` beside the recipe:
+
+```python
+from gramlot_py_server.kajennspa import Page as SpaPage
+
+class Page(SpaPage):
+    def main(self, root):
+        root.div("Welcome to the SPA")
+```
+
+Run `kajenn serve config.py` and open `/demo/pages/`. Each tab gets its own
+page ID. With the default `persistent=True`, RPC calls for that ID reuse the
+Python page. Set `persistent=False` on the application or page class to create a
+fresh instance per call. Keep drafts in `self.store.data` so the next instance
+can read them. This store lives in the application process until the logical
+page closes or expires. Saving drafts across restarts requires application storage.
+
+To share values between tabs, define a page store and bind a local path to a
+shared store inside the same dispatcher. Supply an authorization check for the
+binding and enable writes explicitly. A verified Kajenn login reassigns the
+connection and its pages. The adapter removes the previous user's shared views
+before calling `PageStore.on_user_changed(previous, current)`. Use that hook
+to attach views authorized for the new user. The two-tab example and the
+session transition are exercised in `tests/kajenn/test_kajennspa.py`.

@@ -51,84 +51,12 @@ class _KajennFileServer(_CollectionFileServer):
         return None if tags_match(rule, set(identity.tags)) else "not_authorized"
 
 
-class Application(base.Adapter, RoutedApplication):
-    """A Kajenn routed application backed by ``gramlot.server.GramlotFileServer``.
+class _KajennOperations:
+    """Serialize store callbacks and release databases on their owning worker."""
 
-    The application builds ``_KajennFileServer``, a ``GramlotFileServer`` with the
-    capability ``auth``: an ``auth`` rule is evaluated with ``tags_match`` against
-    the tags of the Kajenn avatar of the request (``request.avatar()``), which the
-    application passes to ``GramlotServer.call`` with each rpc request.
-
-    Declare it in the site recipe with ``request(body="raw")``: the request
-    envelope reaches ``GramlotServer.call`` as the TYTX text the browser sent,
-    without Kajenn's TYTX hydration. The application's
-    Kajenn ``mount`` is passed to ``open_page`` as the mount prefix of browser
-    URLs. The mount without the final slash (``/py``) answers 301 to ``/py/``:
-    pages link each other with relative URLs. Kajenn routes ``/py`` and ``/py/``
-    alike; the application tells them apart by the ASGI ``raw_path``.
-    An empty ``mount`` puts the application at the site root, without prefix.
-
-    The HTTP rules, the same in every adapter, are those of ``gramlot_py_server.base``.
-    """
-
-    server_class = _KajennFileServer
-
-    def __init__(self, pages: str | Path, *, mount_path: None = None, websocket: bool = False, **options) -> None:
-        if mount_path is not None:
-            raise TypeError("mount_path is the mount of the Kajenn application: declare mount in the site recipe")
-        super().__init__(pages, **options)
-        self.gramlot_server._database_access = self
-        self._operation_lock = asyncio.Lock()
+    def _init_operations(self, lock=None):
+        self._operation_lock = lock if lock is not None else asyncio.Lock()
         self._execution = ContextVar("gramlot_kajenn_execution", default=None)
-        self._store_channel = _StoreChannel(self.gramlot_server, self.gramlot_server._invoke, self._store_request)
-        self._terminal_channel = _TerminalChannel(self.gramlot_server, self._operation)
-        self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
-        if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
-            raise ValueError("mount must be a single lowercase URL segment or empty")
-
-    @property
-    def mount_path(self) -> str:
-        """The mount prefix of the browser URLs: ``/<mount>``, or ``""`` at the site root."""
-        return f"/{self.mount}" if self.mount else ""
-
-    @route(media_type="text/html")
-    async def index(self, *segments, _request, body_raw=None, **_query):
-        """Every URL below the mount.
-
-        Kajenn has already removed the mount from request.path. Route arguments
-        omit an explicit "index" selector, so they cannot identify the file path.
-        """
-        query = _request.scope.get("query_string", b"").decode("latin-1")
-        if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
-            reply = self.redirect(query)
-        else:
-            async with self._operation():
-                reply = await self.handle(base.Request(
-                    method=_request.method,
-                    path=_request.path,
-                    body=lambda: self.read_body(body_raw),
-                    query=query,
-                    content_type=str(_request.content_type or ""),
-                    owner=_request.cookies.get(self.OWNER_COOKIE),
-                    identity=_request.avatar(),
-                    if_none_match=self.raw_header(_request, b"if-none-match"),
-                    if_modified_since=self.raw_header(_request, b"if-modified-since"),
-                ))
-        for name, value in reply.headers:
-            _request.response.set_header(name, value)
-        _request.response.status_code = reply.status
-        return self.result_wrapper(reply.body, media_type=reply.content_type)
-
-    @staticmethod
-    def raw_header(request, name: bytes) -> str:
-        """The header ``name`` as sent, or ``""``.
-
-        ``request.headers`` holds TYTX-hydrated values: a quoted ``ETag`` loses its quotes there.
-        """
-        for key, value in request.scope.get("headers", []):
-            if key.lower() == name:
-                return value.decode("latin-1")
-        return ""
 
     @asynccontextmanager
     async def _operation(self, *, register=False):
@@ -193,6 +121,85 @@ class Application(base.Adapter, RoutedApplication):
             except asyncio.CancelledError:
                 continue
         return task.result()
+
+
+class Application(_KajennOperations, base.Adapter, RoutedApplication):
+    """A Kajenn routed application backed by ``gramlot.server.GramlotFileServer``.
+
+    The application builds ``_KajennFileServer``, a ``GramlotFileServer`` with the
+    capability ``auth``: an ``auth`` rule is evaluated with ``tags_match`` against
+    the tags of the Kajenn avatar of the request (``request.avatar()``), which the
+    application passes to ``GramlotServer.call`` with each rpc request.
+
+    Declare it in the site recipe with ``request(body="raw")``: the request
+    envelope reaches ``GramlotServer.call`` as the TYTX text the browser sent,
+    without Kajenn's TYTX hydration. The application's
+    Kajenn ``mount`` is passed to ``open_page`` as the mount prefix of browser
+    URLs. The mount without the final slash (``/py``) answers 301 to ``/py/``:
+    pages link each other with relative URLs. Kajenn routes ``/py`` and ``/py/``
+    alike; the application tells them apart by the ASGI ``raw_path``.
+    An empty ``mount`` puts the application at the site root, without prefix.
+
+    The HTTP rules, the same in every adapter, are those of ``gramlot_py_server.base``.
+    """
+
+    server_class = _KajennFileServer
+
+    def __init__(self, pages: str | Path, *, mount_path: None = None, websocket: bool = False, **options) -> None:
+        if mount_path is not None:
+            raise TypeError("mount_path is the mount of the Kajenn application: declare mount in the site recipe")
+        super().__init__(pages, **options)
+        self.gramlot_server._database_access = self
+        self._init_operations()
+        self._store_channel = _StoreChannel(self.gramlot_server, self.gramlot_server._invoke, self._store_request)
+        self._terminal_channel = _TerminalChannel(self.gramlot_server, self._operation)
+        self.gramlot_server.websocket_url = "/gramlot/store" if websocket else None
+        if self.mount != "" and not re.fullmatch(r"[a-z][a-z0-9_-]*", self.mount or ""):
+            raise ValueError("mount must be a single lowercase URL segment or empty")
+
+    @property
+    def mount_path(self) -> str:
+        """The mount prefix of the browser URLs: ``/<mount>``, or ``""`` at the site root."""
+        return f"/{self.mount}" if self.mount else ""
+
+    @route(media_type="text/html")
+    async def index(self, *segments, _request, body_raw=None, **_query):
+        """Every URL below the mount.
+
+        Kajenn has already removed the mount from request.path. Route arguments
+        omit an explicit "index" selector, so they cannot identify the file path.
+        """
+        query = _request.scope.get("query_string", b"").decode("latin-1")
+        if self.mount and _request.scope.get("raw_path") == f"/{self.mount}".encode():
+            reply = self.redirect(query)
+        else:
+            async with self._operation():
+                reply = await self.handle(base.Request(
+                    method=_request.method,
+                    path=_request.path,
+                    body=lambda: self.read_body(body_raw),
+                    query=query,
+                    content_type=str(_request.content_type or ""),
+                    owner=_request.cookies.get(self.OWNER_COOKIE),
+                    identity=_request.avatar(),
+                    if_none_match=self.raw_header(_request, b"if-none-match"),
+                    if_modified_since=self.raw_header(_request, b"if-modified-since"),
+                ))
+        for name, value in reply.headers:
+            _request.response.set_header(name, value)
+        _request.response.status_code = reply.status
+        return self.result_wrapper(reply.body, media_type=reply.content_type)
+
+    @staticmethod
+    def raw_header(request, name: bytes) -> str:
+        """The header ``name`` as sent, or ``""``.
+
+        ``request.headers`` holds TYTX-hydrated values: a quoted ``ETag`` loses its quotes there.
+        """
+        for key, value in request.scope.get("headers", []):
+            if key.lower() == name:
+                return value.decode("latin-1")
+        return ""
 
     async def serve_websocket(self, scope, receive, send):
         """Kajenn demux passes its native socket seam with the mount removed."""

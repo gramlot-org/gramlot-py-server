@@ -583,3 +583,11 @@ connection and its pages. The adapter removes the previous user's shared views
 before calling `PageStore.on_user_changed(previous, current)`. Use that hook
 to attach views authorized for the new user. The two-tab example and the
 session transition are exercised in `tests/kajenn/test_kajennspa.py`.
+
+If the store WebSocket drops, keep the tab open. The browser reconnects with
+the same page ID and the current session. The server sends a fresh value for
+each bound path, including changes made in other tabs during the outage.
+Treat edits made while disconnected as temporary. The next snapshot replaces
+them. When a login invalidates the old socket on its next frame, the same
+procedure loads the newly authorized views. The logical page and visit must
+still exist on the server.

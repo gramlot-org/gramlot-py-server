@@ -68,6 +68,10 @@ class _Registry(SpaRegistry):
 
 
 class _SpaFileServer(_KajennFileServer):
+    @property
+    def capabilities(self):
+        return [*super().capabilities, "pageStoreReconnect"]
+
     def register_page(self, cls, *, owner, path):
         if not issubclass(cls, Page):
             raise TypeError("A kajennspa page must extend gramlot_py_server.kajennspa.Page")

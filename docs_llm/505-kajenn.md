@@ -550,3 +550,5 @@ Block ID: **GP-505-050**.
 - Data: `Page.store` returns the Gramlot PageStore. Use `shared_store` and `bind_path` within a dispatcher. The recipe supplies the authorization callback. Set `writable=True` for client writes.
 - Identity: on a verified guest-to-user transition the adapter unbinds shared paths for each page. A subclass of `gramlot_py_server.kajennspa.PageStore` may implement `on_user_changed(previous, current)` to install new bindings. Request identity is available during RPC as `page.request_identity`.
 - Transport: a store socket can disconnect and reopen for the same live page and session. Explicit page close releases its store. A credential change invalidates the previous channel on its next frame. Placement may be local or `spawner="subprocess"`.
+
+- Browser reconnect: this adapter advertises `pageStoreReconnect`. An established primary channel retries after loss; children reattach through their parent. Each dataBinder resumes after a fresh authorized snapshot for its original page ID. Pending RPC calls fail on disconnect, and offline edits are discarded. Page disposal stops retries. Recovery requires a live logical page owned by the session.

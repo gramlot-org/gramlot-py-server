@@ -51,11 +51,18 @@ from gramlot_py_server.kajennspa import Page as BasePage, PageStore as BaseStore
 
 class PageStore(BaseStore):
     def main(self, root):
-        shared = self.shared_store(("test", "room"), Shared)
-        self.bind_path("editor", shared, "text", writable=True, authorize=lambda: True)
+        self.bind_owner(self.owner())
+
+    def owner(self):
+        return self.application.registry.page_state(self.page_id, connection_id=self.connection_id).user
+
+    def bind_owner(self, user):
+        shared = self.shared_store(("test", user), Shared)
+        self.bind_path("editor", shared, "text", writable=True, authorize=lambda: self.owner() == user)
 
     def on_user_changed(self, previous, current):
         self.data.set_item("signed_in_as", current.user)
+        self.bind_owner(current.user)
 
 class Page(BasePage):
     calls = 0

@@ -61,7 +61,7 @@ class Tab:
         return data
 
 
-async def open_user(base, index, password, stack):
+async def open_user(base, index, password, stack, tab_count):
     tabs = []
     async with httpx.AsyncClient(base_url=base, trust_env=False, timeout=10) as client:
         response = await client.post(
@@ -70,7 +70,7 @@ async def open_user(base, index, password, stack):
         response.raise_for_status()
         if response.json().get("identity") != f"u{index}":
             raise ValueError("Login identity mismatch")
-        for i in range(2):
+        for i in range(tab_count):
             response = await client.get("/bench/pages/")
             response.raise_for_status()
             bootstrap = json.loads(re.search(r"new PageBootstrap\((.+)\)\.run", response.text)[1])[
@@ -100,13 +100,13 @@ async def open_user(base, index, password, stack):
             if (await tab.receive()).get("op") != "snapshot":
                 raise ValueError("Missing initial snapshot")
             tabs.append(tab)
-    if tabs[0].pid == tabs[1].pid:
-        raise ValueError("Both tabs received the same page ID")
+    if len({tab.pid for tab in tabs}) != tab_count:
+        raise ValueError("Duplicate page ID in session")
     return tabs
 
 
 async def operation(user, index, sequence, kind):
-    a, b = user
+    a = user[0]
     marker = f"{index}-{sequence}-{kind}"
     if kind == "bind":
         await a.send(
@@ -119,9 +119,18 @@ async def operation(user, index, sequence, kind):
                 "attr": {},
             }
         )
-        msg = await b.receive()
-        if msg.get("binderId") != "editor" or msg.get("value") != marker:
-            raise ValueError("Peer value mismatch")
+
+        async def check_peer(peer):
+            msg = await peer.receive()
+            if msg.get("binderId") != "editor" or msg.get("value") != marker:
+                raise ValueError("Peer value mismatch")
+
+        if len(user) == 2:
+            await check_peer(user[1])
+        else:
+            async with asyncio.TaskGroup() as group:
+                for peer in user[1:]:
+                    group.create_task(check_peer(peer))
     else:
         await a.send(envelope(a.pid, "echo", marker))
         while True:
@@ -192,7 +201,7 @@ async def level(users, args, processes, *, idle=False):
     measures = {
         kind: {"ok": len(v), "missing": expected - len(v), **stats(v)} for kind, v in values.items()
     }
-    passed = alive == 2 * n and all(
+    passed = alive == args.tabs_per_user * n and all(
         m["missing"] == 0 and m.get("p95", 0) <= args.slo_ms for m in measures.values()
     )
     if idle:
@@ -212,7 +221,7 @@ async def level(users, args, processes, *, idle=False):
         passed = passed and all(pongs)
     return {
         "users": n,
-        "sockets": 2 * n,
+        "sockets": args.tabs_per_user * n,
         "sockets_open_at_end": alive,
         "window_s": round(elapsed, 2),
         "pongs": sum(pongs) if idle else None,
@@ -228,6 +237,7 @@ async def run(args):
     levels = args.levels
     result = {
         "placement": args.placement,
+        "tabs_per_user": args.tabs_per_user,
         "levels": levels,
         "cycles": args.cycles,
         "interval_s": args.interval,
@@ -316,7 +326,9 @@ async def run(args):
                         ts = CLOCK()
                         try:
                             async with asyncio.timeout(30):
-                                tabs = await open_user(base, index, password, stack)
+                                tabs = await open_user(
+                                    base, index, password, stack, args.tabs_per_user
+                                )
                             setup_times.append(CLOCK() - ts)
                             return tabs
                         except Exception as err:
@@ -327,15 +339,32 @@ async def run(args):
                                 desc += " " + str(err)[:60]
                             setup_errors[desc] += 1
 
-                    for first in range(len(users), target, args.ramp):
-                        batch = await asyncio.gather(
-                            *(add(i) for i in range(first, min(first + args.ramp, target)))
-                        )
-                        users.extend(pair for pair in batch if pair is not None)
-                        if setup_errors:
-                            break
+                    setup_peaks = {name: snapshot(proc)[1] for name, proc in processes.items()}
+
+                    async def sample_setup():
+                        while True:
+                            for name, proc in processes.items():
+                                setup_peaks[name] = max(setup_peaks[name], snapshot(proc)[1])
+                            await asyncio.sleep(0.1)
+
+                    sampler = asyncio.create_task(sample_setup())
+                    try:
+                        for first in range(len(users), target, args.ramp):
+                            batch = await asyncio.gather(
+                                *(add(i) for i in range(first, min(first + args.ramp, target)))
+                            )
+                            users.extend(pair for pair in batch if pair is not None)
+                            if setup_errors:
+                                break
+                    finally:
+                        sampler.cancel()
+                        await asyncio.gather(sampler, return_exceptions=True)
                     setup = {
                         "p_ms": stats(setup_times),
+                        "rss_peak_mib": {
+                            name: round(max(peak, snapshot(processes[name])[1]), 1)
+                            for name, peak in setup_peaks.items()
+                        },
                         "seconds": round(CLOCK() - since, 2),
                         "errors": dict(setup_errors),
                     }
@@ -382,6 +411,12 @@ async def run(args):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("placement", choices=["local", "subprocess"])
+    p.add_argument(
+        "--tabs-per-user",
+        type=int,
+        default=2,
+        help="one foreground sender, remaining pages receive updates",
+    )
     p.add_argument("--max-pages", type=int, help="override the dispatcher page limit")
     p.add_argument("--levels", default="8,16,32,64,128,256,500")
     p.add_argument("--cycles", type=int, default=4)
@@ -394,6 +429,8 @@ if __name__ == "__main__":
     p.add_argument("--output", type=Path, required=True)
     args = p.parse_args()
     args.levels = list(map(int, args.levels.split(",")))
+    if args.tabs_per_user < 2:
+        p.error("--tabs-per-user must be at least 2 for cross-tab binding")
     if args.max_pages is not None and args.max_pages < 1:
         p.error("--max-pages must be positive")
     if (

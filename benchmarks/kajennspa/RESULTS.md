@@ -108,6 +108,17 @@ python benchmarks/kajennspa/run.py subprocess --levels 750 --max-pages 2000 --in
 
 Raw measurements include setup p95, idle ping counts, p99, error counts, CPU and sampled peak RSS for each process. [local JSON](results/2026-11-24-local-repeat.json), [subprocess JSON](results/2026-11-24-subprocess-repeat.json).
 
+## Ten users with one foreground page each
+
+Two independent 30-second runs used the default dispatcher limit. Each authenticated user sent one edit and one RPC per second from a single foreground page. Every other open page subscribed to that user’s value. The binding latency includes delivery to the last background page. Login and opening pages used up to eight concurrent users. Peak RSS is for the single server process, excluding the load generator. Setup samples were taken every 100 ms, idle and active samples every 500 ms.
+
+| Pages/user | Open WebSockets | Setup peak MiB | Idle peak MiB | Active peak MiB | Bind p95 ms | RPC p95 ms | Confirmed background deliveries |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 100 | 257.7 | 192.5 | 108.5 | 10.0 | 10.0 | 2,700 |
+| 20 | 200 | 245.0 | 160.1 | 128.7 | 11.2 | 11.4 | 5,700 |
+
+The in-memory fixture held a small value per user. The larger peak in both runs occurred during setup. Each setup was measured once; the observed peak depends on the timing of concurrent logins. [10 pages per user](results/2026-11-24-10users-10tabs.json), [20 pages per user](results/2026-11-24-10users-20tabs.json).
+
 ## Capacity planning
 
 With two tabs per user, the default 1,000-page limit admits up to 500 such users if no other pages occupy the dispatcher. The dispatcher checks the number of registered pages after pruning. A retained page can still occupy a slot after its tab disconnects. The raised limit applies only to this fixture.

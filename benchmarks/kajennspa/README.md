@@ -21,6 +21,15 @@ Latency is measured from the scheduled arrival time through the validated reply,
 
 Use `--cycles` for a longer hold, `--interval` to change the per-user rate, `--slo-ms` to supply an application-specific objective, and `--idle-only --idle-seconds 60` to measure mostly idle connections. Change `--ramp` to vary concurrent logins during setup. Use `--max-pages 2000` to allow 1,000 two-tab users on the disposable dispatcher. Each invocation starts fresh processes and storage. No real user, token or production endpoint is needed.
 
+## One foreground page per user
+
+Set `--tabs-per-user` to the number of live pages for each authenticated user (default 2). Only the first page sends application traffic. All other pages keep a WebSocket open and receive the same user's shared-store changes. A binding operation completes once the last background page has received and validated the value. The setup phase samples process RSS every 100 ms, including login and opening all pages.
+
+```sh
+python benchmarks/kajennspa/run.py local --levels 10 --tabs-per-user 10 --interval 1 --cycles 30 --output ten-pages.json
+python benchmarks/kajennspa/run.py local --levels 10 --tabs-per-user 20 --interval 1 --cycles 30 --output twenty-pages.json
+```
+
 ## Interpret
 
 Two tabs mean **two physical WebSockets and two logical pages per user**. The standard dispatcher allows 1,000 pages by default. This gives a configuration ceiling of 500 simultaneous users for this exact two-tab profile, independently of latency. CPU percentages are process CPU time divided by wall time (100% is one logical CPU). RSS includes shared pages, so adding RSS from different processes can overstate unique memory use.

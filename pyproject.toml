@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gramlot-py-server"
-version = "0.3.31"
+version = "0.3.32"
 description = "Python server adapters for Gramlot pages: Uvicorn, Django, Flask, FastAPI and Kajenn"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,6 +20,7 @@ fastapi = ["fastapi>=0.115"]
 flask = ["flask>=3.1,<4"]
 django = ["Django>=5.2,<6.2", "asgiref>=3.8.1,<4"]
 kajenn = ["kajenn>=0.6.0", "genro-routes>=0.30.1", "genro-toolbox>=0.17.0"]
+kajennspa = ["gramlot-py-server[kajenn]", "kajenn>=0.10.1", "gramlot>=0.3.41"]
 kajenn-asqueel = ["kajenn", "kajenn-db[asqueel]"]
 postgresql = ["psycopg[binary]", "SQLAlchemy>=2.0", "Django>=5.2,<6.2", "asqueel[postgresql]"]
 gallery = ["gramlot-examples>=0.3.26"]

@@ -543,7 +543,7 @@ local development increment and do not constitute a release or deployment.
 
 Block ID: **GP-505-050**.
 
-- Entry point: `gramlot_py_server.kajennspa.Application`. Requires the Kajenn SPA implementation and Gramlot core page lifecycle hooks, currently on development branches.
+- Entry point: `gramlot_py_server.kajennspa.Application`. Install `gramlot-py-server[kajennspa]>=0.3.32`. Dependency floors: Kajenn 0.10.1 and Gramlot 0.3.41.
 - Mount: `cfg.applications().application(code="demo", app_class=Application, pages=folder)` serves the folder under `/demo/pages/`. Select another segment with `branch`. Use `self.add_pages(name, folder)` in an application subclass to add a sibling dispatcher. Kajenn typed routes may coexist with them.
 - Page contract: export a subclass of `gramlot_py_server.kajennspa.Page` named `Page`. Each logical page has one ID for bootstrap, RPC and the native Gramlot channel. Kajenn owns the browser session and connection identity.
 - Lifetime: application `persistent=True` reuses the page instance. Page class `persistent` overrides the application setting. A fresh instance can read the same `self.store` until page close, expiry or process shutdown. Application-defined storage supplies durability across process restarts.

@@ -544,8 +544,7 @@ local development increment and do not constitute a release or deployment.
 Block ID: **GP-505-050**.
 
 Choose `gramlot_py_server.kajennspa.Application` when a Kajenn application
-owns a browser visit and its tabs. This development adapter requires the Kajenn
-SPA branch and the Gramlot core with page lifecycle hooks. In a Kajenn
+owns a browser visit and its tabs. Install `gramlot-py-server[kajennspa]>=0.3.32` to select Kajenn 0.10.1 or later and Gramlot 0.3.41 or later. In a Kajenn
 configuration recipe, mount the application and point it at your pages folder:
 
 ```python

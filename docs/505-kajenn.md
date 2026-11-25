@@ -11,6 +11,8 @@ of a Kajenn site. It is a Kajenn `RoutedApplication`. The rules common to every
 adapter are in the [Introduction](005-introduction.md) and in
 [Writing pages for these hosts](010-writing-pages.md).
 
+To serve a session-backed SPA with typed routes alongside the pages, see section 050, “Keep a Gramlot page alive in a Kajenn SPA”. The two adapters have different page base classes.
+
 <a id="gp-505-005"></a>
 
 ## 005 · Install
@@ -400,12 +402,13 @@ python -m pip install "kajenn-db[django]"
 Declare it with Kajenn's configuration grammar:
 
 ```python
+from pathlib import Path
 from kajenn_db.asqueel import AsqueelDbHandler
 
 class Site(DefaultConfiguration):
     def applications_section(self, cfg):
         cfg.databases(handler_class=AsqueelDbHandler).database(
-            code="default", source="shop.xml",
+            code="default", source=str(Path(__file__).with_name("model.py")),
         )
         cfg.applications().application(
             code="pages", mount="pages", app_class=Application,
@@ -413,8 +416,7 @@ class Site(DefaultConfiguration):
         ).request(body="raw")
 ```
 
-`shop.xml` is an existing Asqueel model/configuration; migration remains a host
-administration operation. With `SqlAlchemyDbHandler`, declare `url` instead of
+Place the Asqueel Python recipe `model.py` beside the site configuration. Prepare its schema before serving requests. A standalone Python job can load the same recipe with `AsqueelDb` and open its own session. With `SqlAlchemyDbHandler`, declare `url` instead of
 `source`. With `DjangoDbHandler`, configure Django in the process and declare its
 `alias`. Multiple named databases may use different handler classes; select one
 with `self.db("name")` or `self.async_db("name")`.
